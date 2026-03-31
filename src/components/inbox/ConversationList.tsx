@@ -1,0 +1,62 @@
+"use client";
+
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { formatDistanceToNow } from "date-fns";
+import { es } from "date-fns/locale";
+
+interface ConversationListProps {
+    conversations: any[];
+    selectedId: string | null;
+    onSelect: (id: string) => void;
+}
+
+export function ConversationList({ conversations, selectedId, onSelect }: ConversationListProps) {
+    if (!conversations || conversations.length === 0) {
+        return (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+                No hay conversaciones activas
+            </div>
+        );
+    }
+
+    return (
+        <ScrollArea className="h-full">
+            <div className="flex flex-col gap-2 p-4">
+                {conversations.map((conv) => {
+                    const lastMessage = conv.last_message || conv.messages?.[conv.messages.length - 1];
+                    return (
+                        <button
+                            key={conv.id}
+                            onClick={() => onSelect(conv.id)}
+                            className={`flex flex-col items-start gap-2 rounded-lg border p-3 text-left text-sm transition-all hover:bg-[#74E79C]/5 ${
+                                selectedId === conv.id
+                                    ? "bg-[#74E79C]/10 border-[#74E79C] dark:bg-[#74E79C]/10 dark:border-[#74E79C]"
+                                    : "border-transparent hover:border-border"
+                            }`}
+                        >
+                            <div className="flex w-full flex-col gap-1">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Avatar className="h-8 w-8">
+                                            <AvatarFallback className="bg-[#1A3E35] text-white text-xs">
+                                                {conv.customer?.name?.substring(0,2).toUpperCase() || "C"}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="font-semibold">{conv.customer?.name || conv.customer?.phone}</div>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        {conv.updated_at ? formatDistanceToNow(new Date(conv.updated_at), { addSuffix: true, locale: es }) : ""}
+                                    </div>
+                                </div>
+                                <div className="text-xs text-muted-foreground line-clamp-1 ml-10">
+                                    {lastMessage?.content || conv.status.toUpperCase()}
+                                </div>
+                            </div>
+                        </button>
+                    );
+                })}
+            </div>
+        </ScrollArea>
+    );
+}
