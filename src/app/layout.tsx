@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MercaConnect — Tu negocio en WhatsApp, automatizado",
+  title: "MercaConnect — Tu negocio automatizado",
   description: "Conecta tu tienda con tus clientes a traves de WhatsApp. Pedidos, catalogo y atencion desde un solo panel.",
 };
 

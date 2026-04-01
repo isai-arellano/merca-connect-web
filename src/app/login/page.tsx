@@ -9,7 +9,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
     return (
@@ -26,6 +26,7 @@ function LoginForm() {
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
 
@@ -57,35 +58,25 @@ function LoginForm() {
     return (
         <div className="flex min-h-screen">
             {/* Left panel - branding */}
-            <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#1A3E35] via-[#1A3E35] to-[#245a4a] flex-col justify-between p-12">
-                <Link href="/">
-                    <Image
-                        src="/isologo-blanco.png"
-                        alt="MercaConnect"
-                        width={200}
-                        height={100}
-                        className="h-10 w-auto object-contain"
-                        priority
-                        unoptimized
-                    />
-                </Link>
+            <div className="hidden lg:flex lg:w-1/2 bg-[#74E79C] flex-col justify-between p-12">
+                <div></div>
 
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.2 }}
                 >
-                    <h2 className="text-3xl xl:text-4xl font-bold text-white leading-tight">
-                        Tu negocio en WhatsApp,{" "}
-                        <span className="text-[#74E79C]">automatizado</span>
+                    <h2 className="text-3xl xl:text-4xl font-bold text-[#1A3E35] leading-tight">
+                        Tu negocio, automatizado{" "}
+                        <span className="text-white">automatizado</span>
                     </h2>
-                    <p className="mt-4 text-white/70 text-lg max-w-md">
+                    <p className="mt-4 text-[#1A3E35]/70 text-lg max-w-md">
                         Gestiona pedidos, clientes y conversaciones desde un solo panel profesional.
                     </p>
                 </motion.div>
 
                 <div className="flex items-center gap-2">
-                    <span className="text-white/40 text-sm">Powered by</span>
+                    <span className="text-[#1A3E35]/60 text-sm">Powered by</span>
                     <a href="https://kolyn.io" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
                         <Image
                             src="/kolyn-logo.png"
@@ -95,7 +86,7 @@ function LoginForm() {
                             className="h-5 w-5"
                             unoptimized
                         />
-                        <span className="text-white/60 text-sm font-medium">Kolyn</span>
+                        <span className="text-[#1A3E35] text-sm font-medium">kolyn.io</span>
                     </a>
                 </div>
             </div>
@@ -110,15 +101,17 @@ function LoginForm() {
                 >
                     {/* Logo */}
                     <div className="flex justify-center mb-8">
-                        <Image
-                            src="/mc-green-light.png"
-                            alt="MercaConnect"
-                            width={240}
-                            height={160}
-                            className="w-48 h-auto object-contain"
-                            priority
-                            unoptimized
-                        />
+                        <Link href="/">
+                            <Image
+                                src="/images/isologo-principal.webp"
+                                alt="MercaConnect"
+                                width={140}
+                                height={60}
+                                className="w-28 h-auto object-contain"
+                                priority
+                                unoptimized
+                            />
+                        </Link>
                     </div>
 
                     <div className="bg-white rounded-2xl shadow-sm border border-[#74E79C]/20 p-8">
@@ -143,27 +136,41 @@ function LoginForm() {
                                 <Input
                                     id="email"
                                     type="email"
-                                    placeholder="admin@kolyn.io"
+                                    placeholder="email@email.com"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     required
-                                    className="h-11 border-gray-200 focus:border-[#74E79C] focus:ring-[#74E79C]"
+                                    className="h-11 border-gray-200 focus:border-[#74E79C] focus:ring-[#74E79C] placeholder:text-gray-400 rounded-full"
                                 />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="password" className="text-[#1A3E35]">Contrasena</Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
-                                    className="h-11 border-gray-200 focus:border-[#74E79C] focus:ring-[#74E79C]"
-                                />
+                                <div className="relative">
+                                    <Input
+                                        id="password"
+                                        type={showPassword ? "text" : "password"}
+                                        placeholder="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        required
+                                        className="h-11 border-gray-200 focus:border-[#74E79C] focus:ring-[#74E79C] pr-10 placeholder:text-gray-400 rounded-full"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#1A3E35] transition-colors"
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff className="h-5 w-5" />
+                                        ) : (
+                                            <Eye className="h-5 w-5" />
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                             <Button
                                 type="submit"
-                                className="w-full h-11 bg-[#1A3E35] hover:bg-[#1A3E35]/90 text-white font-semibold"
+                                className="w-full h-11 bg-[#1A3E35] hover:bg-[#1A3E35]/90 text-white font-semibold rounded-full"
                                 disabled={isLoading}
                             >
                                 {isLoading ? (
