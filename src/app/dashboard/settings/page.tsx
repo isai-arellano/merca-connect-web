@@ -20,11 +20,13 @@ import {
   ExternalLink,
   AlertCircle,
   CircleDot,
+  Bot,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
 import { BUSINESS_PHONE_ID } from "@/lib/business";
+import { AgentTab } from "@/components/settings/AgentTab";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -235,7 +237,7 @@ export default function SettingsPage() {
       {/* Tabs */}
       <motion.div variants={itemVariants}>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="negocio" className="gap-2">
               <Store className="h-4 w-4" />
               Negocio
@@ -247,6 +249,10 @@ export default function SettingsPage() {
             <TabsTrigger value="webhooks" className="gap-2">
               <Webhook className="h-4 w-4" />
               Webhooks
+            </TabsTrigger>
+            <TabsTrigger value="agente" className="gap-2">
+              <Bot className="h-4 w-4" />
+              Agente
             </TabsTrigger>
           </TabsList>
 
@@ -720,6 +726,17 @@ export default function SettingsPage() {
                     </div>
                   </CardContent>
                 </Card>
+              </motion.div>
+            </TabsContent>
+            {/* AGENTE TAB */}
+            <TabsContent value="agente" key="agente">
+              <motion.div
+                variants={tabContentVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <AgentTab />
               </motion.div>
             </TabsContent>
           </AnimatePresence>

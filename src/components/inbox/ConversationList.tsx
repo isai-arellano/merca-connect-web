@@ -1,7 +1,9 @@
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Bot } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -44,6 +46,23 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                                             </AvatarFallback>
                                         </Avatar>
                                         <div className="font-semibold">{conv.customer?.name || conv.customer?.phone}</div>
+                                        {conv.agent_enabled === true && conv.status === "handoff" && (
+                                            <Badge
+                                                variant="outline"
+                                                className="text-[10px] px-1.5 py-0 h-4 border-orange-400 text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10"
+                                            >
+                                                Humano
+                                            </Badge>
+                                        )}
+                                        {conv.agent_enabled === true && conv.status !== "handoff" && (
+                                            <Badge
+                                                variant="outline"
+                                                className="text-[10px] px-1.5 py-0 h-4 border-blue-400 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 gap-0.5"
+                                            >
+                                                <Bot className="h-2.5 w-2.5" />
+                                                IA
+                                            </Badge>
+                                        )}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
                                         {conv.updated_at ? formatDistanceToNow(new Date(conv.updated_at), { addSuffix: true, locale: es }) : ""}
