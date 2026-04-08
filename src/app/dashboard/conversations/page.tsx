@@ -30,14 +30,14 @@ export default function InboxPage() {
     // 1. Fetch de la lista de conversaciones
     const { data: conversationsResponse, isLoading: isLoadingList } = useSWR(
         session ? `${endpoints.conversations.list}?business_phone_id=${businessPhoneId}` : null,
-        { refreshInterval: 5000 } // Polling cada 5 segundos para nuevos mensajes
+        { refreshInterval: 15000 } // Polling cada 15 segundos para nuevos mensajes
     );
     const conversations = conversationsResponse?.data || [];
 
     // 2. Fetch de la conversación activa
     const { data: activeConversation, isLoading: isLoadingChat } = useSWR(
         selectedId && session ? `${endpoints.conversations.detail(selectedId)}?business_phone_id=${businessPhoneId}` : null,
-        { refreshInterval: 3000 } // Polling más rápido cuando estamos leyendo un chat
+        { refreshInterval: 8000 } // Polling cuando estamos leyendo un chat
     );
 
     const handleSend = async (e: React.FormEvent) => {
