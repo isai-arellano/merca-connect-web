@@ -164,7 +164,7 @@ export function ChatWindow({ conversationId, businessPhoneId }: ChatWindowProps)
     const { data: detailData, error, isLoading, mutate } = useSWR(
         `${endpoints.conversations.detail(conversationId)}?business_phone_id=${businessPhoneId}`,
         fetcher,
-        { refreshInterval: 5000 }
+        { refreshInterval: 8000 }
     );
 
     const { data: templatesResponse, isLoading: templatesLoading } = useSWR(

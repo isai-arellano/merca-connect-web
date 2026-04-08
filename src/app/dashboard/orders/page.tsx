@@ -647,7 +647,7 @@ export default function OrdersPage() {
     isLoading,
     mutate,
   } = useSWR(swrKey, {
-    refreshInterval: 10000,
+    refreshInterval: 30000,
   });
 
   const orders: Order[] = response?.data || [];
