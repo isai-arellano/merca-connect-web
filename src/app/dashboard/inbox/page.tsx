@@ -14,7 +14,7 @@ interface InboxConversation {
     id: string;
     customer?: {
         name?: string | null;
-        phone_number?: string | null;
+        phone?: string | null;
     } | null;
     last_message?: {
         content?: string;

@@ -13,7 +13,7 @@ interface ConversationListItemMessage {
 
 interface ConversationListItemCustomer {
     name?: string | null;
-    phone_number?: string | null;
+    phone?: string | null;
 }
 
 interface ConversationListItem {
@@ -64,7 +64,7 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                                                 {conv.customer?.name?.substring(0,2).toUpperCase() || "C"}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <div className="font-semibold">{conv.customer?.name || conv.customer?.phone_number}</div>
+                                        <div className="font-semibold">{conv.customer?.name || conv.customer?.phone}</div>
                                         {conv.agent_enabled === true && conv.status === "handoff" && (
                                             <Badge
                                                 variant="outline"
