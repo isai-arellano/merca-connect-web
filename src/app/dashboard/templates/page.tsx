@@ -93,6 +93,30 @@ interface MessageTemplate {
   components?: TemplateComponent[];
 }
 
+function getTemplateStatus(status?: string) {
+  if (!status) {
+    return statusConfig.PENDING;
+  }
+
+  return statusConfig[status] || statusConfig.PENDING;
+}
+
+function getTemplateCategoryLabel(category?: string) {
+  if (!category) {
+    return "Sin categoría";
+  }
+
+  return categoryLabels[category] || category;
+}
+
+function getTemplateBody(template: MessageTemplate) {
+  return (
+    template.body ||
+    template.components?.find((component) => component.type === "BODY")?.text ||
+    "Sin contenido"
+  );
+}
+
 export default function TemplatesPage() {
   const { data: session } = useSession();
   const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
@@ -312,10 +336,8 @@ export default function TemplatesPage() {
         >
           <AnimatePresence>
             {templates.map((template) => {
-              const status =
-                statusConfig[template.status] || statusConfig["PENDING"];
-              const category =
-                categoryLabels[template.category] || template.category;
+              const status = getTemplateStatus(template.status);
+              const category = getTemplateCategoryLabel(template.category);
 
               return (
                 <motion.div
@@ -349,9 +371,7 @@ export default function TemplatesPage() {
                     <CardContent>
                       <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground leading-relaxed">
                         <p className="line-clamp-3">
-                          {template.body ||
-                            template.components?.find((component) => component.type === "BODY")?.text ||
-                            "Sin contenido"}
+                          {getTemplateBody(template)}
                         </p>
                       </div>
                       <div className="flex items-center justify-end mt-3">
@@ -394,7 +414,6 @@ export default function TemplatesPage() {
           </Card>
         </motion.div>
       )}
-      {/* Preview Dialog */}
       <Dialog open={!!previewTemplate} onOpenChange={(open) => !open && setPreviewTemplate(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -403,7 +422,7 @@ export default function TemplatesPage() {
               Vista Previa: {previewTemplate?.name}
             </DialogTitle>
             <DialogDescription>
-              {categoryLabels[previewTemplate?.category] || previewTemplate?.category} &middot;{" "}
+              {previewTemplate ? getTemplateCategoryLabel(previewTemplate.category) : "Sin categoría"} &middot;{" "}
               {previewTemplate?.language || "es_MX"}
             </DialogDescription>
           </DialogHeader>
@@ -411,17 +430,15 @@ export default function TemplatesPage() {
             {/* WhatsApp-style message bubble */}
             <div className="bg-[#E7FDD8] dark:bg-emerald-900/30 rounded-xl rounded-tr-sm p-4 shadow-sm border border-emerald-200/50 dark:border-emerald-800/50">
               <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                {previewTemplate?.body ||
-                  previewTemplate?.components?.find((component) => component.type === "BODY")?.text ||
-                  "Sin contenido"}
+                {previewTemplate ? getTemplateBody(previewTemplate) : "Sin contenido"}
               </p>
               <p className="text-[10px] text-muted-foreground text-right mt-2">
                 12:00 p.m.
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant={statusConfig[previewTemplate?.status]?.variant || "secondary"}>
-                {statusConfig[previewTemplate?.status]?.label || "Pendiente"}
+              <Badge variant={getTemplateStatus(previewTemplate?.status).variant}>
+                {getTemplateStatus(previewTemplate?.status).label}
               </Badge>
             </div>
           </div>

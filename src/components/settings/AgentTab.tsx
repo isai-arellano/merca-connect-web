@@ -39,7 +39,24 @@ interface BusinessSettings {
   };
 }
 
-type SettingsResponse = { data?: BusinessSettings } | BusinessSettings | undefined;
+interface SettingsEnvelope {
+  data?: BusinessSettings;
+}
+
+type SettingsResponse = SettingsEnvelope | BusinessSettings | undefined;
+
+function isSettingsEnvelope(response: SettingsResponse): response is SettingsEnvelope {
+  return typeof response === "object" && response !== null && "data" in response;
+}
+
+function normalizeBusinessSettings(response: SettingsResponse): BusinessSettings {
+  if (!response) {
+    return {};
+  }
+
+  return isSettingsEnvelope(response) ? response.data || {} : response;
+}
+
 const TOOL_LABELS: Record<string, string> = {
   search_catalog: "Búsqueda de catálogo",
   create_order: "Crear pedido",
@@ -125,7 +142,7 @@ export function AgentTab() {
     { shouldRetryOnError: false }
   );
 
-  const settings: BusinessSettings = settingsRes?.data || settingsRes || {};
+  const settings = normalizeBusinessSettings(settingsRes);
   const agentEnabled: boolean = settings?.config?.agent_enabled ?? false;
 
   const agentConfig: AgentConfig | null =
@@ -140,7 +157,7 @@ export function AgentTab() {
     const newValue = !agentEnabled;
     mutateSettings(
       (prev: SettingsResponse) => {
-        const base = prev && "data" in prev ? prev.data || {} : prev || {};
+        const base = normalizeBusinessSettings(prev);
         return {
           ...prev,
           data: {
