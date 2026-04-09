@@ -17,7 +17,7 @@ import {
 
 import { endpoints } from "@/lib/api";
 import { fetcher } from "@/lib/api-client";
-import { getBusinessPhoneId, withBusinessPhoneId } from "@/lib/business";
+import { BUSINESS_PHONE_ID } from "@/lib/business";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -84,45 +84,18 @@ const orderStatuses = [
   { key: "cancelado", label: "Cancelados", color: "bg-red-500" },
 ];
 
-const chartSkeletonHeights = [96, 144, 112, 176, 128, 168, 120];
-
-type AnalyticsValue = number | string | null | undefined;
-
-interface DailyMessageData {
-  label: string;
-  sent: number;
-  received: number;
-}
-
-interface AnalyticsData {
-  messages_sent_today?: number;
-  messages_received_today?: number;
-  total_orders?: number;
-  orders_by_status?: Record<string, number>;
-  avg_response_time_minutes?: number;
-  min_response_time_minutes?: number;
-  max_response_time_minutes?: number;
-  messages_by_day?: DailyMessageData[];
-  [key: string]: AnalyticsValue | Record<string, number> | DailyMessageData[] | undefined;
-}
-
-interface AnalyticsResponse {
-  data?: AnalyticsData;
-}
-
 export default function AnalyticsPage() {
   const { data: session } = useSession();
-  const businessPhoneId = getBusinessPhoneId(session);
 
-  const { data: response, isLoading } = useSWR<AnalyticsResponse>(
-    session && businessPhoneId
-      ? withBusinessPhoneId(endpoints.analytics.overview, businessPhoneId)
+  const { data: response, isLoading } = useSWR(
+    session
+      ? `${endpoints.analytics.overview}?business_phone_id=${BUSINESS_PHONE_ID}`
       : null,
     fetcher,
     { refreshInterval: 30000 }
   );
 
-  const analytics: AnalyticsData = response?.data ?? {};
+  const analytics = response?.data || response || {};
 
   return (
     <motion.div
@@ -162,11 +135,6 @@ export default function AnalyticsPage() {
             const Icon = stat.icon;
             const value = analytics[stat.key] ?? stat.fallback;
             const change = analytics[`${stat.key}_change`];
-            const numericChange = typeof change === "number" ? change : undefined;
-            const displayValue =
-              typeof value === "number" || typeof value === "string"
-                ? value
-                : stat.fallback;
 
             return (
               <motion.div key={stat.key} variants={itemVariants}>
@@ -181,27 +149,25 @@ export default function AnalyticsPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-3xl font-bold text-foreground">
-                      {typeof displayValue === "number"
-                        ? displayValue.toLocaleString()
-                        : displayValue}
+                      {typeof value === "number" ? value.toLocaleString() : value}
                     </div>
-                    {numericChange !== undefined && (
+                    {change !== undefined && (
                       <p className="text-xs mt-1 flex items-center gap-1">
-                        {numericChange >= 0 ? (
+                        {change >= 0 ? (
                           <span className="text-emerald-500 flex items-center gap-0.5">
                             <ArrowUpRight className="h-3 w-3" />
-                            +{numericChange}%
+                            +{change}%
                           </span>
                         ) : (
                           <span className="text-red-500 flex items-center gap-0.5">
                             <ArrowDownRight className="h-3 w-3" />
-                            {numericChange}%
+                            {change}%
                           </span>
                         )}
                         <span className="text-muted-foreground">vs ayer</span>
                       </p>
                     )}
-                    {numericChange === undefined && (
+                    {change === undefined && (
                       <p className="text-xs text-muted-foreground mt-1">
                         Últimas 24 horas
                       </p>
@@ -217,8 +183,8 @@ export default function AnalyticsPage() {
       {/* Messages Over Time - Bar Chart */}
       <motion.div variants={itemVariants}>
         <WeeklyMessageChart
-          sentToday={typeof analytics.messages_sent_today === "number" ? analytics.messages_sent_today : 0}
-          receivedToday={typeof analytics.messages_received_today === "number" ? analytics.messages_received_today : 0}
+          sentToday={analytics.messages_sent_today ?? 0}
+          receivedToday={analytics.messages_received_today ?? 0}
           dailyData={analytics.messages_by_day}
           isLoading={isLoading}
         />
@@ -250,7 +216,7 @@ export default function AnalyticsPage() {
                   {orderStatuses.map((status) => {
                     const count =
                       analytics.orders_by_status?.[status.key] ?? 0;
-                    const total = analytics.total_orders ?? 1;
+                    const total = analytics.total_orders || 1;
                     const percentage = Math.round((count / total) * 100) || 0;
 
                     return (
@@ -391,7 +357,7 @@ function WeeklyMessageChart({
 }: {
   sentToday: number;
   receivedToday: number;
-  dailyData?: DailyMessageData[];
+  dailyData?: { label: string; sent: number; received: number }[];
   isLoading: boolean;
 }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
@@ -445,7 +411,7 @@ function WeeklyMessageChart({
               <div key={i} className="flex-1 flex flex-col items-center gap-2">
                 <Skeleton
                   className="w-full rounded-t-md"
-                  style={{ height: `${chartSkeletonHeights[i]}px` }}
+                  style={{ height: `${80 + Math.random() * 120}px` }}
                 />
                 <Skeleton className="h-3 w-8" />
               </div>

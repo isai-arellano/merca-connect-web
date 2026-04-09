@@ -25,7 +25,7 @@ import {
 
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
-import { getBusinessPhoneId, withBusinessPhoneId } from "@/lib/business";
+import { BUSINESS_PHONE_ID } from "@/lib/business";
 import { AgentTab } from "@/components/settings/AgentTab";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -61,38 +61,8 @@ const tabContentVariants: Variants = {
   exit: { opacity: 0, x: -10, transition: { duration: 0.15 } },
 };
 
-interface BusinessSettingsData {
-  name?: string;
-  address?: string;
-  phone?: string;
-  hours?: string;
-  description?: string;
-  config?: {
-    agent_enabled?: boolean;
-  };
-}
-
-interface BusinessSettingsResponse {
-  data?: BusinessSettingsData;
-}
-
-interface WhatsAppProfileData {
-  about?: string;
-  address?: string;
-  category?: string;
-  description?: string;
-  profile_picture_url?: string;
-  verified_name?: string;
-  websites?: string[] | string;
-}
-
-interface WhatsAppProfileResponse {
-  data?: WhatsAppProfileData;
-}
-
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const businessPhoneId = getBusinessPhoneId(session);
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("negocio");
   const [saving, setSaving] = useState(false);
@@ -105,9 +75,9 @@ export default function SettingsPage() {
     data: settingsRes,
     isLoading: settingsLoading,
     mutate: mutateSettings,
-  } = useSWR<BusinessSettingsResponse>(
-    session && businessPhoneId
-      ? withBusinessPhoneId(endpoints.business.settings, businessPhoneId)
+  } = useSWR(
+    session
+      ? `${endpoints.business.settings}?business_phone_id=${BUSINESS_PHONE_ID}`
       : null,
     fetcher
   );
@@ -117,15 +87,15 @@ export default function SettingsPage() {
     data: waProfileRes,
     isLoading: waLoading,
     mutate: mutateWaProfile,
-  } = useSWR<WhatsAppProfileResponse>(
-    session && businessPhoneId
-      ? withBusinessPhoneId(endpoints.business.whatsappProfile, businessPhoneId)
+  } = useSWR(
+    session
+      ? `${endpoints.business.whatsappProfile}?business_phone_id=${BUSINESS_PHONE_ID}`
       : null,
     fetcher
   );
 
-  const settings: BusinessSettingsData = settingsRes?.data ?? {};
-  const waProfile: WhatsAppProfileData = waProfileRes?.data ?? {};
+  const settings = settingsRes?.data || settingsRes || {};
+  const waProfile = waProfileRes?.data || waProfileRes || {};
 
   // Business form state
   const [businessForm, setBusinessForm] = useState({
@@ -170,15 +140,10 @@ export default function SettingsPage() {
   }, [waProfile]);
 
   const handleSaveSettings = async () => {
-    if (!businessPhoneId) {
-      setSaveError("No se pudo identificar el negocio autenticado.");
-      return;
-    }
-
     setSaving(true);
     try {
       await apiClient.patch(
-        withBusinessPhoneId(endpoints.business.settings, businessPhoneId),
+        `${endpoints.business.settings}?business_phone_id=${BUSINESS_PHONE_ID}`,
         businessForm
       );
       mutateSettings();
@@ -203,15 +168,10 @@ export default function SettingsPage() {
   };
 
   const handleSaveWaProfile = async () => {
-    if (!businessPhoneId) {
-      setSaveError("No se pudo identificar el negocio autenticado.");
-      return;
-    }
-
     setSaving(true);
     try {
       await apiClient.patch(
-        withBusinessPhoneId(endpoints.business.whatsappProfile, businessPhoneId),
+        `${endpoints.business.whatsappProfile}?business_phone_id=${BUSINESS_PHONE_ID}`,
         {
           ...waForm,
           websites: waForm.websites

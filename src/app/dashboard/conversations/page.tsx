@@ -11,60 +11,32 @@ import { motion, AnimatePresence } from "framer-motion";
 import { endpoints } from "@/lib/api";
 import { apiClient } from "@/lib/api-client";
 import { useSession } from "next-auth/react";
-import { getBusinessPhoneId, withBusinessPhoneId } from "@/lib/business";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-interface ConversationMessage {
-    id: string;
-    content: string;
-    created_at: string;
-    direction: "inbound" | "outbound";
-}
-
-interface ConversationCustomer {
-    name?: string | null;
-    phone_number?: string | null;
-}
-
-interface ConversationSummary {
-    id: string;
-    customer?: ConversationCustomer | null;
-    messages: ConversationMessage[];
-}
-
-interface ConversationListResponse {
-    data: ConversationSummary[];
-}
-
-interface ConversationDetailResponse {
-    customer?: ConversationCustomer | null;
-    messages: ConversationMessage[];
-}
-
 export default function InboxPage() {
     const { data: session } = useSession();
-    const businessPhoneId = getBusinessPhoneId(session);
+    // TODO: Obtener del usuario logueado en un futuro
+    const businessPhoneId = "1039767285877200";
 
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [replyText, setReplyText] = useState("");
     const [isSending, setIsSending] = useState(false);
 
     const { mutate } = useSWRConfig();
-    const conversationsUrl = businessPhoneId ? withBusinessPhoneId(endpoints.conversations.list, businessPhoneId) : null;
 
-    const { data: conversationsResponse, isLoading: isLoadingList } = useSWR<ConversationListResponse>(
-        session && conversationsUrl ? conversationsUrl : null,
+    // 1. Fetch de la lista de conversaciones
+    const { data: conversationsResponse, isLoading: isLoadingList } = useSWR(
+        session ? `${endpoints.conversations.list}?business_phone_id=${businessPhoneId}` : null,
         { refreshInterval: 15000 } // Polling cada 15 segundos para nuevos mensajes
     );
-    const conversations = conversationsResponse?.data ?? [];
+    const conversations = conversationsResponse?.data || [];
 
-    const { data: activeConversation, isLoading: isLoadingChat } = useSWR<ConversationDetailResponse>(
-        selectedId && session && businessPhoneId
-            ? withBusinessPhoneId(endpoints.conversations.detail(selectedId), businessPhoneId)
-            : null,
+    // 2. Fetch de la conversación activa
+    const { data: activeConversation, isLoading: isLoadingChat } = useSWR(
+        selectedId && session ? `${endpoints.conversations.detail(selectedId)}?business_phone_id=${businessPhoneId}` : null,
         { refreshInterval: 8000 } // Polling cuando estamos leyendo un chat
     );
 
@@ -74,19 +46,15 @@ export default function InboxPage() {
 
         setIsSending(true);
         try {
-            if (!businessPhoneId) {
-                throw new Error("No se pudo identificar el negocio autenticado.");
-            }
-
             await apiClient.post(
-                withBusinessPhoneId(endpoints.conversations.reply(selectedId), businessPhoneId),
+                `${endpoints.conversations.reply(selectedId)}?business_phone_id=${businessPhoneId}`,
                 { text: replyText }
             );
             setReplyText("");
-            mutate(withBusinessPhoneId(endpoints.conversations.detail(selectedId), businessPhoneId));
-            if (conversationsUrl) {
-                mutate(conversationsUrl);
-            }
+            // Refrescar inmediatamente el chat activo
+            mutate(`${endpoints.conversations.detail(selectedId)}?business_phone_id=${businessPhoneId}`);
+            // Refrescar al mismo tiempo la lista de la izquierda
+            mutate(`${endpoints.conversations.list}?business_phone_id=${businessPhoneId}`);
         } catch (error) {
             console.error("Error al enviar el mensaje:", error);
         } finally {
@@ -116,7 +84,7 @@ export default function InboxPage() {
                         </div>
                     ) : (
                         <div className="flex flex-col">
-                            {conversations.map((conv) => {
+                            {conversations.map((conv: any) => {
                                 const isActive = selectedId === conv.id;
                                 const lastMessage = conv.messages && conv.messages.length > 0
                                     ? conv.messages[conv.messages.length - 1]
@@ -190,7 +158,7 @@ export default function InboxPage() {
                         <ScrollArea className="flex-1 p-6 bg-zinc-50/50 dark:bg-zinc-950/20">
                             <div className="flex flex-col gap-4">
                                 <AnimatePresence initial={false}>
-                                    {activeConversation.messages.map((msg) => {
+                                    {activeConversation.messages.map((msg: any) => {
                                         const isInbound = msg.direction === "inbound";
                                         return (
                                             <motion.div

@@ -17,7 +17,7 @@ import {
 
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
-import { getBusinessPhoneId, withBusinessPhoneId } from "@/lib/business";
+import { BUSINESS_PHONE_ID } from "@/lib/business";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -78,54 +78,28 @@ const categoryLabels: Record<string, string> = {
   authentication: "Autenticación",
 };
 
-interface TemplateComponent {
-  type: string;
-  text?: string;
-}
-
-interface Template {
-  id?: string;
-  name: string;
-  status: string;
-  category: string;
-  language?: string;
-  body?: string;
-  components?: TemplateComponent[];
-}
-
-interface TemplateListResponse {
-  data?: Template[];
-}
-
 export default function TemplatesPage() {
   const { data: session } = useSession();
-  const businessPhoneId = getBusinessPhoneId(session);
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<any>(null);
 
-  const { data: response, isLoading, mutate } = useSWR<TemplateListResponse | Template[]>(
-    session && businessPhoneId
-      ? withBusinessPhoneId(endpoints.templates.list, businessPhoneId)
-      : null,
+  const { data: response, isLoading, mutate } = useSWR(
+    session ? `${endpoints.templates.list}?business_phone_id=${BUSINESS_PHONE_ID}` : null,
     fetcher
   );
 
-  const templates = Array.isArray(response) ? response : response?.data ?? [];
+  const templates = response?.data || response || [];
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setCreating(true);
     const formData = new FormData(e.currentTarget);
     try {
-      if (!businessPhoneId) {
-        throw new Error("No se pudo identificar el negocio autenticado.");
-      }
-
       await apiClient.post(
-        withBusinessPhoneId(endpoints.templates.create, businessPhoneId),
+        `${endpoints.templates.create}?business_phone_id=${BUSINESS_PHONE_ID}`,
         {
           name: formData.get("name"),
           category: formData.get("category"),
@@ -321,7 +295,7 @@ export default function TemplatesPage() {
           }
         >
           <AnimatePresence>
-            {templates.map((template) => {
+            {templates.map((template: any) => {
               const status =
                 statusConfig[template.status] || statusConfig["PENDING"];
               const category =
@@ -360,7 +334,9 @@ export default function TemplatesPage() {
                       <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground leading-relaxed">
                         <p className="line-clamp-3">
                           {template.body ||
-                            template.components?.find((component) => component.type === "BODY")?.text ||
+                            template.components?.find(
+                              (c: any) => c.type === "BODY"
+                            )?.text ||
                             "Sin contenido"}
                         </p>
                       </div>
@@ -422,7 +398,9 @@ export default function TemplatesPage() {
             <div className="bg-[#E7FDD8] dark:bg-emerald-900/30 rounded-xl rounded-tr-sm p-4 shadow-sm border border-emerald-200/50 dark:border-emerald-800/50">
               <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                 {previewTemplate?.body ||
-                  previewTemplate?.components?.find((component) => component.type === "BODY")?.text ||
+                  previewTemplate?.components?.find(
+                    (c: any) => c.type === "BODY"
+                  )?.text ||
                   "Sin contenido"}
               </p>
               <p className="text-[10px] text-muted-foreground text-right mt-2">
