@@ -105,6 +105,12 @@ export default function TemplatesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
+  const previewCategory = previewTemplate?.category;
+  const previewCategoryLabel = previewCategory
+    ? (categoryLabels[previewCategory] ?? previewCategory)
+    : undefined;
+  const previewStatus = previewTemplate?.status;
+  const previewStatusConfig = previewStatus ? statusConfig[previewStatus] : undefined;
 
   const { data: response, isLoading, mutate } = useSWR<TemplateListResponse | Template[]>(
     session && businessPhoneId
@@ -413,7 +419,7 @@ export default function TemplatesPage() {
               Vista Previa: {previewTemplate?.name}
             </DialogTitle>
             <DialogDescription>
-              {categoryLabels[previewTemplate?.category] || previewTemplate?.category} &middot;{" "}
+              {previewCategoryLabel} &middot;{" "}
               {previewTemplate?.language || "es_MX"}
             </DialogDescription>
           </DialogHeader>
@@ -430,8 +436,8 @@ export default function TemplatesPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant={statusConfig[previewTemplate?.status]?.variant || "secondary"}>
-                {statusConfig[previewTemplate?.status]?.label || "Pendiente"}
+              <Badge variant={previewStatusConfig?.variant || "secondary"}>
+                {previewStatusConfig?.label || "Pendiente"}
               </Badge>
             </div>
           </div>
