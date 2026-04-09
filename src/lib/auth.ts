@@ -2,6 +2,18 @@ import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { endpoints } from "./api";
 
+interface LoginResponse {
+    access_token?: string;
+    user?: {
+        id: string;
+        name?: string | null;
+        email?: string | null;
+        business_id?: string | null;
+        business_phone_id?: string | null;
+        business_name?: string | null;
+    };
+}
+
 export const authOptions: NextAuthOptions = {
     providers: [
         CredentialsProvider({
@@ -16,7 +28,6 @@ export const authOptions: NextAuthOptions = {
                 }
 
                 try {
-                    // Send form-urlencoded data as required by OAuth2PasswordRequestForm in FastAPI
                     const formData = new URLSearchParams();
                     formData.append("username", credentials.email);
                     formData.append("password", credentials.password);
@@ -33,18 +44,20 @@ export const authOptions: NextAuthOptions = {
                         return null;
                     }
 
-                    const data = await res.json();
-                    const token = data.access_token;
+                    const data: LoginResponse = await res.json();
+                    const accessToken = data.access_token;
+                    const user = data.user;
 
-                    if (!token) return null;
+                    if (!accessToken || !user) return null;
 
-                    // En un sistema real aquí decodificas el JWT para sacar info del usuario,
-                    // o haces un Fetch a /users/me para traer el nombre/email. 
-                    // Por simplicidad, retornamos el token embebido.
                     return {
-                        id: credentials.email, // placeholder
-                        email: credentials.email,
-                        accessToken: token,
+                        id: user.id,
+                        name: user.name ?? undefined,
+                        email: user.email ?? undefined,
+                        accessToken,
+                        businessId: user.business_id ?? null,
+                        businessPhoneId: user.business_phone_id ?? null,
+                        businessName: user.business_name ?? null,
                     };
                 } catch (e) {
                     console.error("Auth error:", e);
@@ -59,15 +72,28 @@ export const authOptions: NextAuthOptions = {
     },
     callbacks: {
         async jwt({ token, user }) {
-            // Si el usuario acaba de hacer login, metemos el accessToken al token nativo de NextAuth
             if (user) {
-                token.accessToken = (user as any).accessToken;
+                token.accessToken = user.accessToken;
+                token.businessId = user.businessId ?? null;
+                token.businessPhoneId = user.businessPhoneId ?? null;
+                token.businessName = user.businessName ?? null;
             }
+
             return token;
         },
         async session({ session, token }) {
-            // Exponemos el accessToken en la sesión para que el frontend pueda sacarlo y mandarlo al backend API
-            (session as any).accessToken = token.accessToken;
+            session.user = {
+                ...session.user,
+                id: token.sub,
+                businessId: token.businessId ?? null,
+                businessPhoneId: token.businessPhoneId ?? null,
+                businessName: token.businessName ?? null,
+            };
+            session.accessToken = token.accessToken;
+            session.businessId = token.businessId ?? null;
+            session.businessPhoneId = token.businessPhoneId ?? null;
+            session.businessName = token.businessName ?? null;
+
             return session;
         },
     },

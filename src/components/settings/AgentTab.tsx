@@ -6,7 +6,10 @@ import { Bot, Wrench, Loader2, AlertCircle, BotOff } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
-import { BUSINESS_PHONE_ID } from "@/lib/business";
+import {
+  getSessionBusinessContext,
+  getSessionBusinessId,
+} from "@/lib/business";
 import { useToast } from "@/hooks/use-toast";
 import {
   Card,
@@ -19,8 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
-
-// ─── Types ───────────────────────────────────────────────────────────────────
+import { useSession } from "next-auth/react";
 
 interface AgentConfig {
   id: string;
@@ -37,9 +39,7 @@ interface BusinessSettings {
   };
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Human-readable tool names */
+type SettingsResponse = { data?: BusinessSettings } | BusinessSettings | undefined;
 const TOOL_LABELS: Record<string, string> = {
   search_catalog: "Búsqueda de catálogo",
   create_order: "Crear pedido",
@@ -56,8 +56,6 @@ const AGENT_TYPE_LABELS: Record<string, string> = {
   scheduling: "Agente de agenda",
   support: "Agente de soporte",
 };
-
-// ─── Toggle Component ─────────────────────────────────────────────────────────
 
 function ToggleSwitch({
   checked,
@@ -94,32 +92,29 @@ function ToggleSwitch({
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-
 export function AgentTab() {
+  const { data: session } = useSession();
+  const sessionBusinessId = getSessionBusinessId(session);
+  const { businessPhoneId: sessionBusinessPhoneId } =
+    getSessionBusinessContext(session);
   const { toast } = useToast();
   const [toggling, setToggling] = useState(false);
 
-  // Fetch business settings to read current agent_enabled state
   const {
     data: settingsRes,
     isLoading: settingsLoading,
     mutate: mutateSettings,
   } = useSWR(
-    `${endpoints.business.settings}?business_phone_id=${BUSINESS_PHONE_ID}`,
+    sessionBusinessPhoneId ? endpoints.business.settings : null,
     fetcher
   );
 
-  // Fetch agent config from kolyn-agents
   const {
     data: agentConfigsRes,
     isLoading: agentLoading,
   } = useSWR(
-    endpoints.agents.config(
-      (settingsRes?.data || settingsRes)?.id || ""
-    ),
-    // Use a no-auth fetcher — kolyn-agents uses X-Gateway-Key, not JWT.
-    // For now we fetch without auth; if kolyn-agents is down, we show placeholder.
+    sessionBusinessId ? endpoints.agents.config(sessionBusinessId) : null,
+    // Kolyn Agents usa llave interna, no la sesión del panel.
     (url: string) =>
       fetch(url)
         .then((r) => {
@@ -133,7 +128,6 @@ export function AgentTab() {
   const settings: BusinessSettings = settingsRes?.data || settingsRes || {};
   const agentEnabled: boolean = settings?.config?.agent_enabled ?? false;
 
-  // agentConfigsRes is an array (list endpoint filtered by business_id)
   const agentConfig: AgentConfig | null =
     Array.isArray(agentConfigsRes) && agentConfigsRes.length > 0
       ? agentConfigsRes[0]
@@ -143,11 +137,10 @@ export function AgentTab() {
     if (toggling) return;
     setToggling(true);
 
-    // Optimistic update
     const newValue = !agentEnabled;
     mutateSettings(
-      (prev: any) => {
-        const base = prev?.data || prev || {};
+      (prev: SettingsResponse) => {
+        const base = prev && "data" in prev ? prev.data || {} : prev || {};
         return {
           ...prev,
           data: {
@@ -162,17 +155,15 @@ export function AgentTab() {
     try {
       await apiClient.patch(endpoints.business.agentToggle, {
         agent_enabled: newValue,
-        business_phone_id: BUSINESS_PHONE_ID,
       });
-      mutateSettings(); // revalidate from server
+      mutateSettings();
       toast({
         title: newValue ? "Agente IA activado" : "Agente IA desactivado",
         description: newValue
           ? "El agente de IA atenderá las conversaciones automáticamente."
           : "Las conversaciones serán atendidas manualmente.",
       });
-    } catch (err) {
-      // Revert optimistic update on error
+    } catch {
       mutateSettings();
       toast({
         title: "Error al cambiar el estado",

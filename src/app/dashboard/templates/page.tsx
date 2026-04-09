@@ -17,7 +17,7 @@ import {
 
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
-import { BUSINESS_PHONE_ID } from "@/lib/business";
+import { getSessionBusinessPhoneId } from "@/lib/business";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -78,20 +78,36 @@ const categoryLabels: Record<string, string> = {
   authentication: "Autenticación",
 };
 
+interface TemplateComponent {
+  type?: string;
+  text?: string;
+}
+
+interface MessageTemplate {
+  id?: string;
+  name: string;
+  status?: string;
+  category?: string;
+  language?: string;
+  body?: string;
+  components?: TemplateComponent[];
+}
+
 export default function TemplatesPage() {
   const { data: session } = useSession();
+  const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [previewTemplate, setPreviewTemplate] = useState<any>(null);
+  const [previewTemplate, setPreviewTemplate] = useState<MessageTemplate | null>(null);
 
   const { data: response, isLoading, mutate } = useSWR(
-    session ? `${endpoints.templates.list}?business_phone_id=${BUSINESS_PHONE_ID}` : null,
+    session && sessionBusinessPhoneId ? endpoints.templates.list : null,
     fetcher
   );
 
-  const templates = response?.data || response || [];
+  const templates = (response?.data || response || []) as MessageTemplate[];
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -99,7 +115,7 @@ export default function TemplatesPage() {
     const formData = new FormData(e.currentTarget);
     try {
       await apiClient.post(
-        `${endpoints.templates.create}?business_phone_id=${BUSINESS_PHONE_ID}`,
+        endpoints.templates.create,
         {
           name: formData.get("name"),
           category: formData.get("category"),
@@ -295,7 +311,7 @@ export default function TemplatesPage() {
           }
         >
           <AnimatePresence>
-            {templates.map((template: any) => {
+            {templates.map((template) => {
               const status =
                 statusConfig[template.status] || statusConfig["PENDING"];
               const category =
@@ -334,9 +350,7 @@ export default function TemplatesPage() {
                       <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground leading-relaxed">
                         <p className="line-clamp-3">
                           {template.body ||
-                            template.components?.find(
-                              (c: any) => c.type === "BODY"
-                            )?.text ||
+                            template.components?.find((component) => component.type === "BODY")?.text ||
                             "Sin contenido"}
                         </p>
                       </div>
@@ -398,9 +412,7 @@ export default function TemplatesPage() {
             <div className="bg-[#E7FDD8] dark:bg-emerald-900/30 rounded-xl rounded-tr-sm p-4 shadow-sm border border-emerald-200/50 dark:border-emerald-800/50">
               <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
                 {previewTemplate?.body ||
-                  previewTemplate?.components?.find(
-                    (c: any) => c.type === "BODY"
-                  )?.text ||
+                  previewTemplate?.components?.find((component) => component.type === "BODY")?.text ||
                   "Sin contenido"}
               </p>
               <p className="text-[10px] text-muted-foreground text-right mt-2">

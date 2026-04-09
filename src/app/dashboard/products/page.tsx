@@ -11,7 +11,18 @@ import { ProductDialog } from "@/components/products/product-dialog";
 import { motion, Variants } from "framer-motion";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
-import { BUSINESS_PHONE_ID } from "@/lib/business";
+import { getSessionBusinessPhoneId } from "@/lib/business";
+
+interface Product {
+    id: string;
+    name: string;
+    category_id?: string | null;
+    price: string | number;
+    stock?: number | null;
+    barcode?: string | null;
+    ingredients?: string | null;
+    preparation_time_min?: number | null;
+}
 
 const containerVariants: Variants = {
     hidden: { opacity: 0, y: 15 },
@@ -27,20 +38,16 @@ export default function ProductsPage() {
     const { data: session } = useSession();
     const [searchTerm, setSearchTerm] = useState("");
 
-    // TODO: Obtener del usuario logueado
-    const businessPhoneId = BUSINESS_PHONE_ID;
+    const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
 
-    // En un caso real, la API te dice qué tipo de industria es el usuario.
-    // Por defecto, simularemos que es "abarrotera".
     const currentIndustry: IndustryType = "abarrotera";
     const config = INDUSTRIES[currentIndustry];
 
-    // Solo hacer fetch si hay sesión
-    const { data: response, error, isLoading } = useSWR(
-        session ? `${endpoints.products.list}?business_phone_id=${businessPhoneId}` : null
+    const { data: response, isLoading } = useSWR(
+        session && sessionBusinessPhoneId ? endpoints.products.list : null
     );
 
-    const products = response?.data || [];
+    const products = (response?.data || []) as Product[];
 
     return (
         <motion.div
@@ -114,7 +121,7 @@ export default function ProductsPage() {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            products.map((product: any) => (
+                            products.map((product) => (
                                 <TableRow key={product.id} className="border-border hover:bg-muted/50 transition-colors">
                                     <TableCell className="font-medium">{product.name}</TableCell>
                                     <TableCell className="text-muted-foreground">{product.category_id || "Sin Categoría"}</TableCell>
