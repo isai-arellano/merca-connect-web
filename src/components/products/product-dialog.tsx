@@ -11,7 +11,6 @@ import { useSWRConfig } from "swr";
 import { endpoints } from "@/lib/api";
 import { apiClient } from "@/lib/api-client";
 import { Loader2 } from "lucide-react";
-import { BUSINESS_PHONE_ID } from "@/lib/business";
 
 interface ProductDialogProps {
     children: React.ReactNode;
@@ -40,11 +39,9 @@ export function ProductDialog({ children, config, industry }: ProductDialogProps
         };
 
         try {
-            const businessPhoneId = BUSINESS_PHONE_ID;
-            await apiClient.post(`${endpoints.products.list}?business_phone_id=${businessPhoneId}`, newProduct);
+            await apiClient.post(endpoints.products.list, newProduct);
 
-            // Refrescar el caché SWR
-            await mutate(`${endpoints.products.list}?business_phone_id=${businessPhoneId}`);
+            await mutate(endpoints.products.list);
 
             setOpen(false);
         } catch (error) {

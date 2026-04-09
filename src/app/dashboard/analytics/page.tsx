@@ -17,7 +17,7 @@ import {
 
 import { endpoints } from "@/lib/api";
 import { fetcher } from "@/lib/api-client";
-import { BUSINESS_PHONE_ID } from "@/lib/business";
+import { getSessionBusinessPhoneId } from "@/lib/business";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -84,18 +84,35 @@ const orderStatuses = [
   { key: "cancelado", label: "Cancelados", color: "bg-red-500" },
 ];
 
+const chartSkeletonHeights = [96, 164, 128, 182, 144, 116, 156];
+
 export default function AnalyticsPage() {
   const { data: session } = useSession();
+  const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
 
   const { data: response, isLoading } = useSWR(
-    session
-      ? `${endpoints.analytics.overview}?business_phone_id=${BUSINESS_PHONE_ID}`
-      : null,
+    session && sessionBusinessPhoneId ? endpoints.analytics.overview : null,
     fetcher,
     { refreshInterval: 30000 }
   );
 
   const analytics = response?.data || response || {};
+  const messageStats = analytics.messages || {};
+  const ordersByStatus =
+    (analytics.orders_by_status as Record<string, number | string | null | undefined>) || {};
+  const totalOrders = Object.values(ordersByStatus).reduce(
+    (sum, count) => sum + Number(count || 0),
+    0
+  );
+  const avgResponseMinutes = analytics.avg_response_time_seconds
+    ? Math.round((analytics.avg_response_time_seconds / 60) * 10) / 10
+    : null;
+  const fastestResponseMinutes = analytics.min_response_time_seconds
+    ? Math.round((analytics.min_response_time_seconds / 60) * 10) / 10
+    : null;
+  const slowestResponseMinutes = analytics.max_response_time_seconds
+    ? Math.round((analytics.max_response_time_seconds / 60) * 10) / 10
+    : null;
 
   return (
     <motion.div
@@ -183,8 +200,8 @@ export default function AnalyticsPage() {
       {/* Messages Over Time - Bar Chart */}
       <motion.div variants={itemVariants}>
         <WeeklyMessageChart
-          sentToday={analytics.messages_sent_today ?? 0}
-          receivedToday={analytics.messages_received_today ?? 0}
+          sentToday={messageStats.sent_today ?? 0}
+          receivedToday={messageStats.received_today ?? 0}
           dailyData={analytics.messages_by_day}
           isLoading={isLoading}
         />
@@ -215,8 +232,8 @@ export default function AnalyticsPage() {
                 <>
                   {orderStatuses.map((status) => {
                     const count =
-                      analytics.orders_by_status?.[status.key] ?? 0;
-                    const total = analytics.total_orders || 1;
+                      ordersByStatus[status.key] ?? 0;
+                    const total = totalOrders || 1;
                     const percentage = Math.round((count / total) * 100) || 0;
 
                     return (
@@ -248,7 +265,7 @@ export default function AnalyticsPage() {
                   <Separator className="my-2" />
                   <div className="flex items-center justify-between text-sm font-semibold">
                     <span>Total</span>
-                    <span>{analytics.total_orders ?? 0}</span>
+                    <span>{totalOrders}</span>
                   </div>
                 </>
               )}
@@ -281,7 +298,7 @@ export default function AnalyticsPage() {
                       Promedio de Respuesta
                     </p>
                     <p className="text-4xl font-bold text-foreground tabular-nums">
-                      {analytics.avg_response_time_minutes ?? "—"}
+                      {avgResponseMinutes ?? "—"}
                       <span className="text-lg font-normal text-muted-foreground ml-1">
                         min
                       </span>
@@ -297,7 +314,7 @@ export default function AnalyticsPage() {
                         Más Rápido
                       </p>
                       <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
-                        {analytics.min_response_time_minutes ?? "—"}
+                        {fastestResponseMinutes ?? "—"}
                         <span className="text-xs font-normal ml-0.5">min</span>
                       </p>
                     </div>
@@ -306,7 +323,7 @@ export default function AnalyticsPage() {
                         Más Lento
                       </p>
                       <p className="text-xl font-bold text-amber-600 dark:text-amber-400 tabular-nums">
-                        {analytics.max_response_time_minutes ?? "—"}
+                        {slowestResponseMinutes ?? "—"}
                         <span className="text-xs font-normal ml-0.5">min</span>
                       </p>
                     </div>
@@ -407,11 +424,11 @@ function WeeklyMessageChart({
       <CardContent>
         {isLoading ? (
           <div className="h-[260px] flex items-end gap-3 px-2">
-            {[...Array(7)].map((_, i) => (
+            {chartSkeletonHeights.map((height, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-2">
                 <Skeleton
                   className="w-full rounded-t-md"
-                  style={{ height: `${80 + Math.random() * 120}px` }}
+                  style={{ height: `${height}px` }}
                 />
                 <Skeleton className="h-3 w-8" />
               </div>

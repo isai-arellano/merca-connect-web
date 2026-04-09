@@ -5,7 +5,6 @@ import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import {
-  Settings,
   Store,
   MessageCircle,
   Webhook,
@@ -25,7 +24,7 @@ import {
 
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
-import { BUSINESS_PHONE_ID } from "@/lib/business";
+import { getSessionBusinessPhoneId } from "@/lib/business";
 import { AgentTab } from "@/components/settings/AgentTab";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -63,6 +62,7 @@ const tabContentVariants: Variants = {
 
 export default function SettingsPage() {
   const { data: session } = useSession();
+  const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("negocio");
   const [saving, setSaving] = useState(false);
@@ -77,7 +77,8 @@ export default function SettingsPage() {
     mutate: mutateSettings,
   } = useSWR(
     session
-      ? `${endpoints.business.settings}?business_phone_id=${BUSINESS_PHONE_ID}`
+      && sessionBusinessPhoneId
+      ? endpoints.business.settings
       : null,
     fetcher
   );
@@ -89,7 +90,8 @@ export default function SettingsPage() {
     mutate: mutateWaProfile,
   } = useSWR(
     session
-      ? `${endpoints.business.whatsappProfile}?business_phone_id=${BUSINESS_PHONE_ID}`
+      && sessionBusinessPhoneId
+      ? endpoints.business.whatsappProfile
       : null,
     fetcher
   );
@@ -143,7 +145,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await apiClient.patch(
-        `${endpoints.business.settings}?business_phone_id=${BUSINESS_PHONE_ID}`,
+        endpoints.business.settings,
         businessForm
       );
       mutateSettings();
@@ -171,7 +173,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await apiClient.patch(
-        `${endpoints.business.whatsappProfile}?business_phone_id=${BUSINESS_PHONE_ID}`,
+        endpoints.business.whatsappProfile,
         {
           ...waForm,
           websites: waForm.websites

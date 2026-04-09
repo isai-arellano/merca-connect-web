@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import useSWR from "swr";
 import { format, formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { endpoints } from "@/lib/api";
 import { apiClient } from "@/lib/api-client";
-import { BUSINESS_PHONE_ID } from "@/lib/business";
+import { getSessionBusinessPhoneId } from "@/lib/business";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -14,7 +14,6 @@ import {
   CheckCircle2,
   Package,
   Truck,
-  Loader2,
   AlertCircle,
   XCircle,
   LayoutGrid,
@@ -22,7 +21,6 @@ import {
   RefreshCw,
   MapPin,
   ShoppingCart,
-  ChevronDown,
   ArrowUpDown,
   Eye,
 } from "lucide-react";
@@ -495,39 +493,43 @@ function OrderDetailDialog({
 // Table View
 // ---------------------------------------------------------------------------
 
-function OrdersTableView({
-  orders,
-  onStatusChange,
-  onOrderClick,
-  sortKey,
-  sortDir,
+function SortButton({
+  field,
+  activeField,
   onSort,
+  children,
 }: {
-  orders: Order[];
-  onStatusChange: (id: string, status: string) => void;
-  onOrderClick: (order: Order) => void;
-  sortKey: string;
-  sortDir: "asc" | "desc";
+  field: string;
+  activeField: string;
   onSort: (key: string) => void;
+  children: React.ReactNode;
 }) {
-  const SortButton = ({
-    field,
-    children,
-  }: {
-    field: string;
-    children: React.ReactNode;
-  }) => (
+  return (
     <button
       className="flex items-center gap-1 hover:text-foreground transition-colors"
       onClick={() => onSort(field)}
     >
       {children}
       <ArrowUpDown
-        className={`h-3 w-3 ${sortKey === field ? "text-[#1A3E35]" : "opacity-40"}`}
+        className={`h-3 w-3 ${activeField === field ? "text-[#1A3E35]" : "opacity-40"}`}
       />
     </button>
   );
+}
 
+function OrdersTableView({
+  orders,
+  onStatusChange,
+  onOrderClick,
+  sortKey,
+  onSort,
+}: {
+  orders: Order[];
+  onStatusChange: (id: string, status: string) => void;
+  onOrderClick: (order: Order) => void;
+  sortKey: string;
+  onSort: (key: string) => void;
+}) {
   return (
     <div className="flex-1 overflow-auto rounded-xl border border-border bg-background">
       <Table>
@@ -536,12 +538,16 @@ function OrdersTableView({
             <TableHead>ID</TableHead>
             <TableHead>Cliente</TableHead>
             <TableHead>
-              <SortButton field="total">Total</SortButton>
+              <SortButton field="total" activeField={sortKey} onSort={onSort}>
+                Total
+              </SortButton>
             </TableHead>
             <TableHead>Items</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead>
-              <SortButton field="date">Fecha</SortButton>
+              <SortButton field="date" activeField={sortKey} onSort={onSort}>
+                Fecha
+              </SortButton>
             </TableHead>
             <TableHead>Acciones</TableHead>
           </TableRow>
@@ -637,9 +643,10 @@ export default function OrdersPage() {
   const [sortKey, setSortKey] = useState("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
 
-  const swrKey = session
-    ? `${endpoints.orders.list}?business_phone_id=${BUSINESS_PHONE_ID}`
+  const swrKey = session && sessionBusinessPhoneId
+    ? endpoints.orders.list
     : null;
 
   const {
@@ -650,7 +657,7 @@ export default function OrdersPage() {
     refreshInterval: 30000,
   });
 
-  const orders: Order[] = response?.data || [];
+  const orders = useMemo(() => (response?.data || []) as Order[], [response]);
 
   // Sort orders for table view
   const sortedOrders = [...orders].sort((a, b) => {
@@ -683,11 +690,7 @@ export default function OrdersPage() {
 
   const handleStatusChange = useCallback(
     async (orderId: string, newStatus: string) => {
-      // Find the order to get customer phone
-      const order = orders.find((o) => o.id === orderId);
-
       try {
-        // Optimistic update
         const optimisticOrders = orders.map((o) =>
           o.id === orderId ? { ...o, status: newStatus } : o
         );
@@ -696,33 +699,14 @@ export default function OrdersPage() {
           { revalidate: false }
         );
 
-        // Update status on server
         await apiClient.patch(
-          `${endpoints.orders.updateStatus(orderId)}?business_phone_id=${BUSINESS_PHONE_ID}`,
+          endpoints.orders.updateStatus(orderId),
           { status: newStatus }
         );
 
-        // Send WhatsApp notification
-        if (order?.customer?.phone_number) {
-          try {
-            await apiClient.post(endpoints.templates.send, {
-              template_name: "actualizacion_pedido_mayorista",
-              phone_number: order.customer.phone_number,
-              language: "es_MX",
-            });
-          } catch (notifError) {
-            console.warn(
-              "No se pudo enviar notificación WhatsApp:",
-              notifError
-            );
-          }
-        }
-
-        // Revalidate
         mutate();
       } catch (error) {
         console.error("Error al actualizar estado del pedido:", error);
-        // Rollback on error
         mutate();
       }
     },
@@ -867,14 +851,13 @@ export default function OrdersPage() {
         </div>
       ) : (
         /* --------- TABLE VIEW --------- */
-        <OrdersTableView
-          orders={sortedOrders}
-          onStatusChange={handleStatusChange}
-          onOrderClick={handleOrderClick}
-          sortKey={sortKey}
-          sortDir={sortDir}
-          onSort={handleSort}
-        />
+          <OrdersTableView
+            orders={sortedOrders}
+            onStatusChange={handleStatusChange}
+            onOrderClick={handleOrderClick}
+            sortKey={sortKey}
+            onSort={handleSort}
+          />
       )}
 
       {/* Detail dialog */}

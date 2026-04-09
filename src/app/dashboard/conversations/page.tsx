@@ -11,15 +11,38 @@ import { motion, AnimatePresence } from "framer-motion";
 import { endpoints } from "@/lib/api";
 import { apiClient } from "@/lib/api-client";
 import { useSession } from "next-auth/react";
+import { getSessionBusinessPhoneId } from "@/lib/business";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+interface ConversationMessage {
+    id: string;
+    content?: string;
+    direction?: string;
+    created_at: string;
+}
+
+interface ConversationCustomer {
+    name?: string;
+    phone_number?: string;
+}
+
+interface ConversationSummary {
+    id: string;
+    customer?: ConversationCustomer;
+    messages?: ConversationMessage[];
+}
+
+interface ActiveConversation {
+    customer?: ConversationCustomer;
+    messages: ConversationMessage[];
+}
+
 export default function InboxPage() {
     const { data: session } = useSession();
-    // TODO: Obtener del usuario logueado en un futuro
-    const businessPhoneId = "1039767285877200";
+    const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
 
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [replyText, setReplyText] = useState("");
@@ -27,18 +50,17 @@ export default function InboxPage() {
 
     const { mutate } = useSWRConfig();
 
-    // 1. Fetch de la lista de conversaciones
     const { data: conversationsResponse, isLoading: isLoadingList } = useSWR(
-        session ? `${endpoints.conversations.list}?business_phone_id=${businessPhoneId}` : null,
+        session && sessionBusinessPhoneId ? endpoints.conversations.list : null,
         { refreshInterval: 15000 } // Polling cada 15 segundos para nuevos mensajes
     );
-    const conversations = conversationsResponse?.data || [];
+    const conversations = (conversationsResponse?.data || []) as ConversationSummary[];
 
-    // 2. Fetch de la conversación activa
     const { data: activeConversation, isLoading: isLoadingChat } = useSWR(
-        selectedId && session ? `${endpoints.conversations.detail(selectedId)}?business_phone_id=${businessPhoneId}` : null,
+        selectedId && session && sessionBusinessPhoneId ? endpoints.conversations.detail(selectedId) : null,
         { refreshInterval: 8000 } // Polling cuando estamos leyendo un chat
     );
+    const activeConversationData = activeConversation as ActiveConversation | null;
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -47,14 +69,12 @@ export default function InboxPage() {
         setIsSending(true);
         try {
             await apiClient.post(
-                `${endpoints.conversations.reply(selectedId)}?business_phone_id=${businessPhoneId}`,
+                endpoints.conversations.reply(selectedId),
                 { text: replyText }
             );
             setReplyText("");
-            // Refrescar inmediatamente el chat activo
-            mutate(`${endpoints.conversations.detail(selectedId)}?business_phone_id=${businessPhoneId}`);
-            // Refrescar al mismo tiempo la lista de la izquierda
-            mutate(`${endpoints.conversations.list}?business_phone_id=${businessPhoneId}`);
+            mutate(endpoints.conversations.detail(selectedId));
+            mutate(endpoints.conversations.list);
         } catch (error) {
             console.error("Error al enviar el mensaje:", error);
         } finally {
@@ -84,7 +104,7 @@ export default function InboxPage() {
                         </div>
                     ) : (
                         <div className="flex flex-col">
-                            {conversations.map((conv: any) => {
+                            {conversations.map((conv) => {
                                 const isActive = selectedId === conv.id;
                                 const lastMessage = conv.messages && conv.messages.length > 0
                                     ? conv.messages[conv.messages.length - 1]
@@ -136,29 +156,28 @@ export default function InboxPage() {
                     <div className="flex-1 flex items-center justify-center text-muted-foreground">
                         <Loader2 className="animate-spin h-8 w-8" />
                     </div>
-                ) : activeConversation ? (
+                ) : activeConversationData ? (
                     <>
                         <div className="h-16 border-b border-border flex items-center px-6 bg-background shrink-0">
                             <Avatar className="h-9 w-9 border border-border mr-3">
                                 <AvatarFallback className="bg-primary/10 text-primary">
-                                    {activeConversation.customer?.name ? activeConversation.customer.name.charAt(0).toUpperCase() : <User size={16} />}
+                                    {activeConversationData.customer?.name ? activeConversationData.customer.name.charAt(0).toUpperCase() : <User size={16} />}
                                 </AvatarFallback>
                             </Avatar>
                             <div>
                                 <h2 className="font-semibold text-foreground text-sm">
-                                    {activeConversation.customer?.name || "Cliente"}
+                                    {activeConversationData.customer?.name || "Cliente"}
                                 </h2>
                                 <p className="text-xs text-muted-foreground">
-                                    +{activeConversation.customer?.phone_number}
+                                    +{activeConversationData.customer?.phone_number}
                                 </p>
                             </div>
                         </div>
 
-                        {/* Watsapp Background Pattern or just simple color */}
                         <ScrollArea className="flex-1 p-6 bg-zinc-50/50 dark:bg-zinc-950/20">
                             <div className="flex flex-col gap-4">
                                 <AnimatePresence initial={false}>
-                                    {activeConversation.messages.map((msg: any) => {
+                                    {activeConversationData.messages.map((msg) => {
                                         const isInbound = msg.direction === "inbound";
                                         return (
                                             <motion.div

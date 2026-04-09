@@ -6,18 +6,17 @@ import { endpoints } from "@/lib/api";
 import { ConversationList } from "@/components/inbox/ConversationList";
 import { ChatWindow } from "@/components/inbox/ChatWindow";
 import { Loader2 } from "lucide-react";
-
-const fetcher = (url: string) => fetch(url).then(r => {
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r.json();
-});
+import { useSession } from "next-auth/react";
+import { fetcher } from "@/lib/api-client";
+import { getSessionBusinessPhoneId } from "@/lib/business";
 
 export default function InboxPage() {
-    const businessPhoneId = "1039767285877200"; // Harcodeado para pruebas (el mismo que en el seeder)
+    const { data: session } = useSession();
+    const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
     const [selectedConv, setSelectedConv] = useState<string | null>(null);
 
     const { data: convData, error, isLoading } = useSWR(
-        `${endpoints.conversations.list}?business_phone_id=${businessPhoneId}`,
+        session && sessionBusinessPhoneId ? endpoints.conversations.list : null,
         fetcher,
         { refreshInterval: 10000 }
     );
@@ -45,10 +44,9 @@ export default function InboxPage() {
                 </div>
             </div>
 
-            {/* Main Chat Area */}
             <div className="flex-1 h-full flex flex-col bg-[#EEFAEE] dark:bg-secondary">
                 {selectedConv ? (
-                    <ChatWindow conversationId={selectedConv} businessPhoneId={businessPhoneId} />
+                    <ChatWindow conversationId={selectedConv} />
                 ) : (
                     <div className="flex-1 flex items-center justify-center text-muted-foreground">
                         Selecciona una conversación para empezar

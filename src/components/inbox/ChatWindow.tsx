@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, fetcher } from "@/lib/api-client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Send, FileText, Check, Download, Image as ImageIcon } from "lucide-react";
@@ -14,14 +14,8 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 
-const fetcher = (url: string) => fetch(url).then(r => {
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r.json();
-});
-
 interface ChatWindowProps {
     conversationId: string;
-    businessPhoneId: string;
 }
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -153,7 +147,7 @@ function MessageMedia({ msg }: { msg: any }) {
     );
 }
 
-export function ChatWindow({ conversationId, businessPhoneId }: ChatWindowProps) {
+export function ChatWindow({ conversationId }: ChatWindowProps) {
     const [inputValue, setInputValue] = useState("");
     const [isSending, setIsSending] = useState(false);
     const [templatePopoverOpen, setTemplatePopoverOpen] = useState(false);
@@ -162,20 +156,20 @@ export function ChatWindow({ conversationId, businessPhoneId }: ChatWindowProps)
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const { data: detailData, error, isLoading, mutate } = useSWR(
-        `${endpoints.conversations.detail(conversationId)}?business_phone_id=${businessPhoneId}`,
+        endpoints.conversations.detail(conversationId),
         fetcher,
         { refreshInterval: 8000 }
     );
 
     const { data: templatesResponse, isLoading: templatesLoading } = useSWR(
-        templatePopoverOpen ? `${endpoints.templates.list}?business_phone_id=${businessPhoneId}` : null,
+        templatePopoverOpen ? endpoints.templates.list : null,
         fetcher
     );
 
     const templates = templatesResponse?.data || templatesResponse || [];
 
     const messages = detailData?.messages || [];
-    const customerPhone = detailData?.customer?.phone;
+    const customerPhone = detailData?.customer?.phone_number;
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -185,11 +179,7 @@ export function ChatWindow({ conversationId, businessPhoneId }: ChatWindowProps)
         if (!inputValue.trim()) return;
         setIsSending(true);
         try {
-            await fetch(`${endpoints.conversations.reply(conversationId)}?business_phone_id=${businessPhoneId}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: inputValue })
-            });
+            await apiClient.post(endpoints.conversations.reply(conversationId), { text: inputValue });
             setInputValue("");
             mutate();
         } catch (error) {
@@ -234,8 +224,8 @@ export function ChatWindow({ conversationId, businessPhoneId }: ChatWindowProps)
             {/* Header */}
             <div className="border-b border-border p-4 flex items-center justify-between">
                 <div>
-                    <h3 className="font-semibold">{detailData.customer?.name || detailData.customer?.phone}</h3>
-                    <p className="text-xs text-muted-foreground">{detailData.customer?.phone}</p>
+                    <h3 className="font-semibold">{detailData.customer?.name || detailData.customer?.phone_number}</h3>
+                    <p className="text-xs text-muted-foreground">{detailData.customer?.phone_number}</p>
                 </div>
                 <div className="text-xs bg-[#74E79C]/20 text-[#1A3E35] dark:text-[#74E79C] px-2 py-1 rounded font-medium">
                     Estado: {detailData.status}

@@ -5,6 +5,16 @@ import { Package, ShoppingBag, Users, Activity, Loader2 } from "lucide-react";
 import { motion, Variants } from "framer-motion";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
+import { useSession } from "next-auth/react";
+import { fetcher } from "@/lib/api-client";
+import { getSessionBusinessPhoneId } from "@/lib/business";
+
+interface RecentOrder {
+    id: string;
+    total: string | number;
+    status: string;
+    items?: Array<unknown>;
+}
 
 const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -21,26 +31,22 @@ const itemVariants: Variants = {
     show: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
 
-const fetcher = (url: string) => fetch(url).then(r => r.json());
-
 export default function DashboardPage() {
-    // Aquí el ID está harcodeado para pruebas (el mismo que en el seeder / backend test). 
-    // En producción saldría del usuario autenticado.
-    const businessPhoneId = "1039767285877200";
+    const { data: session } = useSession();
+    const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
     
-    // Fetch dashboard stats
-    const { data: stats, error: statsError, isLoading: statsLoading } = useSWR(
-        `${endpoints.dashboard.stats}?business_phone_id=${businessPhoneId}`, 
+    const { data: stats, isLoading: statsLoading } = useSWR(
+        session && sessionBusinessPhoneId ? endpoints.dashboard.stats : null,
         fetcher,
         { refreshInterval: 10000 }
     );
 
-    // Fetch orders to populate recent activity
-    const { data: ordersData, error: ordersError, isLoading: ordersLoading } = useSWR(
-        `${endpoints.orders.list}?business_phone_id=${businessPhoneId}`, 
+    const { data: ordersData, isLoading: ordersLoading } = useSWR(
+        session && sessionBusinessPhoneId ? endpoints.orders.list : null,
         fetcher,
         { refreshInterval: 10000 }
     );
+    const recentOrders = (ordersData?.data || []) as RecentOrder[];
     
     return (
         <motion.div
@@ -149,7 +155,7 @@ export default function DashboardPage() {
                             <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground"/></div>
                         ) : (
                             <div className="space-y-4">
-                                {ordersData?.data?.slice(0, 5).map((order: any) => (
+                                {recentOrders.slice(0, 5).map((order) => (
                                     <div key={order.id} className="flex items-center justify-between border-b border-border pb-2 last:border-0">
                                         <div className="flex flex-col">
                                             <span className="text-sm font-medium text-foreground">
@@ -169,7 +175,7 @@ export default function DashboardPage() {
                                         </span>
                                     </div>
                                 ))}
-                                {!ordersData?.data?.length && (
+                                {recentOrders.length === 0 && (
                                     <p className="text-sm text-muted-foreground text-center py-2">
                                         No hay pedidos recientes.
                                     </p>
