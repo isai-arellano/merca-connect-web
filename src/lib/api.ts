@@ -5,7 +5,7 @@ export const endpoints = {
         login: `${API_URL}/api/v1/auth/login`,
     },
     products: {
-        list: `${API_URL}/api/v1/products`,
+        list: (businessPhoneId: string) => `${API_URL}/api/v1/products?business_phone_id=${encodeURIComponent(businessPhoneId)}`,
         detail: (id: string) => `${API_URL}/api/v1/products/${id}`,
     },
     dashboard: {

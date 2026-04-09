@@ -11,12 +11,14 @@ import { ProductDialog } from "@/components/products/product-dialog";
 import { motion, Variants } from "framer-motion";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
+import { fetcher } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 
 interface Product {
     id: string;
     name: string;
     category_id?: string | null;
+    category_name?: string | null;
     price: string | number;
     stock?: number | null;
     barcode?: string | null;
@@ -51,9 +53,13 @@ export default function ProductsPage() {
 
     const currentIndustry: IndustryType = "abarrotera";
     const config = INDUSTRIES[currentIndustry];
+    const productsEndpoint = sessionBusinessPhoneId
+        ? endpoints.products.list(sessionBusinessPhoneId)
+        : null;
 
     const { data: response, isLoading } = useSWR(
-        session && sessionBusinessPhoneId ? endpoints.products.list : null
+        session && productsEndpoint ? productsEndpoint : null,
+        fetcher
     );
 
     const products = (response?.data || []) as Product[];
@@ -74,7 +80,7 @@ export default function ProductsPage() {
                         Gestiona tu inventario. Vista adaptada para: <span className="font-medium capitalize text-foreground">{currentIndustry}</span>.
                     </p>
                 </div>
-                <ProductDialog config={config} industry={currentIndustry}>
+                <ProductDialog config={config} industry={currentIndustry} businessPhoneId={sessionBusinessPhoneId}>
                     <Button className="bg-primary text-primary-foreground shadow-sm hover:opacity-90 transition-opacity">
                         <Plus className="mr-2 h-4 w-4" /> Nuevo Producto
                     </Button>
@@ -135,7 +141,7 @@ export default function ProductsPage() {
                                 return (
                                 <TableRow key={product.id} className="border-border hover:bg-muted/50 transition-colors">
                                     <TableCell className="font-medium">{product.name}</TableCell>
-                                    <TableCell className="text-muted-foreground">{product.category_id || "Sin Categoría"}</TableCell>
+                                    <TableCell className="text-muted-foreground">{product.category_name || "Sin Categoría"}</TableCell>
                                     <TableCell className="text-right font-medium">${toFiniteNumber(product.price).toFixed(2)}</TableCell>
 
                                     {config.productFields.showStock && (

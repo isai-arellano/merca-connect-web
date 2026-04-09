@@ -16,9 +16,10 @@ interface ProductDialogProps {
     children: React.ReactNode;
     config: IndustryConfig;
     industry: string;
+    businessPhoneId: string | null;
 }
 
-export function ProductDialog({ children, config, industry }: ProductDialogProps) {
+export function ProductDialog({ children, config, industry, businessPhoneId }: ProductDialogProps) {
     const [open, setOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { mutate } = useSWRConfig();
@@ -37,16 +38,21 @@ export function ProductDialog({ children, config, industry }: ProductDialogProps
             preparation_time_min: parseInt(formData.get("prepTime") as string) || null,
             active_substance: formData.get("substance") || null,
         };
+        const productsEndpoint = businessPhoneId ? endpoints.products.list(businessPhoneId) : null;
+
+        if (!productsEndpoint) {
+            setIsSubmitting(false);
+            return;
+        }
 
         try {
-            await apiClient.post(endpoints.products.list, newProduct);
+            await apiClient.post(productsEndpoint, newProduct);
 
-            await mutate(endpoints.products.list);
+            await mutate(productsEndpoint);
 
             setOpen(false);
         } catch (error) {
             console.error("Error creating product:", error);
-            // Mostrar un toast error idealmente
         } finally {
             setIsSubmitting(false);
         }
@@ -96,8 +102,6 @@ export function ProductDialog({ children, config, industry }: ProductDialogProps
                                 </Select>
                             </div>
                         </div>
-
-                        {/* --------- CAMPOS DINAMICOS --------- */}
 
                         {config.productFields.showStock && (
                             <div className="grid grid-cols-4 items-center gap-4">
