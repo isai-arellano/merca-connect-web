@@ -43,6 +43,6 @@ export const endpoints = {
         agentToggle: `${API_URL}/api/v1/business/agent-toggle`,
     },
     agents: {
-        config: (businessId: string) => `/api/agents?business_id=${encodeURIComponent(businessId)}`,
+        config: (businessId: string) => `${process.env.NEXT_PUBLIC_AGENTS_URL || "http://localhost:8002"}/api/v1/agents?business_id=${businessId}`,
     },
 };

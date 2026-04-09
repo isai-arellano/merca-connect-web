@@ -11,34 +11,21 @@ import { useSWRConfig } from "swr";
 import { endpoints } from "@/lib/api";
 import { apiClient } from "@/lib/api-client";
 import { Loader2 } from "lucide-react";
-import { withBusinessPhoneId } from "@/lib/business";
-import { useToast } from "@/hooks/use-toast";
+import { BUSINESS_PHONE_ID } from "@/lib/business";
 
 interface ProductDialogProps {
     children: React.ReactNode;
     config: IndustryConfig;
     industry: string;
-    businessPhoneId: string | null;
 }
 
-export function ProductDialog({ children, config, industry, businessPhoneId }: ProductDialogProps) {
+export function ProductDialog({ children, config, industry }: ProductDialogProps) {
     const [open, setOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { mutate } = useSWRConfig();
-    const { toast } = useToast();
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-
-        if (!businessPhoneId) {
-            toast({
-                title: "Negocio no configurado",
-                description: "No se pudo identificar el negocio autenticado.",
-                variant: "destructive",
-            });
-            return;
-        }
-
         setIsSubmitting(true);
         const formData = new FormData(e.currentTarget);
 
@@ -53,19 +40,16 @@ export function ProductDialog({ children, config, industry, businessPhoneId }: P
         };
 
         try {
-            const listUrl = withBusinessPhoneId(endpoints.products.list, businessPhoneId);
-            await apiClient.post(listUrl, newProduct);
+            const businessPhoneId = BUSINESS_PHONE_ID;
+            await apiClient.post(`${endpoints.products.list}?business_phone_id=${businessPhoneId}`, newProduct);
 
-            await mutate(listUrl);
+            // Refrescar el caché SWR
+            await mutate(`${endpoints.products.list}?business_phone_id=${businessPhoneId}`);
 
             setOpen(false);
         } catch (error) {
             console.error("Error creating product:", error);
-            toast({
-                title: "Error al crear producto",
-                description: error instanceof Error ? error.message : "No se pudo guardar el producto.",
-                variant: "destructive",
-            });
+            // Mostrar un toast error idealmente
         } finally {
             setIsSubmitting(false);
         }

@@ -2,59 +2,6 @@ import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { endpoints } from "./api";
 
-interface AccessTokenPayload {
-    sub?: string;
-    business_id?: string;
-    business_phone_id?: string;
-}
-
-interface TenantContext {
-    businessId: string;
-    businessPhoneId: string;
-}
-
-function decodeJwtPayload(token: string): AccessTokenPayload | null {
-    const [, payload] = token.split(".");
-
-    if (!payload) {
-        return null;
-    }
-
-    try {
-        return JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as AccessTokenPayload;
-    } catch {
-        return null;
-    }
-}
-
-function getSessionContextFromAccessToken(accessToken: unknown): AccessTokenPayload | null {
-    if (typeof accessToken !== "string" || accessToken.length === 0) {
-        return null;
-    }
-
-    return decodeJwtPayload(accessToken);
-}
-
-function resolveTenantContext(token: {
-    accessToken?: unknown;
-    businessId?: unknown;
-    businessPhoneId?: unknown;
-}): TenantContext | null {
-    const payload = getSessionContextFromAccessToken(token.accessToken);
-    const businessId = typeof token.businessId === "string" && token.businessId.length > 0
-        ? token.businessId
-        : payload?.business_id;
-    const businessPhoneId = typeof token.businessPhoneId === "string" && token.businessPhoneId.length > 0
-        ? token.businessPhoneId
-        : payload?.business_phone_id;
-
-    if (!businessId || !businessPhoneId) {
-        return null;
-    }
-
-    return { businessId, businessPhoneId };
-}
-
 export const authOptions: NextAuthOptions = {
     providers: [
         CredentialsProvider({
@@ -88,18 +35,16 @@ export const authOptions: NextAuthOptions = {
 
                     const data = await res.json();
                     const token = data.access_token;
-                    const payload = decodeJwtPayload(token);
 
-                    if (!token || !payload?.business_id || !payload.business_phone_id) {
-                        return null;
-                    }
+                    if (!token) return null;
 
+                    // En un sistema real aquí decodificas el JWT para sacar info del usuario,
+                    // o haces un Fetch a /users/me para traer el nombre/email. 
+                    // Por simplicidad, retornamos el token embebido.
                     return {
-                        id: payload.sub || credentials.email,
+                        id: credentials.email, // placeholder
                         email: credentials.email,
                         accessToken: token,
-                        businessId: payload.business_id,
-                        businessPhoneId: payload.business_phone_id,
                     };
                 } catch (e) {
                     console.error("Auth error:", e);
@@ -114,31 +59,15 @@ export const authOptions: NextAuthOptions = {
     },
     callbacks: {
         async jwt({ token, user }) {
+            // Si el usuario acaba de hacer login, metemos el accessToken al token nativo de NextAuth
             if (user) {
-                token.accessToken = user.accessToken;
-                token.businessId = user.businessId;
-                token.businessPhoneId = user.businessPhoneId;
+                token.accessToken = (user as any).accessToken;
             }
-
-            // Backfill tenant context for legacy NextAuth JWT cookies that only stored the access token.
-            const tenantContext = resolveTenantContext(token);
-            if (tenantContext) {
-                token.businessId = tenantContext.businessId;
-                token.businessPhoneId = tenantContext.businessPhoneId;
-            }
-
             return token;
         },
         async session({ session, token }) {
-            const tenantContext = resolveTenantContext(token);
-
-            if (!token.accessToken || !tenantContext) {
-                throw new Error("Invalid authenticated session");
-            }
-
-            session.accessToken = token.accessToken;
-            session.businessId = tenantContext.businessId;
-            session.businessPhoneId = tenantContext.businessPhoneId;
+            // Exponemos el accessToken en la sesión para que el frontend pueda sacarlo y mandarlo al backend API
+            (session as any).accessToken = token.accessToken;
             return session;
         },
     },

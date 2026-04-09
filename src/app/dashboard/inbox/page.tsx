@@ -2,41 +2,22 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { useSession } from "next-auth/react";
 import { endpoints } from "@/lib/api";
-import { fetcher } from "@/lib/api-client";
-import { getBusinessPhoneId, withBusinessPhoneId } from "@/lib/business";
 import { ConversationList } from "@/components/inbox/ConversationList";
 import { ChatWindow } from "@/components/inbox/ChatWindow";
 import { Loader2 } from "lucide-react";
 
-interface InboxConversation {
-    id: string;
-    customer?: {
-        name?: string | null;
-        phone_number?: string | null;
-    } | null;
-    last_message?: {
-        content?: string;
-    } | null;
-    messages?: Array<{ content?: string }>;
-    agent_enabled?: boolean;
-    status: string;
-    updated_at?: string | null;
-}
-
-interface InboxConversationListResponse {
-    data: InboxConversation[];
-}
+const fetcher = (url: string) => fetch(url).then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+});
 
 export default function InboxPage() {
-    const { data: session } = useSession();
-    const businessPhoneId = getBusinessPhoneId(session);
+    const businessPhoneId = "1039767285877200"; // Harcodeado para pruebas (el mismo que en el seeder)
     const [selectedConv, setSelectedConv] = useState<string | null>(null);
-    const conversationsUrl = businessPhoneId ? withBusinessPhoneId(endpoints.conversations.list, businessPhoneId) : null;
 
-    const { data: convData, error, isLoading } = useSWR<InboxConversationListResponse>(
-        conversationsUrl,
+    const { data: convData, error, isLoading } = useSWR(
+        `${endpoints.conversations.list}?business_phone_id=${businessPhoneId}`,
         fetcher,
         { refreshInterval: 10000 }
     );
@@ -66,7 +47,7 @@ export default function InboxPage() {
 
             {/* Main Chat Area */}
             <div className="flex-1 h-full flex flex-col bg-[#EEFAEE] dark:bg-secondary">
-                {selectedConv && businessPhoneId ? (
+                {selectedConv ? (
                     <ChatWindow conversationId={selectedConv} businessPhoneId={businessPhoneId} />
                 ) : (
                     <div className="flex-1 flex items-center justify-center text-muted-foreground">
