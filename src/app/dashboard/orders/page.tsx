@@ -6,7 +6,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { endpoints } from "@/lib/api";
 import { apiClient } from "@/lib/api-client";
-import { BUSINESS_PHONE_ID } from "@/lib/business";
+import { getBusinessPhoneId, withBusinessPhoneId } from "@/lib/business";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -631,6 +631,7 @@ function OrdersTableView({
 
 export default function OrdersPage() {
   const { data: session } = useSession();
+  const businessPhoneId = getBusinessPhoneId(session);
   const [view, setView] = useState<"kanban" | "table">("kanban");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -638,8 +639,8 @@ export default function OrdersPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const swrKey = session
-    ? `${endpoints.orders.list}?business_phone_id=${BUSINESS_PHONE_ID}`
+  const swrKey = session && businessPhoneId
+    ? withBusinessPhoneId(endpoints.orders.list, businessPhoneId)
     : null;
 
   const {
@@ -687,6 +688,10 @@ export default function OrdersPage() {
       const order = orders.find((o) => o.id === orderId);
 
       try {
+        if (!businessPhoneId) {
+          throw new Error("No se pudo identificar el negocio autenticado.");
+        }
+
         // Optimistic update
         const optimisticOrders = orders.map((o) =>
           o.id === orderId ? { ...o, status: newStatus } : o
@@ -698,7 +703,7 @@ export default function OrdersPage() {
 
         // Update status on server
         await apiClient.patch(
-          `${endpoints.orders.updateStatus(orderId)}?business_phone_id=${BUSINESS_PHONE_ID}`,
+          withBusinessPhoneId(endpoints.orders.updateStatus(orderId), businessPhoneId),
           { status: newStatus }
         );
 
@@ -726,7 +731,7 @@ export default function OrdersPage() {
         mutate();
       }
     },
-    [orders, response, mutate]
+    [businessPhoneId, orders, response, mutate]
   );
 
   const handleOrderClick = (order: Order) => {

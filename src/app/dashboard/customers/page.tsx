@@ -8,8 +8,21 @@ import { useSession } from "next-auth/react";
 import { motion, Variants } from "framer-motion";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
+import { getBusinessPhoneId, withBusinessPhoneId } from "@/lib/business";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+
+interface Customer {
+    id: string;
+    name: string | null;
+    phone_number: string;
+    created_at: string;
+    notes?: string | null;
+}
+
+interface CustomerListResponse {
+    data: Customer[];
+}
 
 const containerVariants: Variants = {
     hidden: { opacity: 0, y: 15 },
@@ -24,21 +37,17 @@ const itemVariants: Variants = {
 export default function CustomersPage() {
     const { data: session } = useSession();
     const [searchTerm, setSearchTerm] = useState("");
+    const businessPhoneId = getBusinessPhoneId(session);
 
-    // TODO: Obtener del usuario logueado
-    const businessPhoneId = "1039767285877200";
-
-    // Solo hacer fetch si hay sesión
-    const { data: response, isLoading } = useSWR(
-        session ? `${endpoints.customers.list}?business_phone_id=${businessPhoneId}` : null
+    const { data: response, isLoading } = useSWR<CustomerListResponse>(
+        session && businessPhoneId ? withBusinessPhoneId(endpoints.customers.list, businessPhoneId) : null
     );
 
-    const customers = response?.data || [];
+    const customers = response?.data ?? [];
 
-    // Fila rápida de filtrado
-    const filteredCustomers = customers.filter((c: any) =>
-        (c.name && c.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (c.phone_number && c.phone_number.includes(searchTerm))
+    const filteredCustomers = customers.filter((customer) =>
+        (customer.name && customer.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        customer.phone_number.includes(searchTerm)
     );
 
     return (
@@ -99,7 +108,7 @@ export default function CustomersPage() {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            filteredCustomers.map((customer: any) => (
+                            filteredCustomers.map((customer) => (
                                 <TableRow key={customer.id} className="border-border hover:bg-muted/50 transition-colors">
                                     <TableCell className="font-medium text-foreground">
                                         {customer.name}

@@ -4,7 +4,29 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, ShoppingBag, Users, Activity, Loader2 } from "lucide-react";
 import { motion, Variants } from "framer-motion";
 import useSWR from "swr";
+import { useSession } from "next-auth/react";
 import { endpoints } from "@/lib/api";
+import { fetcher } from "@/lib/api-client";
+import { getBusinessPhoneId, withBusinessPhoneId } from "@/lib/business";
+
+interface DashboardStats {
+    total_orders: number;
+    new_orders: number;
+    estimated_revenue: number;
+    active_products: number;
+    total_customers: number;
+}
+
+interface RecentOrder {
+    id: string;
+    total: number | string;
+    status: string;
+    items?: Array<unknown>;
+}
+
+interface OrderListResponse {
+    data: RecentOrder[];
+}
 
 const containerVariants: Variants = {
     hidden: { opacity: 0 },
@@ -21,23 +43,20 @@ const itemVariants: Variants = {
     show: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
 
-const fetcher = (url: string) => fetch(url).then(r => r.json());
-
 export default function DashboardPage() {
-    // Aquí el ID está harcodeado para pruebas (el mismo que en el seeder / backend test). 
-    // En producción saldría del usuario autenticado.
-    const businessPhoneId = "1039767285877200";
+    const { data: session } = useSession();
+    const businessPhoneId = getBusinessPhoneId(session);
+    const statsUrl = businessPhoneId ? withBusinessPhoneId(endpoints.dashboard.stats, businessPhoneId) : null;
+    const ordersUrl = businessPhoneId ? withBusinessPhoneId(endpoints.orders.list, businessPhoneId) : null;
     
-    // Fetch dashboard stats
-    const { data: stats, error: statsError, isLoading: statsLoading } = useSWR(
-        `${endpoints.dashboard.stats}?business_phone_id=${businessPhoneId}`, 
+    const { data: stats, isLoading: statsLoading } = useSWR<DashboardStats>(
+        statsUrl,
         fetcher,
         { refreshInterval: 10000 }
     );
 
-    // Fetch orders to populate recent activity
-    const { data: ordersData, error: ordersError, isLoading: ordersLoading } = useSWR(
-        `${endpoints.orders.list}?business_phone_id=${businessPhoneId}`, 
+    const { data: ordersData, isLoading: ordersLoading } = useSWR<OrderListResponse>(
+        ordersUrl,
         fetcher,
         { refreshInterval: 10000 }
     );
@@ -149,14 +168,14 @@ export default function DashboardPage() {
                             <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground"/></div>
                         ) : (
                             <div className="space-y-4">
-                                {ordersData?.data?.slice(0, 5).map((order: any) => (
+                                {ordersData?.data?.slice(0, 5).map((order) => (
                                     <div key={order.id} className="flex items-center justify-between border-b border-border pb-2 last:border-0">
                                         <div className="flex flex-col">
                                             <span className="text-sm font-medium text-foreground">
                                                 #{order.id.split('-')[0].toUpperCase()}
                                             </span>
                                             <span className="text-xs text-muted-foreground">
-                                                ${parseFloat(order.total).toFixed(2)} - {order.items?.length || 0} artículos
+                                                ${Number(order.total).toFixed(2)} - {order.items?.length || 0} artículos
                                             </span>
                                         </div>
                                         <span className={`text-xs px-2 py-1 rounded-full font-medium ${
