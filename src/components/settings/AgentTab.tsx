@@ -133,7 +133,7 @@ export function AgentTab() {
     { shouldRetryOnError: false }
   );
 
-  const settings: BusinessSettings = settingsRes?.data || settingsRes || {};
+  const settings: BusinessSettings = settingsRes?.data ?? {};
   const agentEnabled: boolean = settings?.config?.agent_enabled ?? false;
 
   // agentConfigsRes is an array (list endpoint filtered by business_id)
@@ -146,8 +146,8 @@ export function AgentTab() {
     // Optimistic update
     const newValue = !agentEnabled;
     mutateSettings(
-      (prev: BusinessSettingsResponse | BusinessSettings | undefined) => {
-        const base = prev?.data || prev || {};
+      (prev: BusinessSettingsResponse | undefined) => {
+        const base = prev?.data ?? {};
         return {
           ...prev,
           data: {
@@ -175,7 +175,7 @@ export function AgentTab() {
           ? "El agente de IA atenderá las conversaciones automáticamente."
           : "Las conversaciones serán atendidas manualmente.",
       });
-    } catch (err) {
+    } catch {
       // Revert optimistic update on error
       mutateSettings();
       toast({
