@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, fetcher } from "@/lib/api-client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Send, FileText, Check, Download, Image as ImageIcon } from "lucide-react";
@@ -14,14 +14,42 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 
-const fetcher = (url: string) => fetch(url).then(r => {
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return r.json();
-});
-
 interface ChatWindowProps {
     conversationId: string;
     businessPhoneId: string;
+}
+
+interface ChatCustomer {
+    name?: string | null;
+    phone_number?: string | null;
+}
+
+interface ChatMessage {
+    id: string;
+    direction: "inbound" | "outbound";
+    content?: string | null;
+    message_type: string;
+    media_id?: string | null;
+    media_mime_type?: string | null;
+    created_at: string;
+}
+
+interface ConversationDetailResponse {
+    customer?: ChatCustomer | null;
+    messages: ChatMessage[];
+    status: string;
+}
+
+interface TemplateSummary {
+    id?: string;
+    name: string;
+    status?: string;
+    category?: string;
+    language?: string;
+}
+
+interface TemplateListResponse {
+    data?: TemplateSummary[];
 }
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -43,7 +71,7 @@ const categoryLabels: Record<string, string> = {
 };
 
 /** Renders the media attachment for a message based on its type */
-function MessageMedia({ msg }: { msg: any }) {
+function MessageMedia({ msg }: { msg: ChatMessage }) {
     const [expanded, setExpanded] = useState(false);
     const [imgError, setImgError] = useState(false);
 
@@ -161,21 +189,23 @@ export function ChatWindow({ conversationId, businessPhoneId }: ChatWindowProps)
     const [sentTemplate, setSentTemplate] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const { data: detailData, error, isLoading, mutate } = useSWR(
+    const { data: detailData, error, isLoading, mutate } = useSWR<ConversationDetailResponse>(
         `${endpoints.conversations.detail(conversationId)}?business_phone_id=${businessPhoneId}`,
         fetcher,
         { refreshInterval: 8000 }
     );
 
-    const { data: templatesResponse, isLoading: templatesLoading } = useSWR(
+    const { data: templatesResponse, isLoading: templatesLoading } = useSWR<TemplateListResponse | TemplateSummary[]>(
         templatePopoverOpen ? `${endpoints.templates.list}?business_phone_id=${businessPhoneId}` : null,
         fetcher
     );
 
-    const templates = templatesResponse?.data || templatesResponse || [];
+    const templates = Array.isArray(templatesResponse)
+        ? templatesResponse
+        : templatesResponse?.data ?? [];
 
     const messages = detailData?.messages || [];
-    const customerPhone = detailData?.customer?.phone;
+    const customerPhone = detailData?.customer?.phone_number;
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -185,11 +215,10 @@ export function ChatWindow({ conversationId, businessPhoneId }: ChatWindowProps)
         if (!inputValue.trim()) return;
         setIsSending(true);
         try {
-            await fetch(`${endpoints.conversations.reply(conversationId)}?business_phone_id=${businessPhoneId}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: inputValue })
-            });
+            await apiClient.post(
+                `${endpoints.conversations.reply(conversationId)}?business_phone_id=${businessPhoneId}`,
+                { text: inputValue }
+            );
             setInputValue("");
             mutate();
         } catch (error) {
@@ -234,8 +263,8 @@ export function ChatWindow({ conversationId, businessPhoneId }: ChatWindowProps)
             {/* Header */}
             <div className="border-b border-border p-4 flex items-center justify-between">
                 <div>
-                    <h3 className="font-semibold">{detailData.customer?.name || detailData.customer?.phone}</h3>
-                    <p className="text-xs text-muted-foreground">{detailData.customer?.phone}</p>
+                    <h3 className="font-semibold">{detailData.customer?.name || detailData.customer?.phone_number}</h3>
+                    <p className="text-xs text-muted-foreground">{detailData.customer?.phone_number}</p>
                 </div>
                 <div className="text-xs bg-[#74E79C]/20 text-[#1A3E35] dark:text-[#74E79C] px-2 py-1 rounded font-medium">
                     Estado: {detailData.status}
@@ -245,7 +274,7 @@ export function ChatWindow({ conversationId, businessPhoneId }: ChatWindowProps)
             {/* Messages */}
             <ScrollArea className="flex-1 p-4">
                 <div className="flex flex-col gap-3">
-                    {messages.map((msg: any) => {
+                    {messages.map((msg) => {
                         const isInbound = msg.direction === 'inbound';
                         const hasMedia = !!msg.media_id && msg.message_type !== "text";
                         const hasCaption = !!msg.content;
@@ -315,10 +344,10 @@ export function ChatWindow({ conversationId, businessPhoneId }: ChatWindowProps)
                                 </div>
                             ) : Array.isArray(templates) && templates.length > 0 ? (
                                 <div className="py-1">
-                                    {templates.map((template: any) => {
+                                    {templates.map((template) => {
                                         const isApproved = template.status?.toUpperCase() === "APPROVED";
-                                        const status = statusConfig[template.status] || statusConfig["PENDING"];
-                                        const category = categoryLabels[template.category] || template.category;
+                                        const status = template.status ? statusConfig[template.status] || statusConfig["PENDING"] : statusConfig["PENDING"];
+                                        const category = template.category ? categoryLabels[template.category] || template.category : "Sin categoría";
                                         const isSendingThis = sendingTemplate === template.name;
                                         const isSentThis = sentTemplate === template.name;
 
@@ -326,7 +355,7 @@ export function ChatWindow({ conversationId, businessPhoneId }: ChatWindowProps)
                                             <button
                                                 key={template.id || template.name}
                                                 disabled={!isApproved || isSendingThis}
-                                                onClick={() => handleSendTemplate(template.name, template.language)}
+                                                onClick={() => handleSendTemplate(template.name, template.language || "es_MX")}
                                                 className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
                                                     isApproved
                                                         ? "hover:bg-[#EEFAEE] dark:hover:bg-secondary cursor-pointer"
