@@ -16,6 +16,15 @@ interface RecentOrder {
     items?: Array<unknown>;
 }
 
+function toFiniteNumber(value: string | number | null | undefined): number {
+    const parsed = typeof value === "number" ? value : Number.parseFloat(value ?? "0");
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatCurrency(value: string | number | null | undefined): string {
+    return toFiniteNumber(value).toFixed(2);
+}
+
 const containerVariants: Variants = {
     hidden: { opacity: 0 },
     show: {
@@ -130,7 +139,6 @@ export default function DashboardPage() {
                 </div>
             )}
 
-            {/* Panel inferior */}
             <motion.div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 pt-4" variants={itemVariants}>
                 <Card className="col-span-4 hover:border-slate-300 dark:hover:border-slate-700 transition-colors duration-200">
                     <CardHeader>
@@ -162,7 +170,7 @@ export default function DashboardPage() {
                                                 #{order.id.split('-')[0].toUpperCase()}
                                             </span>
                                             <span className="text-xs text-muted-foreground">
-                                                ${parseFloat(order.total).toFixed(2)} - {order.items?.length || 0} artículos
+                                                ${formatCurrency(order.total)} - {order.items?.length || 0} artículos
                                             </span>
                                         </div>
                                         <span className={`text-xs px-2 py-1 rounded-full font-medium ${

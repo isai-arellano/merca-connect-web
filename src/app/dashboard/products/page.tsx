@@ -24,6 +24,15 @@ interface Product {
     preparation_time_min?: number | null;
 }
 
+function toFiniteNumber(value: string | number | null | undefined): number {
+    const parsed = typeof value === "number" ? value : Number.parseFloat(value ?? "0");
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getStockValue(stock: number | null | undefined): number | null {
+    return typeof stock === "number" && Number.isFinite(stock) ? stock : null;
+}
+
 const containerVariants: Variants = {
     hidden: { opacity: 0, y: 15 },
     show: { opacity: 1, y: 0, transition: { duration: 0.3, staggerChildren: 0.1 } }
@@ -96,7 +105,6 @@ export default function ProductsPage() {
                             <TableHead>Categoría</TableHead>
                             <TableHead className="text-right">Precio</TableHead>
 
-                            {/* Columnas Dinámicas según la Industria */}
                             {config.productFields.showStock && <TableHead className="text-right">Stock</TableHead>}
                             {config.productFields.showBarcode && <TableHead className="hidden md:table-cell">Código</TableHead>}
                             {config.productFields.showIngredients && <TableHead>Ingredientes</TableHead>}
@@ -121,17 +129,19 @@ export default function ProductsPage() {
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            products.map((product) => (
+                            products.map((product) => {
+                                const stockValue = getStockValue(product.stock);
+
+                                return (
                                 <TableRow key={product.id} className="border-border hover:bg-muted/50 transition-colors">
                                     <TableCell className="font-medium">{product.name}</TableCell>
                                     <TableCell className="text-muted-foreground">{product.category_id || "Sin Categoría"}</TableCell>
-                                    <TableCell className="text-right font-medium">${Number(product.price).toFixed(2)}</TableCell>
+                                    <TableCell className="text-right font-medium">${toFiniteNumber(product.price).toFixed(2)}</TableCell>
 
                                     {config.productFields.showStock && (
                                         <TableCell className="text-right">
-                                            <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${product.stock > 10 ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-red-500/10 text-red-700 dark:text-red-400'
-                                                }`}>
-                                                {product.stock}
+                                            <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium ${stockValue !== null && stockValue > 10 ? 'bg-green-500/10 text-green-700 dark:text-green-400' : 'bg-red-500/10 text-red-700 dark:text-red-400'}`}>
+                                                {stockValue ?? "N/A"}
                                             </span>
                                         </TableCell>
                                     )}
@@ -156,7 +166,8 @@ export default function ProductsPage() {
                                         </Button>
                                     </TableCell>
                                 </TableRow>
-                            ))
+                                );
+                            })
                         )}
                     </TableBody>
                 </Table>

@@ -86,6 +86,10 @@ const orderStatuses = [
 
 const chartSkeletonHeights = [96, 164, 128, 182, 144, 116, 156];
 
+function toSafeNumber(value: number | string | null | undefined) {
+  return Number(value ?? 0);
+}
+
 export default function AnalyticsPage() {
   const { data: session } = useSession();
   const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
@@ -100,8 +104,8 @@ export default function AnalyticsPage() {
   const messageStats = analytics.messages || {};
   const ordersByStatus =
     (analytics.orders_by_status as Record<string, number | string | null | undefined>) || {};
-  const totalOrders = Object.values(ordersByStatus).reduce(
-    (sum, count) => sum + Number(count || 0),
+  const totalOrders = Object.values(ordersByStatus).reduce<number>(
+    (sum, count) => sum + toSafeNumber(count),
     0
   );
   const avgResponseMinutes = analytics.avg_response_time_seconds
@@ -231,8 +235,7 @@ export default function AnalyticsPage() {
               ) : (
                 <>
                   {orderStatuses.map((status) => {
-                    const count =
-                      ordersByStatus[status.key] ?? 0;
+                    const count = toSafeNumber(ordersByStatus[status.key]);
                     const total = totalOrders || 1;
                     const percentage = Math.round((count / total) * 100) || 0;
 
