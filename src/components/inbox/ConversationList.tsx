@@ -1,14 +1,33 @@
 "use client";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bot } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 
+interface ConversationListItemMessage {
+    content?: string;
+}
+
+interface ConversationListItemCustomer {
+    name?: string | null;
+    phone?: string | null;
+}
+
+interface ConversationListItem {
+    id: string;
+    customer?: ConversationListItemCustomer | null;
+    last_message?: ConversationListItemMessage | null;
+    messages?: ConversationListItemMessage[];
+    agent_enabled?: boolean;
+    status: string;
+    updated_at?: string | null;
+}
+
 interface ConversationListProps {
-    conversations: any[];
+    conversations: ConversationListItem[];
     selectedId: string | null;
     onSelect: (id: string) => void;
 }

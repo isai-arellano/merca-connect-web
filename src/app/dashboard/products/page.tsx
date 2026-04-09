@@ -11,7 +11,25 @@ import { ProductDialog } from "@/components/products/product-dialog";
 import { motion, Variants } from "framer-motion";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
-import { BUSINESS_PHONE_ID } from "@/lib/business";
+import { fetcher } from "@/lib/api-client";
+import { getBusinessPhoneId, withBusinessPhoneId } from "@/lib/business";
+
+interface Product {
+    id: string;
+    name: string;
+    category_id: string | null;
+    price: number;
+    stock: number;
+    barcode: string | null;
+    ingredients: string | null;
+    preparation_time_min: number | null;
+}
+
+interface ProductListResponse {
+    business: string;
+    total_products: number;
+    data: Product[];
+}
 
 const containerVariants: Variants = {
     hidden: { opacity: 0, y: 15 },
@@ -24,23 +42,28 @@ const itemVariants: Variants = {
 };
 
 export default function ProductsPage() {
-    const { data: session } = useSession();
+    const { data: session, status } = useSession();
     const [searchTerm, setSearchTerm] = useState("");
-
-    // TODO: Obtener del usuario logueado
-    const businessPhoneId = BUSINESS_PHONE_ID;
+    const businessPhoneId = getBusinessPhoneId(session);
 
     // En un caso real, la API te dice qué tipo de industria es el usuario.
     // Por defecto, simularemos que es "abarrotera".
     const currentIndustry: IndustryType = "abarrotera";
     const config = INDUSTRIES[currentIndustry];
 
-    // Solo hacer fetch si hay sesión
-    const { data: response, error, isLoading } = useSWR(
-        session ? `${endpoints.products.list}?business_phone_id=${businessPhoneId}` : null
+    const productsUrl = status === "authenticated" && businessPhoneId
+        ? withBusinessPhoneId(endpoints.products.list, businessPhoneId)
+        : null;
+
+    const { data: response, error, isLoading } = useSWR<ProductListResponse>(
+        productsUrl,
+        fetcher
     );
 
-    const products = response?.data || [];
+    const products = response?.data ?? [];
+    const filteredProducts = products.filter((product) =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
         <motion.div
@@ -58,8 +81,8 @@ export default function ProductsPage() {
                         Gestiona tu inventario. Vista adaptada para: <span className="font-medium capitalize text-foreground">{currentIndustry}</span>.
                     </p>
                 </div>
-                <ProductDialog config={config} industry={currentIndustry}>
-                    <Button className="bg-primary text-primary-foreground shadow-sm hover:opacity-90 transition-opacity">
+                <ProductDialog config={config} industry={currentIndustry} businessPhoneId={businessPhoneId}>
+                    <Button className="bg-primary text-primary-foreground shadow-sm hover:opacity-90 transition-opacity" disabled={!businessPhoneId}>
                         <Plus className="mr-2 h-4 w-4" /> Nuevo Producto
                     </Button>
                 </ProductDialog>
@@ -99,7 +122,7 @@ export default function ProductsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {isLoading ? (
+                        {status === "loading" || isLoading ? (
                             <TableRow>
                                 <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                                     <div className="flex items-center justify-center gap-2">
@@ -107,14 +130,32 @@ export default function ProductsPage() {
                                     </div>
                                 </TableCell>
                             </TableRow>
-                        ) : products.length === 0 ? (
+                        ) : status === "unauthenticated" ? (
+                            <TableRow>
+                                <TableCell colSpan={8} className="h-24 text-center text-destructive">
+                                    Tu sesion no es valida. Inicia sesion de nuevo.
+                                </TableCell>
+                            </TableRow>
+                        ) : !businessPhoneId ? (
+                            <TableRow>
+                                <TableCell colSpan={8} className="h-24 text-center text-destructive">
+                                    No se pudo identificar el negocio autenticado.
+                                </TableCell>
+                            </TableRow>
+                        ) : error ? (
+                            <TableRow>
+                                <TableCell colSpan={8} className="h-24 text-center text-destructive">
+                                    {error instanceof Error ? error.message : "No se pudieron cargar los productos."}
+                                </TableCell>
+                            </TableRow>
+                        ) : filteredProducts.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                                     No hay productos en tu catálogo.
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            products.map((product: any) => (
+                            filteredProducts.map((product) => (
                                 <TableRow key={product.id} className="border-border hover:bg-muted/50 transition-colors">
                                     <TableCell className="font-medium">{product.name}</TableCell>
                                     <TableCell className="text-muted-foreground">{product.category_id || "Sin Categoría"}</TableCell>

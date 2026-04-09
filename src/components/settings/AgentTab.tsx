@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { Bot, Wrench, Loader2, AlertCircle, BotOff } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
-import { BUSINESS_PHONE_ID } from "@/lib/business";
+import { getBusinessPhoneId, withBusinessPhoneId } from "@/lib/business";
 import { useToast } from "@/hooks/use-toast";
 import {
   Card,
@@ -36,6 +37,12 @@ interface BusinessSettings {
     agent_enabled?: boolean;
   };
 }
+
+interface BusinessSettingsResponse {
+  data?: BusinessSettings;
+}
+
+type AgentConfigListResponse = AgentConfig[];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -97,6 +104,11 @@ function ToggleSwitch({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function AgentTab() {
+  const { data: session, status } = useSession();
+  const businessPhoneId = getBusinessPhoneId(session);
+  const businessId = typeof session?.businessId === "string" && session.businessId.length > 0
+    ? session.businessId
+    : null;
   const { toast } = useToast();
   const [toggling, setToggling] = useState(false);
 
@@ -105,8 +117,8 @@ export function AgentTab() {
     data: settingsRes,
     isLoading: settingsLoading,
     mutate: mutateSettings,
-  } = useSWR(
-    `${endpoints.business.settings}?business_phone_id=${BUSINESS_PHONE_ID}`,
+  } = useSWR<BusinessSettingsResponse>(
+    businessPhoneId ? withBusinessPhoneId(endpoints.business.settings, businessPhoneId) : null,
     fetcher
   );
 
@@ -114,19 +126,10 @@ export function AgentTab() {
   const {
     data: agentConfigsRes,
     isLoading: agentLoading,
-  } = useSWR(
-    endpoints.agents.config(
-      (settingsRes?.data || settingsRes)?.id || ""
-    ),
-    // Use a no-auth fetcher — kolyn-agents uses X-Gateway-Key, not JWT.
-    // For now we fetch without auth; if kolyn-agents is down, we show placeholder.
-    (url: string) =>
-      fetch(url)
-        .then((r) => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.json();
-        })
-        .catch(() => null),
+    error: agentError,
+  } = useSWR<AgentConfigListResponse>(
+    businessId ? endpoints.agents.config(businessId) : null,
+    fetcher,
     { shouldRetryOnError: false }
   );
 
@@ -134,10 +137,7 @@ export function AgentTab() {
   const agentEnabled: boolean = settings?.config?.agent_enabled ?? false;
 
   // agentConfigsRes is an array (list endpoint filtered by business_id)
-  const agentConfig: AgentConfig | null =
-    Array.isArray(agentConfigsRes) && agentConfigsRes.length > 0
-      ? agentConfigsRes[0]
-      : null;
+  const agentConfig = agentConfigsRes?.[0] ?? null;
 
   const handleToggle = async () => {
     if (toggling) return;
@@ -146,7 +146,7 @@ export function AgentTab() {
     // Optimistic update
     const newValue = !agentEnabled;
     mutateSettings(
-      (prev: any) => {
+      (prev: BusinessSettingsResponse | BusinessSettings | undefined) => {
         const base = prev?.data || prev || {};
         return {
           ...prev,
@@ -160,9 +160,13 @@ export function AgentTab() {
     );
 
     try {
+      if (!businessPhoneId) {
+        throw new Error("No se pudo identificar el negocio autenticado.");
+      }
+
       await apiClient.patch(endpoints.business.agentToggle, {
         agent_enabled: newValue,
-        business_phone_id: BUSINESS_PHONE_ID,
+        business_phone_id: businessPhoneId,
       });
       mutateSettings(); // revalidate from server
       toast({
@@ -184,7 +188,7 @@ export function AgentTab() {
     }
   };
 
-  const isLoading = settingsLoading;
+  const isLoading = status === "loading" || settingsLoading;
 
   return (
     <div className="space-y-4">
@@ -251,6 +255,22 @@ export function AgentTab() {
               {[...Array(4)].map((_, i) => (
                 <Skeleton key={i} className="h-5 w-full" />
               ))}
+            </div>
+          ) : agentError ? (
+            <div className="flex flex-col items-center justify-center py-8 gap-3 text-center">
+              <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
+                <AlertCircle className="h-6 w-6 text-destructive" />
+              </div>
+              <div>
+                <p className="font-medium text-foreground">
+                  No se pudo cargar la configuracion del agente
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {agentError instanceof Error
+                    ? agentError.message
+                    : "Verifica la sesion y la conexion con kolyn-agents."}
+                </p>
+              </div>
             </div>
           ) : agentConfig ? (
             <div className="space-y-5">
