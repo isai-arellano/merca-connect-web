@@ -13,6 +13,9 @@ export const endpoints = {
     auth: {
         login: `${API_URL}/api/v1/auth/login`,
     },
+    categories: {
+        list: (businessPhoneId: string) => withBusinessPhoneId(`${API_URL}/api/v1/categories`, businessPhoneId),
+    },
     products: {
         list: (businessPhoneId: string) => withBusinessPhoneId(`${API_URL}/api/v1/products`, businessPhoneId),
         detail: (id: string, businessPhoneId?: string | null) => withBusinessPhoneId(`${API_URL}/api/v1/products/${id}`, businessPhoneId),
