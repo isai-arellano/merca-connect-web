@@ -7,10 +7,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { IndustryConfig } from "@/config/industries";
+import useSWR from "swr";
 import { useSWRConfig } from "swr";
 import { endpoints } from "@/lib/api";
-import { apiClient } from "@/lib/api-client";
+import { apiClient, fetcher } from "@/lib/api-client";
 import { Loader2 } from "lucide-react";
+
+interface Category {
+    id: string;
+    name: string;
+}
+
+interface CategoryListResponse {
+    data?: Category[];
+}
 
 interface ProductDialogProps {
     children: React.ReactNode;
@@ -22,7 +32,16 @@ interface ProductDialogProps {
 export function ProductDialog({ children, config, industry, businessPhoneId }: ProductDialogProps) {
     const [open, setOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
     const { mutate } = useSWRConfig();
+    const categoriesEndpoint = businessPhoneId
+        ? endpoints.categories.list(businessPhoneId)
+        : null;
+    const { data: categoriesResponse, error: categoriesError, isLoading: categoriesLoading } = useSWR<CategoryListResponse>(
+        open && categoriesEndpoint ? categoriesEndpoint : null,
+        fetcher
+    );
+    const categories = categoriesResponse?.data ?? [];
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -37,6 +56,7 @@ export function ProductDialog({ children, config, industry, businessPhoneId }: P
             ingredients: formData.get("ingredients") || null,
             preparation_time_min: parseInt(formData.get("prepTime") as string) || null,
             active_substance: formData.get("substance") || null,
+            category_id: selectedCategoryId || null,
         };
         const productsEndpoint = businessPhoneId ? endpoints.products.list(businessPhoneId) : null;
 
@@ -50,6 +70,7 @@ export function ProductDialog({ children, config, industry, businessPhoneId }: P
 
             await mutate(productsEndpoint);
 
+            setSelectedCategoryId("");
             setOpen(false);
         } catch (error) {
             console.error("Error creating product:", error);
@@ -59,7 +80,15 @@ export function ProductDialog({ children, config, industry, businessPhoneId }: P
     };
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+            open={open}
+            onOpenChange={(nextOpen) => {
+                setOpen(nextOpen);
+                if (!nextOpen) {
+                    setSelectedCategoryId("");
+                }
+            }}
+        >
             <DialogTrigger asChild>
                 {children}
             </DialogTrigger>
@@ -90,16 +119,36 @@ export function ProductDialog({ children, config, industry, businessPhoneId }: P
                                 Categoría
                             </Label>
                             <div className="col-span-3">
-                                <Select name="category">
+                                <Select value={selectedCategoryId} onValueChange={setSelectedCategoryId}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Selecciona una" />
+                                        <SelectValue
+                                            placeholder={
+                                                !businessPhoneId
+                                                    ? "Negocio no disponible"
+                                                    : categoriesLoading
+                                                        ? "Cargando categorías..."
+                                                        : "Selecciona una"
+                                            }
+                                        />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="bebidas">Bebidas</SelectItem>
-                                        <SelectItem value="botanas">Botanas</SelectItem>
-                                        <SelectItem value="otros">Otros</SelectItem>
+                                        {categories.map((category) => (
+                                            <SelectItem key={category.id} value={category.id}>
+                                                {category.name}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
+                                {categoriesError && (
+                                    <p className="mt-2 text-sm text-destructive">
+                                        No se pudieron cargar las categorías.
+                                    </p>
+                                )}
+                                {!categoriesLoading && !categoriesError && categories.length === 0 && businessPhoneId && (
+                                    <p className="mt-2 text-sm text-muted-foreground">
+                                        No hay categorías activas para este negocio.
+                                    </p>
+                                )}
                             </div>
                         </div>
 
