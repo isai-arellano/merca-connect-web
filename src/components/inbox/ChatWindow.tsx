@@ -6,7 +6,7 @@ import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Send, FileText, Check, Download, Image as ImageIcon } from "lucide-react";
+import { Loader2, Send, FileText, Check, Download, Image as ImageIcon, Bot, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Popover,
@@ -150,6 +150,7 @@ function MessageMedia({ msg }: { msg: any }) {
 export function ChatWindow({ conversationId }: ChatWindowProps) {
     const [inputValue, setInputValue] = useState("");
     const [isSending, setIsSending] = useState(false);
+    const [isTogglingHandoff, setIsTogglingHandoff] = useState(false);
     const [templatePopoverOpen, setTemplatePopoverOpen] = useState(false);
     const [sendingTemplate, setSendingTemplate] = useState<string | null>(null);
     const [sentTemplate, setSentTemplate] = useState<string | null>(null);
@@ -189,6 +190,20 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
         }
     };
 
+    const handleToggleHandoff = async () => {
+        const isHandoff = detailData?.status === "handoff";
+        const newStatus = isHandoff ? "ai_active" : "handoff";
+        setIsTogglingHandoff(true);
+        try {
+            await apiClient.patch(endpoints.conversations.handoff(conversationId), { status: newStatus });
+            mutate();
+        } catch (error) {
+            console.error("Error cambiando estado:", error);
+        } finally {
+            setIsTogglingHandoff(false);
+        }
+    };
+
     const handleSendTemplate = async (templateName: string, language: string) => {
         if (!customerPhone) return;
         setSendingTemplate(templateName);
@@ -222,13 +237,40 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     return (
         <div className="flex flex-col h-full w-full bg-white dark:bg-card overflow-hidden">
             {/* Header */}
-            <div className="border-b border-border p-4 flex items-center justify-between">
-                <div>
-                    <h3 className="font-semibold">{detailData.customer?.name || detailData.customer?.phone_number}</h3>
+            <div className="border-b border-border p-4 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                    <h3 className="font-semibold truncate">{detailData.customer?.name || detailData.customer?.phone_number}</h3>
                     <p className="text-xs text-muted-foreground">{detailData.customer?.phone_number}</p>
                 </div>
-                <div className="text-xs bg-[#74E79C]/20 text-[#1A3E35] dark:text-[#74E79C] px-2 py-1 rounded font-medium">
-                    Estado: {detailData.status}
+                <div className="flex items-center gap-2 shrink-0">
+                    {detailData.agent_enabled && (
+                        <Button
+                            size="sm"
+                            variant={detailData.status === "handoff" ? "default" : "outline"}
+                            onClick={handleToggleHandoff}
+                            disabled={isTogglingHandoff}
+                            className={detailData.status === "handoff"
+                                ? "bg-[#1A3E35] hover:bg-[#1A3E35]/90 text-white gap-1.5"
+                                : "gap-1.5 text-amber-700 border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-950"
+                            }
+                        >
+                            {isTogglingHandoff ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : detailData.status === "handoff" ? (
+                                <Bot className="h-3.5 w-3.5" />
+                            ) : (
+                                <UserCheck className="h-3.5 w-3.5" />
+                            )}
+                            {detailData.status === "handoff" ? "Devolver al agente" : "Tomar conversación"}
+                        </Button>
+                    )}
+                    <span className={`text-xs px-2 py-1 rounded font-medium ${
+                        detailData.status === "handoff"
+                            ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                            : "bg-[#74E79C]/20 text-[#1A3E35] dark:text-[#74E79C]"
+                    }`}>
+                        {detailData.status === "handoff" ? "Atención humana" : detailData.status === "ai_active" ? "Agente IA" : detailData.status}
+                    </span>
                 </div>
             </div>
 
