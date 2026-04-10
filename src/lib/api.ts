@@ -1,12 +1,21 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
+function withBusinessPhoneId(path: string, businessPhoneId?: string | null) {
+    if (!businessPhoneId) {
+        return path;
+    }
+
+    const separator = path.includes("?") ? "&" : "?";
+    return `${path}${separator}business_phone_id=${encodeURIComponent(businessPhoneId)}`;
+}
+
 export const endpoints = {
     auth: {
         login: `${API_URL}/api/v1/auth/login`,
     },
     products: {
-        list: (businessPhoneId: string) => `${API_URL}/api/v1/products?business_phone_id=${encodeURIComponent(businessPhoneId)}`,
-        detail: (id: string) => `${API_URL}/api/v1/products/${id}`,
+        list: (businessPhoneId: string) => withBusinessPhoneId(`${API_URL}/api/v1/products`, businessPhoneId),
+        detail: (id: string, businessPhoneId?: string | null) => withBusinessPhoneId(`${API_URL}/api/v1/products/${id}`, businessPhoneId),
     },
     dashboard: {
         stats: `${API_URL}/api/v1/dashboard/stats`,

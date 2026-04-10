@@ -24,6 +24,7 @@ interface Product {
     barcode?: string | null;
     ingredients?: string | null;
     preparation_time_min?: number | null;
+    active_substance?: string | null;
 }
 
 function toFiniteNumber(value: string | number | null | undefined): number {
@@ -167,9 +168,11 @@ export default function ProductsPage() {
                                     )}
 
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground">
-                                            Editar
-                                        </Button>
+                                        <ProductDialog config={config} industry={currentIndustry} businessPhoneId={sessionBusinessPhoneId} product={product}>
+                                            <Button variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground hover:text-foreground">
+                                                Editar
+                                            </Button>
+                                        </ProductDialog>
                                     </TableCell>
                                 </TableRow>
                                 );
