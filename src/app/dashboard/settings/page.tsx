@@ -20,10 +20,11 @@ import {
   AlertCircle,
   CircleDot,
   Bot,
+  Link,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
-import { apiClient, fetcher } from "@/lib/api-client";
+import { apiClient, fetcher, ApiError } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { AgentTab } from "@/components/settings/AgentTab";
 import { useToast } from "@/hooks/use-toast";
@@ -69,6 +70,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [editingWa, setEditingWa] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [slugError, setSlugError] = useState<string | null>(null);
 
   // Business settings
   const {
@@ -106,6 +108,7 @@ export default function SettingsPage() {
     phone: "",
     hours: "",
     description: "",
+    slug: "",
   });
 
   // WhatsApp form state
@@ -124,6 +127,7 @@ export default function SettingsPage() {
         phone: settings.phone || "",
         hours: settings.hours || "",
         description: settings.description || "",
+        slug: settings.slug || "",
       });
     }
   }, [settings]);
@@ -142,11 +146,23 @@ export default function SettingsPage() {
   }, [waProfile]);
 
   const handleSaveSettings = async () => {
+    // Basic slug format validation before sending
+    const slugValue = businessForm.slug.trim();
+    if (slugValue && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slugValue)) {
+      setSlugError("Solo letras minúsculas, números y guiones. Ej: mi-tienda");
+      return;
+    }
+    if (slugValue && (slugValue.length < 3 || slugValue.length > 100)) {
+      setSlugError("Debe tener entre 3 y 100 caracteres.");
+      return;
+    }
+
     setSaving(true);
+    setSlugError(null);
     try {
       await apiClient.patch(
         endpoints.business.settings,
-        businessForm
+        { ...businessForm, slug: slugValue || null }
       );
       mutateSettings();
       setSaved(true);
@@ -156,14 +172,18 @@ export default function SettingsPage() {
         title: "Configuración guardada",
         description: "Los datos del negocio se actualizaron correctamente.",
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error al guardar configuración:", error);
-      setSaveError("No se pudo guardar la configuración. Inténtalo de nuevo.");
-      toast({
-        title: "Error al guardar",
-        description: "No se pudo guardar la configuración del negocio.",
-        variant: "destructive",
-      });
+      if (error instanceof ApiError && error.status === 409) {
+        setSlugError("Este slug ya está en uso. Elige uno diferente.");
+      } else {
+        setSaveError("No se pudo guardar la configuración. Inténtalo de nuevo.");
+        toast({
+          title: "Error al guardar",
+          description: "No se pudo guardar la configuración del negocio.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setSaving(false);
     }
@@ -378,6 +398,56 @@ export default function SettingsPage() {
                             placeholder="Describe tu negocio brevemente..."
                             rows={3}
                           />
+                        </div>
+
+                        <Separator />
+
+                        {/* Catálogo público — slug */}
+                        <div className="space-y-3">
+                          <div>
+                            <Label htmlFor="biz-slug" className="flex items-center gap-2">
+                              <Link className="h-3.5 w-3.5 text-muted-foreground" />
+                              URL del Catálogo Público
+                            </Label>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Identificador único para tu catálogo público. Solo letras minúsculas, números y guiones.
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-muted-foreground shrink-0 hidden sm:inline">
+                              /catalogo/
+                            </span>
+                            <Input
+                              id="biz-slug"
+                              value={businessForm.slug}
+                              onChange={(e) => {
+                                setSlugError(null);
+                                setBusinessForm((prev) => ({
+                                  ...prev,
+                                  slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+                                }));
+                              }}
+                              placeholder="mi-tienda"
+                              className={slugError ? "border-destructive focus-visible:ring-destructive" : ""}
+                            />
+                          </div>
+                          {slugError && (
+                            <p className="text-xs text-destructive flex items-center gap-1.5">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              {slugError}
+                            </p>
+                          )}
+                          {businessForm.slug && !slugError && (
+                            <a
+                              href={`/catalogo/${businessForm.slug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              /catalogo/{businessForm.slug}
+                            </a>
+                          )}
                         </div>
 
                         <Separator />

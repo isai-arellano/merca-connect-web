@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, Filter, Loader2 } from "lucide-react";
+import { Plus, Search, Filter, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -64,8 +64,13 @@ export default function ProductsPage() {
         session && productsEndpoint ? productsEndpoint : null,
         fetcher,
     );
+    const { data: settingsData } = useSWR(
+        session ? endpoints.business.settings : null,
+        fetcher,
+    );
 
     const products = (response?.data || []) as Product[];
+    const businessSlug: string | null = settingsData?.slug ?? null;
 
     const filteredProducts = searchTerm.trim()
         ? products.filter((p) =>
@@ -104,12 +109,29 @@ export default function ProductsPage() {
                         <span className="font-medium capitalize text-foreground">{currentIndustry}</span>.
                     </p>
                 </div>
-                <Button
-                    className="bg-primary text-primary-foreground shadow-sm hover:opacity-90 transition-opacity"
-                    onClick={openCreate}
-                >
-                    <Plus className="mr-2 h-4 w-4" /> Nuevo Producto
-                </Button>
+                <div className="flex gap-2">
+                    {businessSlug ? (
+                        <Button variant="outline" asChild>
+                            <a
+                                href={`/catalogo/${businessSlug}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <ExternalLink className="mr-2 h-4 w-4" /> Ver catálogo público
+                            </a>
+                        </Button>
+                    ) : sessionBusinessPhoneId && (
+                        <Button variant="outline" disabled title="Configura un slug en Ajustes para activar el catálogo público">
+                            <ExternalLink className="mr-2 h-4 w-4" /> Catálogo público (sin slug)
+                        </Button>
+                    )}
+                    <Button
+                        className="bg-primary text-primary-foreground shadow-sm hover:opacity-90 transition-opacity"
+                        onClick={openCreate}
+                    >
+                        <Plus className="mr-2 h-4 w-4" /> Nuevo Producto
+                    </Button>
+                </div>
             </motion.div>
 
             <motion.div className="flex items-center gap-2" variants={itemVariants}>

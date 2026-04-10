@@ -18,6 +18,9 @@ export const endpoints = {
         create: `${API_URL}/api/v1/categories`,
         delete: (id: string) => `${API_URL}/api/v1/categories/${id}`,
     },
+    catalog: {
+        public: (slug: string) => `${API_URL}/api/v1/catalog/${encodeURIComponent(slug)}`,
+    },
     products: {
         list: (businessPhoneId: string) => withBusinessPhoneId(`${API_URL}/api/v1/products`, businessPhoneId),
         detail: (id: string, businessPhoneId?: string | null) => withBusinessPhoneId(`${API_URL}/api/v1/products/${id}`, businessPhoneId),

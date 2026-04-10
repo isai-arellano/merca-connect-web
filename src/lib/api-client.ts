@@ -1,6 +1,14 @@
 import { getSession } from "next-auth/react";
 import { API_URL } from "./api";
 
+export class ApiError extends Error {
+    status: number;
+    constructor(status: number, message: string) {
+        super(message);
+        this.status = status;
+    }
+}
+
 async function getAuthHeaders(optionsHeaders: HeadersInit = {}): Promise<Headers> {
     const headers = new Headers(optionsHeaders);
     headers.set("Content-Type", "application/json");
@@ -25,7 +33,7 @@ export const apiClient = {
         });
 
         if (!res.ok) {
-            throw new Error(`API Error: ${res.status} ${res.statusText}`);
+            throw new ApiError(res.status, `API Error: ${res.status} ${res.statusText}`);
         }
         return res.json();
     },
@@ -40,7 +48,7 @@ export const apiClient = {
         });
 
         if (!res.ok) {
-            throw new Error(`API Error: ${res.status} ${res.statusText}`);
+            throw new ApiError(res.status, `API Error: ${res.status} ${res.statusText}`);
         }
         return res.json();
     },
@@ -55,10 +63,24 @@ export const apiClient = {
         });
 
         if (!res.ok) {
-            throw new Error(`API Error: ${res.status} ${res.statusText}`);
+            throw new ApiError(res.status, `API Error: ${res.status} ${res.statusText}`);
         }
         return res.json();
-    }
+    },
+
+    delete: async (url: string, options: RequestInit = {}) => {
+        const headers = await getAuthHeaders(options.headers);
+        const res = await fetch(`${url.startsWith("http") ? url : API_URL + url}`, {
+            ...options,
+            method: "DELETE",
+            headers,
+        });
+
+        if (!res.ok) {
+            throw new ApiError(res.status, `API Error: ${res.status} ${res.statusText}`);
+        }
+        return res.json();
+    },
 };
 
 export const fetcher = (url: string) => apiClient.get(url);
