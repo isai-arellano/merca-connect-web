@@ -41,6 +41,7 @@ export const endpoints = {
         list: `${API_URL}/api/v1/conversations`,
         detail: (id: string) => `${API_URL}/api/v1/conversations/${id}`,
         reply: (id: string) => `${API_URL}/api/v1/conversations/${id}/reply`,
+        handoff: (id: string) => `${API_URL}/api/v1/conversations/${id}/handoff`,
     },
     templates: {
         list: `${API_URL}/api/v1/templates`,
