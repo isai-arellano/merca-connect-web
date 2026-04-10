@@ -76,7 +76,7 @@ export function ProductDialog({ children, config, industry, businessPhoneId, pro
     const productDetailEndpoint = open && isEditing && product && businessPhoneId
         ? endpoints.products.detail(product.id, businessPhoneId)
         : null;
-    const { data: categoriesResponse, isLoading: isLoadingCategories } = useSWR(
+    const { data: categoriesResponse, isLoading: isLoadingCategories, error: categoriesError } = useSWR(
         open && categoriesEndpoint ? categoriesEndpoint : null,
         fetcher,
     );
@@ -192,6 +192,9 @@ export function ProductDialog({ children, config, industry, businessPhoneId, pro
                                         ))}
                                     </SelectContent>
                                 </Select>
+                                {categoriesError && (
+                                    <p className="mt-1 text-xs text-destructive">No se pudieron cargar las categorías.</p>
+                                )}
                             </div>
                         </div>
 
