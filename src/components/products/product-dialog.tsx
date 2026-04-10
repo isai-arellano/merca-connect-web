@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { IndustryConfig } from "@/config/industries";
 import { useSWRConfig } from "swr";
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
 import useSWR from "swr";
 
 export interface ProductDialogProduct {
@@ -69,6 +69,13 @@ function getInitialFormState(product?: ProductDialogProduct): FormState {
 export function ProductDialog({ open, onOpenChange, config, industry, businessPhoneId, product }: ProductDialogProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formState, setFormState] = useState<FormState>(getInitialFormState(product));
+
+    const [newCategoryMode, setNewCategoryMode] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState("");
+    const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+    const [categoryError, setCategoryError] = useState<string | null>(null);
+    const newCategoryInputRef = useRef<HTMLInputElement>(null);
+
     const { mutate } = useSWRConfig();
     const productsEndpoint = businessPhoneId ? endpoints.products.list(businessPhoneId) : null;
     const categoriesEndpoint = businessPhoneId ? endpoints.categories.list(businessPhoneId) : null;
@@ -93,14 +100,44 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
     useEffect(() => {
         if (!open) {
             setFormState(getInitialFormState(product));
+            setNewCategoryMode(false);
+            setNewCategoryName("");
+            setCategoryError(null);
             return;
         }
         setFormState(getInitialFormState(currentProduct));
     }, [open, product, currentProduct]);
 
+    useEffect(() => {
+        if (newCategoryMode) {
+            setTimeout(() => newCategoryInputRef.current?.focus(), 50);
+        }
+    }, [newCategoryMode]);
+
     const updateField = (field: keyof FormState, value: string) => {
         setFormState((prev) => ({ ...prev, [field]: value }));
     };
+
+    async function handleCreateCategory() {
+        const name = newCategoryName.trim();
+        if (!name || !categoriesEndpoint) return;
+
+        setCategoryError(null);
+        setIsCreatingCategory(true);
+
+        try {
+            const created = await apiClient.post(endpoints.categories.create, { name });
+            await mutate(categoriesEndpoint);
+            updateField("categoryId", created.id);
+            setNewCategoryMode(false);
+            setNewCategoryName("");
+        } catch (err: any) {
+            const detail = err?.message ?? "Error al crear la categoría";
+            setCategoryError(detail.includes("409") ? "Ya existe una categoría con ese nombre" : "No se pudo crear la categoría");
+        } finally {
+            setIsCreatingCategory(false);
+        }
+    }
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -178,28 +215,97 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
                             />
                         </div>
 
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="category" className="text-right">Categoría</Label>
-                            <div className="col-span-3">
-                                <Select
-                                    value={formState.categoryId}
-                                    onValueChange={(value) => updateField("categoryId", value)}
-                                    disabled={isLoadingCategories}
-                                >
-                                    <SelectTrigger id="category">
-                                        <SelectValue placeholder={isLoadingCategories ? "Cargando..." : "Selecciona una"} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value={EMPTY_CATEGORY_VALUE}>Sin categoría</SelectItem>
-                                        {categoryOptions.map((option) => (
-                                            <SelectItem key={option.id} value={option.id}>
-                                                {option.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                {categoriesError && (
-                                    <p className="mt-1 text-xs text-destructive">No se pudieron cargar las categorías.</p>
+                        <div className="grid grid-cols-4 items-start gap-4">
+                            <Label className="text-right pt-2">Categoría</Label>
+                            <div className="col-span-3 space-y-2">
+                                {!newCategoryMode ? (
+                                    <div className="flex gap-2">
+                                        <Select
+                                            value={formState.categoryId}
+                                            onValueChange={(value) => updateField("categoryId", value)}
+                                            disabled={isLoadingCategories}
+                                        >
+                                            <SelectTrigger id="category" className="flex-1">
+                                                <SelectValue placeholder={isLoadingCategories ? "Cargando..." : "Selecciona una"} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={EMPTY_CATEGORY_VALUE}>Sin categoría</SelectItem>
+                                                {categoryOptions.map((option) => (
+                                                    <SelectItem key={option.id} value={option.id}>
+                                                        {option.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            className="shrink-0"
+                                            title="Nueva categoría"
+                                            onClick={() => setNewCategoryMode(true)}
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="flex gap-2">
+                                            <Input
+                                                ref={newCategoryInputRef}
+                                                placeholder="Nombre de la categoría"
+                                                value={newCategoryName}
+                                                onChange={(e) => {
+                                                    setNewCategoryName(e.target.value);
+                                                    setCategoryError(null);
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") {
+                                                        e.preventDefault();
+                                                        handleCreateCategory();
+                                                    }
+                                                    if (e.key === "Escape") {
+                                                        setNewCategoryMode(false);
+                                                        setNewCategoryName("");
+                                                        setCategoryError(null);
+                                                    }
+                                                }}
+                                                className="flex-1"
+                                            />
+                                            <Button
+                                                type="button"
+                                                size="icon"
+                                                className="shrink-0"
+                                                disabled={isCreatingCategory || !newCategoryName.trim()}
+                                                onClick={handleCreateCategory}
+                                            >
+                                                {isCreatingCategory
+                                                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                                                    : <Plus className="h-4 w-4" />
+                                                }
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                className="shrink-0"
+                                                onClick={() => {
+                                                    setNewCategoryMode(false);
+                                                    setNewCategoryName("");
+                                                    setCategoryError(null);
+                                                }}
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                        {categoryError && (
+                                            <p className="text-xs text-destructive">{categoryError}</p>
+                                        )}
+                                        <p className="text-xs text-muted-foreground">Enter para guardar · Esc para cancelar</p>
+                                    </div>
+                                )}
+                                {categoriesError && !newCategoryMode && (
+                                    <p className="text-xs text-destructive">No se pudieron cargar las categorías.</p>
                                 )}
                             </div>
                         </div>
@@ -273,7 +379,7 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
                     </div>
 
                     <DialogFooter>
-                        <Button type="submit" disabled={isSubmitting || isLoadingProduct}>
+                        <Button type="submit" disabled={isSubmitting || isLoadingProduct || newCategoryMode}>
                             {isSubmitting
                                 ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Guardando...</>
                                 : isEditing ? "Guardar Cambios" : "Guardar Producto"
