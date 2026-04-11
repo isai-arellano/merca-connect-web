@@ -182,10 +182,31 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
         setInputValue("");
         setIsSending(true);
         try {
-            await apiClient.post(endpoints.conversations.reply(conversationId), { text: textToSend });
-            await mutate();
+            const optimisticMsg = {
+                id: crypto.randomUUID(),
+                direction: "outbound",
+                content: textToSend,
+                message_type: "text",
+                media_id: null,
+                created_at: new Date().toISOString(),
+            };
+            await mutate(
+                async (current: any) => {
+                    await apiClient.post(endpoints.conversations.reply(conversationId), { text: textToSend });
+                    return undefined; // undefined triggers SWR revalidation
+                },
+                {
+                    optimisticData: (current: any) => ({
+                        ...current,
+                        messages: [...(current?.messages ?? []), optimisticMsg],
+                    }),
+                    revalidate: true,
+                    populateCache: false,
+                    rollbackOnError: true,
+                }
+            );
         } catch {
-            // noop
+            // noop — SWR rolls back optimistic update automatically via rollbackOnError: true
         } finally {
             setIsSending(false);
         }
