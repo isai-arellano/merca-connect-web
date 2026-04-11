@@ -1,7 +1,7 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, ShoppingBag, Users, Activity, Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Package, ShoppingBag, Users, Activity, Loader2, MessageSquare, MessageCircle } from "lucide-react";
 import { motion, Variants } from "framer-motion";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
@@ -56,6 +56,14 @@ export default function DashboardPage() {
         { refreshInterval: 10000 }
     );
     const recentOrders = (ordersData?.data || []) as RecentOrder[];
+
+    const { data: analyticsData } = useSWR(
+        session && sessionBusinessPhoneId ? endpoints.analytics.overview : null,
+        fetcher,
+        { refreshInterval: 30000 }
+    );
+    const analytics = analyticsData?.data || analyticsData || {};
+    const messageStats = analytics.messages || {};
     
     return (
         <motion.div
@@ -142,14 +150,47 @@ export default function DashboardPage() {
             <motion.div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7 pt-4" variants={itemVariants}>
                 <Card className="col-span-4 hover:border-slate-300 dark:hover:border-slate-700 transition-colors duration-200">
                     <CardHeader>
-                        <CardTitle>Actividad Reciente</CardTitle>
+                        <CardTitle>Resumen de Mensajes</CardTitle>
+                        <CardDescription>Actividad de conversaciones del negocio</CardDescription>
                     </CardHeader>
-                    <CardContent className="pl-2">
-                        <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground border-2 border-dashed border-border rounded-md bg-slate-50 dark:bg-slate-900">
-                            <p className="text-center px-4">
-                                Módulo de Gráficas en Construcción <br/> 
-                                <span className="text-xs opacity-70">Pronto verás el flujo de pedidos aquí.</span>
-                            </p>
+                    <CardContent>
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div className="flex items-center gap-3 p-3 bg-blue-500/5 rounded-lg border border-blue-500/20">
+                                <div className="p-2 bg-blue-500/10 rounded-lg">
+                                    <MessageSquare className="h-4 w-4 text-blue-500" />
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Enviados hoy</p>
+                                    <p className="text-xl font-bold text-foreground">{messageStats.sent_today ?? 0}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 p-3 bg-emerald-500/5 rounded-lg border border-emerald-500/20">
+                                <div className="p-2 bg-emerald-500/10 rounded-lg">
+                                    <MessageCircle className="h-4 w-4 text-emerald-500" />
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground">Recibidos hoy</p>
+                                    <p className="text-xl font-bold text-foreground">{messageStats.received_today ?? 0}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div className="flex justify-between items-center py-1.5 border-b border-border">
+                                <span className="text-muted-foreground">Esta semana (env.)</span>
+                                <span className="font-medium tabular-nums">{messageStats.sent_this_week ?? 0}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1.5 border-b border-border">
+                                <span className="text-muted-foreground">Esta semana (rec.)</span>
+                                <span className="font-medium tabular-nums">{messageStats.received_this_week ?? 0}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1.5">
+                                <span className="text-muted-foreground">Este mes (env.)</span>
+                                <span className="font-medium tabular-nums">{messageStats.sent_this_month ?? 0}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1.5">
+                                <span className="text-muted-foreground">Este mes (rec.)</span>
+                                <span className="font-medium tabular-nums">{messageStats.received_this_month ?? 0}</span>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
