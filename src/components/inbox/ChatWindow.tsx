@@ -178,13 +178,14 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
 
     const handleSend = async () => {
         if (!inputValue.trim()) return;
+        const textToSend = inputValue.trim();
+        setInputValue("");
         setIsSending(true);
         try {
-            await apiClient.post(endpoints.conversations.reply(conversationId), { text: inputValue });
-            setInputValue("");
-            mutate();
-        } catch (error) {
-            console.error("Error sending message:", error);
+            await apiClient.post(endpoints.conversations.reply(conversationId), { text: textToSend });
+            await mutate();
+        } catch {
+            // noop
         } finally {
             setIsSending(false);
         }
@@ -197,8 +198,8 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
         try {
             await apiClient.patch(endpoints.conversations.handoff(conversationId), { status: newStatus });
             mutate();
-        } catch (error) {
-            console.error("Error cambiando estado:", error);
+        } catch {
+            // noop
         } finally {
             setIsTogglingHandoff(false);
         }
@@ -218,9 +219,9 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                 setSentTemplate(null);
                 setTemplatePopoverOpen(false);
             }, 1200);
-            mutate();
-        } catch (error) {
-            console.error("Error sending template:", error);
+            await mutate();
+        } catch {
+            // noop
         } finally {
             setSendingTemplate(null);
         }
