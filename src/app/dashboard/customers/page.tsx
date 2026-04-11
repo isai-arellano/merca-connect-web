@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Loader2 } from "lucide-react";
+import { Search, Loader2, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useSession } from "next-auth/react";
 import { motion, Variants } from "framer-motion";
@@ -11,14 +13,14 @@ import { endpoints } from "@/lib/api";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { getSessionBusinessPhoneId } from "@/lib/business";
+import { CustomerDialog, type Customer } from "@/components/customers/customer-dialog";
 
-interface Customer {
-    id: string;
-    name?: string;
-    phone_number?: string;
-    created_at: string;
-    notes?: string | null;
-}
+const TAG_COLORS: Record<string, string> = {
+    VIP: "bg-yellow-100 text-yellow-800 border-yellow-200",
+    Mayoreo: "bg-blue-100 text-blue-800 border-blue-200",
+    Credito: "bg-red-100 text-red-800 border-red-200",
+    Frecuente: "bg-green-100 text-green-800 border-green-200",
+};
 
 const containerVariants: Variants = {
     hidden: { opacity: 0, y: 15 },
@@ -33,10 +35,12 @@ const itemVariants: Variants = {
 export default function CustomersPage() {
     const { data: session } = useSession();
     const [searchTerm, setSearchTerm] = useState("");
+    const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+    const [dialogOpen, setDialogOpen] = useState(false);
 
     const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
 
-    const { data: response, isLoading } = useSWR(
+    const { data: response, isLoading, mutate } = useSWR(
         session && sessionBusinessPhoneId ? endpoints.customers.list : null
     );
 
@@ -46,6 +50,11 @@ export default function CustomersPage() {
         (customer.name && customer.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (customer.phone_number && customer.phone_number.includes(searchTerm))
     );
+
+    function openEdit(customer: Customer) {
+        setEditingCustomer(customer);
+        setDialogOpen(true);
+    }
 
     return (
         <motion.div
@@ -83,15 +92,17 @@ export default function CustomersPage() {
                     <TableHeader className="bg-muted/50">
                         <TableRow className="border-border">
                             <TableHead className="w-[200px]">Nombre</TableHead>
-                            <TableHead>WhatsApp ID</TableHead>
-                            <TableHead>Fecha de Registro</TableHead>
+                            <TableHead>WhatsApp</TableHead>
+                            <TableHead>Etiquetas</TableHead>
                             <TableHead>Notas</TableHead>
+                            <TableHead>Registro</TableHead>
+                            <TableHead className="w-[60px]" />
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {isLoading ? (
                             <TableRow>
-                                <TableCell colSpan={4} className="h-40 text-center">
+                                <TableCell colSpan={6} className="h-40 text-center">
                                     <div className="flex flex-col items-center justify-center text-muted-foreground">
                                         <Loader2 className="h-6 w-6 animate-spin mb-2" />
                                         Cargando base de datos...
@@ -100,7 +111,7 @@ export default function CustomersPage() {
                             </TableRow>
                         ) : filteredCustomers.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
+                                <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
                                     No se encontraron clientes.
                                 </TableCell>
                             </TableRow>
@@ -108,16 +119,41 @@ export default function CustomersPage() {
                             filteredCustomers.map((customer) => (
                                 <TableRow key={customer.id} className="border-border hover:bg-muted/50 transition-colors">
                                     <TableCell className="font-medium text-foreground">
-                                        {customer.name}
+                                        {customer.name || <span className="text-muted-foreground italic">Sin nombre</span>}
                                     </TableCell>
                                     <TableCell className="text-muted-foreground">
                                         +{customer.phone_number}
                                     </TableCell>
-                                    <TableCell className="text-sm">
-                                        {format(new Date(customer.created_at), 'dd MMM yyyy, HH:mm', { locale: es })}
+                                    <TableCell>
+                                        <div className="flex flex-wrap gap-1">
+                                            {(customer.tags ?? []).length > 0
+                                                ? customer.tags!.map((tag) => (
+                                                    <span
+                                                        key={tag}
+                                                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${TAG_COLORS[tag] ?? "bg-muted text-muted-foreground border-border"}`}
+                                                    >
+                                                        {tag}
+                                                    </span>
+                                                ))
+                                                : <span className="text-muted-foreground text-sm">—</span>
+                                            }
+                                        </div>
                                     </TableCell>
                                     <TableCell className="text-muted-foreground text-sm max-w-[200px] truncate">
                                         {customer.notes || "—"}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                        {format(new Date(customer.created_at), 'dd MMM yyyy', { locale: es })}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                            onClick={() => openEdit(customer)}
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))
@@ -125,6 +161,13 @@ export default function CustomersPage() {
                     </TableBody>
                 </Table>
             </motion.div>
+
+            <CustomerDialog
+                customer={editingCustomer}
+                open={dialogOpen}
+                onOpenChange={setDialogOpen}
+                onSuccess={() => mutate()}
+            />
         </motion.div>
     );
 }
