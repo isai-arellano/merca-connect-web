@@ -49,6 +49,14 @@ interface HoursEditorProps {
     onChange: (value: WeekSchedule) => void;
 }
 
+function isDayIncomplete(schedule: DaySchedule): boolean {
+    return schedule.open && (!schedule.from_ || !schedule.to);
+}
+
+export function hasIncompleteHours(schedule: WeekSchedule): boolean {
+    return DAY_ORDER.some((day) => isDayIncomplete(schedule[day]));
+}
+
 export function HoursEditor({ value, onChange }: HoursEditorProps) {
     function updateDay(day: keyof WeekSchedule, patch: Partial<DaySchedule>) {
         onChange({ ...value, [day]: { ...value[day], ...patch } });
@@ -58,6 +66,7 @@ export function HoursEditor({ value, onChange }: HoursEditorProps) {
         <div className="space-y-2">
             {DAY_ORDER.map((day) => {
                 const schedule = value[day];
+                const incomplete = isDayIncomplete(schedule);
                 return (
                     <div key={day} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
                         {/* Toggle activo/inactivo */}
@@ -81,15 +90,20 @@ export function HoursEditor({ value, onChange }: HoursEditorProps) {
                                     type="time"
                                     value={schedule.from_}
                                     onChange={(e) => updateDay(day, { from_: e.target.value })}
-                                    className="h-8 w-32 text-sm"
+                                    className={`h-8 w-32 text-sm ${incomplete && !schedule.from_ ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                                    required
                                 />
                                 <span className="text-muted-foreground text-sm shrink-0">a</span>
                                 <Input
                                     type="time"
                                     value={schedule.to}
                                     onChange={(e) => updateDay(day, { to: e.target.value })}
-                                    className="h-8 w-32 text-sm"
+                                    className={`h-8 w-32 text-sm ${incomplete && !schedule.to ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                                    required
                                 />
+                                {incomplete && (
+                                    <span className="text-xs text-destructive shrink-0">Hora requerida</span>
+                                )}
                             </div>
                         ) : (
                             <span className="text-sm text-muted-foreground italic flex-1">Cerrado</span>

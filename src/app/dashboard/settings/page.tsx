@@ -27,7 +27,7 @@ import { endpoints } from "@/lib/api";
 import { apiClient, fetcher, ApiError } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { AgentTab } from "@/components/settings/AgentTab";
-import { HoursEditor, type WeekSchedule, EMPTY_WEEK_SCHEDULE } from "@/components/settings/HoursEditor";
+import { HoursEditor, hasIncompleteHours, type WeekSchedule, EMPTY_WEEK_SCHEDULE } from "@/components/settings/HoursEditor";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -149,6 +149,16 @@ export default function SettingsPage() {
   }, [waProfile]);
 
   const handleSaveSettings = async () => {
+    // Validar horarios: si hay días activos sin horas, bloquear
+    if (hasIncompleteHours(weekSchedule)) {
+      toast({
+        title: "Horarios incompletos",
+        description: "Todos los días activos deben tener hora de apertura y cierre.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Basic slug format validation before sending
     const slugValue = businessForm.slug.trim();
     if (slugValue && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slugValue)) {
@@ -349,7 +359,7 @@ export default function SettingsPage() {
                         <div className="space-y-2">
                           <Label htmlFor="biz-phone" className="flex items-center gap-2">
                             <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                            Teléfono
+                            Teléfono de contacto
                           </Label>
                           <Input
                             id="biz-phone"
@@ -362,6 +372,9 @@ export default function SettingsPage() {
                             }
                             placeholder="+52 55 1234 5678"
                           />
+                          <p className="text-xs text-muted-foreground">
+                            Teléfono de atención al cliente (puede ser diferente al número de WhatsApp).
+                          </p>
                         </div>
 
                         <div className="space-y-2">
