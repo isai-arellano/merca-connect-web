@@ -21,12 +21,14 @@ import {
   CircleDot,
   Bot,
   Link,
+  Smartphone,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher, ApiError } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { AgentTab } from "@/components/settings/AgentTab";
+import { WhatsAppConnectTab } from "@/components/settings/WhatsAppConnectTab";
 import { HoursEditor, hasIncompleteHours, type WeekSchedule, EMPTY_WEEK_SCHEDULE } from "@/components/settings/HoursEditor";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -272,10 +274,14 @@ export default function SettingsPage() {
       {/* Tabs */}
       <motion.div variants={itemVariants}>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="negocio" className="gap-2">
               <Store className="h-4 w-4" />
               Negocio
+            </TabsTrigger>
+            <TabsTrigger value="conectar" className="gap-2">
+              <Smartphone className="h-4 w-4" />
+              Conectar
             </TabsTrigger>
             <TabsTrigger value="whatsapp" className="gap-2">
               <MessageCircle className="h-4 w-4" />
@@ -482,6 +488,18 @@ export default function SettingsPage() {
                     )}
                   </CardContent>
                 </Card>
+              </motion.div>
+            </TabsContent>
+
+            {/* CONECTAR TAB */}
+            <TabsContent value="conectar" key="conectar">
+              <motion.div
+                variants={tabContentVariants}
+                initial="hidden"
+                animate="visible"
+                exit="exit"
+              >
+                <WhatsAppConnectTab />
               </motion.div>
             </TabsContent>
 
