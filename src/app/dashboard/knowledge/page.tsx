@@ -94,9 +94,10 @@ export default function KnowledgePage() {
     const [editing, setEditing] = useState<KnowledgeDoc | null>(null);
     const [deleting, setDeleting] = useState<string | null>(null);
 
-    const { data: response, isLoading, mutate } = useSWR(
+    const { data: response, isLoading, error: swrError, mutate } = useSWR(
         session && businessId ? endpoints.knowledge.list(businessId) : null,
-        fetcher
+        fetcher,
+        { shouldRetryOnError: false }
     );
 
     const docs: KnowledgeDoc[] = response?.data || response || [];
@@ -188,6 +189,16 @@ export default function KnowledgePage() {
                             <Skeleton key={i} className="h-24 w-full rounded-xl" />
                         ))}
                     </div>
+                ) : swrError ? (
+                    <Card>
+                        <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+                            <AlertCircle className="h-8 w-8 text-destructive mb-3" />
+                            <p className="font-medium text-foreground mb-1">No se pudo conectar con el servicio</p>
+                            <p className="text-sm text-muted-foreground">
+                                El servicio de agentes no está disponible en este momento.
+                            </p>
+                        </CardContent>
+                    </Card>
                 ) : docs.length === 0 ? (
                     <EmptyState onAdd={openCreate} />
                 ) : (
