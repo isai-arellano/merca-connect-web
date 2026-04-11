@@ -60,6 +60,8 @@ export const endpoints = {
         settings: `${API_URL}/api/v1/business/settings`,
         whatsappProfile: `${API_URL}/api/v1/business/whatsapp-profile`,
         agentToggle: `${API_URL}/api/v1/business/agent-toggle`,
+        whatsappSignupComplete: `${API_URL}/api/v1/business/whatsapp-signup/complete`,
+        whatsappSignupStatus: `${API_URL}/api/v1/business/whatsapp-signup/status`,
     },
     agents: {
         config: (businessId: string) => `${process.env.NEXT_PUBLIC_AGENTS_URL || "http://localhost:8002"}/api/v1/agents?business_id=${businessId}`,
