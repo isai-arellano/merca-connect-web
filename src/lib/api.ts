@@ -66,4 +66,10 @@ export const endpoints = {
     agents: {
         config: (businessId: string) => `${process.env.NEXT_PUBLIC_AGENTS_URL || "http://localhost:8002"}/api/v1/agents?business_id=${businessId}`,
     },
+    knowledge: {
+        list: (businessId: string) => `${process.env.NEXT_PUBLIC_AGENTS_URL || "http://localhost:8002"}/api/v1/knowledge?business_id=${businessId}`,
+        create: `${process.env.NEXT_PUBLIC_AGENTS_URL || "http://localhost:8002"}/api/v1/knowledge`,
+        update: (id: string) => `${process.env.NEXT_PUBLIC_AGENTS_URL || "http://localhost:8002"}/api/v1/knowledge/${id}`,
+        delete: (id: string) => `${process.env.NEXT_PUBLIC_AGENTS_URL || "http://localhost:8002"}/api/v1/knowledge/${id}`,
+    },
 };

@@ -11,6 +11,7 @@ import {
   FileText,
   BarChart3,
   Settings,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ const operacionesLinks = [
 const adminLinks = [
   { href: "/dashboard/templates", label: "Templates", icon: FileText },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/dashboard/knowledge", label: "Conocimiento IA", icon: BookOpen },
   { href: "/dashboard/settings", label: "Configuración", icon: Settings },
 ];
 
