@@ -35,7 +35,8 @@ export const endpoints = {
     },
     customers: {
         list: `${API_URL}/api/v1/customers`,
-        detail: (id: string) => `${API_URL}/api/v1/customers/${id}`,
+        detail: (phoneNumber: string) => `${API_URL}/api/v1/customers/${phoneNumber}`,
+        update: (phoneNumber: string) => `${API_URL}/api/v1/customers/${phoneNumber}`,
     },
     conversations: {
         list: `${API_URL}/api/v1/conversations`,
