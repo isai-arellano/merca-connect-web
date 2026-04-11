@@ -1,5 +1,4 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
-export const AGENTS_URL = process.env.NEXT_PUBLIC_AGENTS_URL || "http://localhost:8002";
 
 function withBusinessPhoneId(path: string, businessPhoneId?: string | null) {
     if (!businessPhoneId) {
@@ -65,12 +64,12 @@ export const endpoints = {
         whatsappSignupStatus: `${API_URL}/api/v1/business/whatsapp-signup/status`,
     },
     agents: {
-        config: (businessId: string) => `${AGENTS_URL}/api/v1/agents?business_id=${businessId}`,
+        config: (businessId: string) => `${API_URL}/api/v1/agents?business_id=${businessId}`,
     },
     knowledge: {
-        list: (businessId: string) => `${AGENTS_URL}/api/v1/knowledge?business_id=${businessId}`,
-        create: `${AGENTS_URL}/api/v1/knowledge`,
-        update: (id: string) => `${AGENTS_URL}/api/v1/knowledge/${id}`,
-        delete: (id: string) => `${AGENTS_URL}/api/v1/knowledge/${id}`,
+        list: (businessId: string) => `${API_URL}/api/v1/knowledge?business_id=${businessId}`,
+        create: `${API_URL}/api/v1/knowledge`,
+        update: (id: string) => `${API_URL}/api/v1/knowledge/${id}`,
+        delete: (id: string) => `${API_URL}/api/v1/knowledge/${id}`,
     },
 };
