@@ -27,6 +27,7 @@ import { endpoints } from "@/lib/api";
 import { apiClient, fetcher, ApiError } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { AgentTab } from "@/components/settings/AgentTab";
+import { HoursEditor, type WeekSchedule, EMPTY_WEEK_SCHEDULE } from "@/components/settings/HoursEditor";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -106,10 +107,10 @@ export default function SettingsPage() {
     name: "",
     address: "",
     phone: "",
-    hours: "",
     description: "",
     slug: "",
   });
+  const [weekSchedule, setWeekSchedule] = useState<WeekSchedule>(EMPTY_WEEK_SCHEDULE);
 
   // WhatsApp form state
   const [waForm, setWaForm] = useState({
@@ -125,10 +126,12 @@ export default function SettingsPage() {
         name: settings.name || "",
         address: settings.address || "",
         phone: settings.phone || "",
-        hours: settings.hours || "",
         description: settings.description || "",
         slug: settings.slug || "",
       });
+      if (settings.hours && typeof settings.hours === "object") {
+        setWeekSchedule({ ...EMPTY_WEEK_SCHEDULE, ...settings.hours });
+      }
     }
   }, [settings]);
 
@@ -162,7 +165,7 @@ export default function SettingsPage() {
     try {
       await apiClient.patch(
         endpoints.business.settings,
-        { ...businessForm, slug: slugValue || null }
+        { ...businessForm, slug: slugValue || null, hours: weekSchedule }
       );
       mutateSettings();
       setSaved(true);
@@ -343,42 +346,30 @@ export default function SettingsPage() {
                           />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="biz-phone" className="flex items-center gap-2">
-                              <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                              Teléfono
-                            </Label>
-                            <Input
-                              id="biz-phone"
-                              value={businessForm.phone}
-                              onChange={(e) =>
-                                setBusinessForm((prev) => ({
-                                  ...prev,
-                                  phone: e.target.value,
-                                }))
-                              }
-                              placeholder="+52 55 1234 5678"
-                            />
-                          </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="biz-phone" className="flex items-center gap-2">
+                            <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                            Teléfono
+                          </Label>
+                          <Input
+                            id="biz-phone"
+                            value={businessForm.phone}
+                            onChange={(e) =>
+                              setBusinessForm((prev) => ({
+                                ...prev,
+                                phone: e.target.value,
+                              }))
+                            }
+                            placeholder="+52 55 1234 5678"
+                          />
+                        </div>
 
-                          <div className="space-y-2">
-                            <Label htmlFor="biz-hours" className="flex items-center gap-2">
-                              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                              Horario
-                            </Label>
-                            <Input
-                              id="biz-hours"
-                              value={businessForm.hours}
-                              onChange={(e) =>
-                                setBusinessForm((prev) => ({
-                                  ...prev,
-                                  hours: e.target.value,
-                                }))
-                              }
-                              placeholder="Lun-Vie 9:00-18:00"
-                            />
-                          </div>
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-2">
+                            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                            Horario de atención
+                          </Label>
+                          <HoursEditor value={weekSchedule} onChange={setWeekSchedule} />
                         </div>
 
                         <div className="space-y-2">
