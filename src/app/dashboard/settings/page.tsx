@@ -22,6 +22,8 @@ import {
   Bot,
   Link,
   Smartphone,
+  CreditCard,
+  Truck,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
@@ -40,6 +42,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -114,6 +117,10 @@ export default function SettingsPage() {
   });
   const [weekSchedule, setWeekSchedule] = useState<WeekSchedule>(EMPTY_WEEK_SCHEDULE);
 
+  const PAYMENT_OPTIONS = ["Efectivo", "Transferencia SPEI", "Tarjeta débito", "Tarjeta crédito"];
+  const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
+  const [deliveryZone, setDeliveryZone] = useState("");
+
   // WhatsApp form state
   const [waForm, setWaForm] = useState({
     about: "",
@@ -133,6 +140,13 @@ export default function SettingsPage() {
       });
       if (settings.hours && typeof settings.hours === "object") {
         setWeekSchedule({ ...EMPTY_WEEK_SCHEDULE, ...settings.hours });
+      }
+      const cfg = settings.config || {};
+      if (Array.isArray(cfg.payment_methods)) {
+        setPaymentMethods(cfg.payment_methods);
+      }
+      if (cfg.delivery_zone) {
+        setDeliveryZone(cfg.delivery_zone);
       }
     }
   }, [settings]);
@@ -177,7 +191,15 @@ export default function SettingsPage() {
     try {
       await apiClient.patch(
         endpoints.business.settings,
-        { ...businessForm, slug: slugValue || null, hours: weekSchedule }
+        {
+          ...businessForm,
+          slug: slugValue || null,
+          hours: weekSchedule,
+          config: {
+            payment_methods: paymentMethods,
+            delivery_zone: deliveryZone.trim() || null,
+          },
+        }
       );
       mutateSettings();
       setSaved(true);
@@ -458,6 +480,56 @@ export default function SettingsPage() {
                               /catalogo/{businessForm.slug}
                             </a>
                           )}
+                        </div>
+
+                        <Separator />
+
+                        {/* Métodos de pago */}
+                        <div className="space-y-3">
+                          <Label className="flex items-center gap-2">
+                            <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                            Métodos de pago aceptados
+                          </Label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {PAYMENT_OPTIONS.map((method) => (
+                              <div key={method} className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`pay-${method}`}
+                                  checked={paymentMethods.includes(method)}
+                                  onCheckedChange={(checked) => {
+                                    setPaymentMethods((prev) =>
+                                      checked
+                                        ? [...prev, method]
+                                        : prev.filter((m) => m !== method)
+                                    );
+                                  }}
+                                />
+                                <label
+                                  htmlFor={`pay-${method}`}
+                                  className="text-sm cursor-pointer"
+                                >
+                                  {method}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Zona de entrega */}
+                        <div className="space-y-2">
+                          <Label htmlFor="delivery-zone" className="flex items-center gap-2">
+                            <Truck className="h-3.5 w-3.5 text-muted-foreground" />
+                            Zona de entrega
+                          </Label>
+                          <Input
+                            id="delivery-zone"
+                            value={deliveryZone}
+                            onChange={(e) => setDeliveryZone(e.target.value)}
+                            placeholder="Ej: 3 km a la redonda, pedido mínimo $150"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            El agente usará esta información cuando los clientes pregunten sobre envíos.
+                          </p>
                         </div>
 
                         <Separator />
