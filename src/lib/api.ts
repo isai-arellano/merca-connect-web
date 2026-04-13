@@ -21,6 +21,10 @@ export const endpoints = {
     catalog: {
         public: (slug: string) => `${API_URL}/api/v1/catalog/${encodeURIComponent(slug)}`,
     },
+    admin: {
+        provision: `${API_URL}/api/v1/admin/provision`,
+        businesses: `${API_URL}/api/v1/admin/businesses`,
+    },
     products: {
         list: (businessPhoneId: string) => withBusinessPhoneId(`${API_URL}/api/v1/products`, businessPhoneId),
         detail: (id: string, businessPhoneId?: string | null) => withBusinessPhoneId(`${API_URL}/api/v1/products/${id}`, businessPhoneId),
