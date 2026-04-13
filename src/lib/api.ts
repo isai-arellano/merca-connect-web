@@ -21,6 +21,10 @@ export const endpoints = {
     catalog: {
         public: (slug: string) => `${API_URL}/api/v1/catalog/${encodeURIComponent(slug)}`,
     },
+    admin: {
+        provision: `${API_URL}/api/v1/admin/provision`,
+        businesses: `${API_URL}/api/v1/admin/businesses`,
+    },
     products: {
         list: (businessPhoneId: string) => withBusinessPhoneId(`${API_URL}/api/v1/products`, businessPhoneId),
         detail: (id: string, businessPhoneId?: string | null) => withBusinessPhoneId(`${API_URL}/api/v1/products/${id}`, businessPhoneId),
@@ -64,6 +68,12 @@ export const endpoints = {
         whatsappSignupStatus: `${API_URL}/api/v1/business/whatsapp-signup/status`,
     },
     agents: {
-        config: (businessId: string) => `${process.env.NEXT_PUBLIC_AGENTS_URL || "http://localhost:8002"}/api/v1/agents?business_id=${businessId}`,
+        config: (businessId: string) => `${API_URL}/api/v1/agents?business_id=${businessId}`,
+    },
+    knowledge: {
+        list: (businessId: string) => `${API_URL}/api/v1/knowledge?business_id=${businessId}`,
+        create: `${API_URL}/api/v1/knowledge`,
+        update: (id: string) => `${API_URL}/api/v1/knowledge/${id}`,
+        delete: (id: string) => `${API_URL}/api/v1/knowledge/${id}`,
     },
 };

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -11,6 +12,8 @@ import {
   FileText,
   BarChart3,
   Settings,
+  BookOpen,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +28,7 @@ const operacionesLinks = [
 const adminLinks = [
   { href: "/dashboard/templates", label: "Templates", icon: FileText },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/dashboard/knowledge", label: "Conocimiento IA", icon: BookOpen },
   { href: "/dashboard/settings", label: "Configuración", icon: Settings },
 ];
 
@@ -57,6 +61,8 @@ function NavLink({
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const isAdmin = (session as any)?.role === "admin";
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -98,6 +104,22 @@ export function Sidebar() {
               ))}
             </div>
           </div>
+          {/* Sistema — solo admin */}
+          {isAdmin && (
+            <div>
+              <p className="px-3 mb-2 text-xs font-semibold text-amber-400/60 uppercase tracking-wider">
+                Sistema
+              </p>
+              <div className="space-y-1">
+                <NavLink
+                  href="/dashboard/admin"
+                  label="Clientes"
+                  icon={ShieldAlert}
+                  isActive={isActive("/dashboard/admin")}
+                />
+              </div>
+            </div>
+          )}
         </nav>
 
         <div className="pt-6 border-t border-white/10">
