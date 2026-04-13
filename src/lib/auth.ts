@@ -11,6 +11,7 @@ interface LoginResponse {
         business_id?: string | null;
         business_phone_id?: string | null;
         business_name?: string | null;
+        role?: string | null;
     };
 }
 
@@ -58,6 +59,7 @@ export const authOptions: NextAuthOptions = {
                         businessId: user.business_id ?? null,
                         businessPhoneId: user.business_phone_id ?? null,
                         businessName: user.business_name ?? null,
+                        role: user.role ?? "operator",
                     };
                 } catch (e) {
                     console.error("Auth error:", e);
@@ -77,6 +79,7 @@ export const authOptions: NextAuthOptions = {
                 token.businessId = user.businessId ?? null;
                 token.businessPhoneId = user.businessPhoneId ?? null;
                 token.businessName = user.businessName ?? null;
+                token.role = (user as any).role ?? "operator";
             }
 
             return token;
@@ -93,6 +96,7 @@ export const authOptions: NextAuthOptions = {
             session.businessId = token.businessId ?? null;
             session.businessPhoneId = token.businessPhoneId ?? null;
             session.businessName = token.businessName ?? null;
+            (session as any).role = (token as any).role ?? "operator";
 
             return session;
         },
