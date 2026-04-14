@@ -99,12 +99,14 @@ export function WhatsAppConnectTab() {
     }, [status.meta_app_id]);
 
     // ── Escuchar mensajes de Meta (postMessage) ──────────────────────────────
-    // Meta envía phone_number_id y waba_id por postMessage durante el flujo.
-    // Este evento puede llegar antes o después del callback de FB.login.
+    // Según la doc de Meta, el SDK JS despacha el evento WA_EMBEDDED_SIGNUP
+    // en la ventana padre (origin puede ser vacío o de facebook.com/staticxx).
     useEffect(() => {
         function handleMessage(event: MessageEvent) {
-            if (typeof event.origin !== "string") return;
-            if (!event.origin.includes("facebook.com")) return;
+            // Log temporal para diagnóstico — remover en producción
+            if (event.data) {
+                console.log("[postMessage raw]", event.origin, typeof event.data, event.data);
+            }
 
             let data: Record<string, unknown>;
             try {
@@ -115,17 +117,20 @@ export function WhatsAppConnectTab() {
 
             if (!data || typeof data !== "object") return;
 
-            // Meta envía este evento con los datos del WABA seleccionado
+            // Meta envía este evento cuando el usuario completa el flujo
+            // Estructura: { type: "WA_EMBEDDED_SIGNUP", event: "FINISH", data: { waba_id, phone_number_id } }
             if (data.type === "WA_EMBEDDED_SIGNUP") {
-                const { phone_number_id, waba_id } = data as {
-                    phone_number_id?: string;
-                    waba_id?: string;
-                };
-                // Guardar los datos; el code viene del callback de FB.login
+                const eventType = data.event as string | undefined;
+                // Aceptar FINISH y FINISH_ONLY_WABA
+                if (eventType !== "FINISH" && eventType !== "FINISH_ONLY_WABA") return;
+
+                const inner = (data.data || {}) as { phone_number_id?: string; waba_id?: string };
+                const { phone_number_id, waba_id } = inner;
+
                 if (phone_number_id) pendingSignupData.current.phone_number_id = phone_number_id;
                 if (waba_id) pendingSignupData.current.waba_id = waba_id;
 
-                console.log("[WA_EMBEDDED_SIGNUP postMessage]", { phone_number_id, waba_id });
+                console.log("[WA_EMBEDDED_SIGNUP FINISH]", { phone_number_id, waba_id });
             }
         }
 
