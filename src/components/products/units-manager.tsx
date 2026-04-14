@@ -21,7 +21,7 @@ interface Unit {
     is_active: boolean;
 }
 
-export function UnitsManager() {
+export function UnitsManager({ relevantUnits }: { relevantUnits?: string[] }) {
     const { toast } = useToast();
     const [newName, setNewName] = useState("");
     const [newSymbol, setNewSymbol] = useState("");
@@ -30,7 +30,11 @@ export function UnitsManager() {
 
     const { data, isLoading, mutate } = useSWR(endpoints.units.list, fetcher);
     const allUnits = (data?.data ?? []) as Unit[];
-    const systemUnits = allUnits.filter((u) => u.is_system);
+    const systemUnits = allUnits.filter((u) => {
+        if (!u.is_system) return false;
+        if (!relevantUnits || relevantUnits.length === 0) return true;
+        return relevantUnits.includes(u.symbol);
+    });
     const customUnits = allUnits.filter((u) => !u.is_system);
 
     async function handleCreate() {
