@@ -24,6 +24,7 @@ import {
   Smartphone,
   CreditCard,
   Truck,
+  Building2,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
@@ -43,6 +44,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { INDUSTRIES, type IndustryType } from "@/config/industries";
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -110,6 +113,7 @@ export default function SettingsPage() {
   // Business form state
   const [businessForm, setBusinessForm] = useState({
     name: "",
+    type: "abarrotera",
     address: "",
     phone: "",
     description: "",
@@ -133,6 +137,7 @@ export default function SettingsPage() {
     if (settings && Object.keys(settings).length > 0) {
       setBusinessForm({
         name: settings.name || "",
+        type: settings.type || "abarrotera",
         address: settings.address || "",
         phone: settings.phone || "",
         description: settings.description || "",
@@ -364,6 +369,33 @@ export default function SettingsPage() {
                             }
                             placeholder="Mi Negocio"
                           />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-2">
+                            <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                            Tipo de negocio / Industria
+                          </Label>
+                          <Select
+                            value={businessForm.type}
+                            onValueChange={(val) =>
+                              setBusinessForm((prev) => ({ ...prev, type: val }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona tu industria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(Object.entries(INDUSTRIES) as [IndustryType, typeof INDUSTRIES[IndustryType]][]).map(([key, cfg]) => (
+                                <SelectItem key={key} value={key}>
+                                  {cfg.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            Determina cómo se llama y organiza tu catálogo (Catálogo, Menú, etc.)
+                          </p>
                         </div>
 
                         <div className="space-y-2">
