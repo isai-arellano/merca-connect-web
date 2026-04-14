@@ -264,7 +264,7 @@ export default function ProductsPage() {
                     </TabsContent>
 
                     <TabsContent value="units">
-                        <UnitsManager />
+                        <UnitsManager relevantUnits={config.relevantUnits} />
                     </TabsContent>
                 </Tabs>
             </motion.div>

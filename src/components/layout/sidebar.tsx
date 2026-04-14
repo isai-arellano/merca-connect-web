@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
+import useSWR from "swr";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -14,35 +15,51 @@ import {
   Settings,
   BookOpen,
   ShieldAlert,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const operacionesLinks = [
-  { href: "/dashboard", label: "Tablero General", icon: LayoutDashboard },
-  { href: "/dashboard/inbox", label: "Inbox", icon: MessageSquare },
-  { href: "/dashboard/orders", label: "Pedidos", icon: ShoppingBag },
-  { href: "/dashboard/products", label: "Catálogo", icon: Package },
-  { href: "/dashboard/customers", label: "Clientes", icon: Users },
-];
-
-const adminLinks = [
-  { href: "/dashboard/templates", label: "Templates", icon: FileText },
-  { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/dashboard/knowledge", label: "Conocimiento IA", icon: BookOpen },
-  { href: "/dashboard/settings", label: "Configuración", icon: Settings },
-];
+import { endpoints } from "@/lib/api";
+import { fetcher } from "@/lib/api-client";
+import { getSessionBusinessPhoneId } from "@/lib/business";
+import { getIndustryConfig } from "@/config/industries";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function NavLink({
   href,
   label,
   icon: Icon,
   isActive,
+  locked,
+  lockReason,
 }: {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   isActive: boolean;
+  locked?: boolean;
+  lockReason?: string;
 }) {
+  if (locked) {
+    return (
+      <TooltipProvider delayDuration={100}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className="flex items-center gap-3 px-3 py-2 rounded-md font-medium text-sm text-white/30 cursor-not-allowed select-none"
+            >
+              <Icon className="h-5 w-5" />
+              <span className="flex-1">{label}</span>
+              <Lock className="h-3.5 w-3.5 opacity-50" />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" className="max-w-[180px] text-xs">
+            {lockReason}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
   return (
     <Link
       href={href}
@@ -62,7 +79,24 @@ function NavLink({
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
   const isAdmin = (session as any)?.role === "admin";
+
+  const { data: settingsData } = useSWR(
+    session && sessionBusinessPhoneId ? endpoints.business.settings : null,
+    fetcher
+  );
+
+  const settings = settingsData || {};
+  const businessType: string = settings.type || "abarrotera";
+  const industryConfig = getIndustryConfig(businessType);
+  const catalogLabel = industryConfig.view === "menu" ? "Menú" : "Catálogo";
+
+  // Estado de onboarding — qué tiene configurado el negocio
+  const hasSlug = Boolean(settings.slug);
+  const hasName = Boolean(settings.name);
+  const hasWhatsApp = Boolean(sessionBusinessPhoneId);
+  const hasBasicSetup = hasName && hasSlug;
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -79,13 +113,42 @@ export function Sidebar() {
               Operaciones
             </p>
             <div className="space-y-1">
-              {operacionesLinks.map((link) => (
-                <NavLink
-                  key={link.href}
-                  {...link}
-                  isActive={isActive(link.href)}
-                />
-              ))}
+              <NavLink
+                href="/dashboard"
+                label="Tablero General"
+                icon={LayoutDashboard}
+                isActive={isActive("/dashboard")}
+              />
+              <NavLink
+                href="/dashboard/inbox"
+                label="Inbox"
+                icon={MessageSquare}
+                isActive={isActive("/dashboard/inbox")}
+                locked={!hasWhatsApp}
+                lockReason="Conecta tu WhatsApp Business en Configuración → Conectar"
+              />
+              <NavLink
+                href="/dashboard/products"
+                label={catalogLabel}
+                icon={Package}
+                isActive={isActive("/dashboard/products")}
+              />
+              <NavLink
+                href="/dashboard/orders"
+                label="Pedidos"
+                icon={ShoppingBag}
+                isActive={isActive("/dashboard/orders")}
+                locked={!hasWhatsApp}
+                lockReason="Disponible cuando conectes tu WhatsApp Business"
+              />
+              <NavLink
+                href="/dashboard/customers"
+                label="Clientes"
+                icon={Users}
+                isActive={isActive("/dashboard/customers")}
+                locked={!hasWhatsApp}
+                lockReason="Disponible cuando conectes tu WhatsApp Business"
+              />
             </div>
           </div>
 
@@ -95,15 +158,39 @@ export function Sidebar() {
               Administración
             </p>
             <div className="space-y-1">
-              {adminLinks.map((link) => (
-                <NavLink
-                  key={link.href}
-                  {...link}
-                  isActive={isActive(link.href)}
-                />
-              ))}
+              <NavLink
+                href="/dashboard/templates"
+                label="Templates"
+                icon={FileText}
+                isActive={isActive("/dashboard/templates")}
+                locked={!hasWhatsApp}
+                lockReason="Disponible cuando conectes tu WhatsApp Business"
+              />
+              <NavLink
+                href="/dashboard/analytics"
+                label="Analytics"
+                icon={BarChart3}
+                isActive={isActive("/dashboard/analytics")}
+                locked={!hasBasicSetup}
+                lockReason="Completa la configuración básica del negocio primero"
+              />
+              <NavLink
+                href="/dashboard/knowledge"
+                label="Conocimiento IA"
+                icon={BookOpen}
+                isActive={isActive("/dashboard/knowledge")}
+                locked={!hasBasicSetup}
+                lockReason="Completa la configuración básica del negocio primero"
+              />
+              <NavLink
+                href="/dashboard/settings"
+                label="Configuración"
+                icon={Settings}
+                isActive={isActive("/dashboard/settings")}
+              />
             </div>
           </div>
+
           {/* Sistema — solo admin */}
           {isAdmin && (
             <div>

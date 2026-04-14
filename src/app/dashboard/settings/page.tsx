@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence, Variants } from "framer-motion";
@@ -70,11 +71,12 @@ const tabContentVariants: Variants = {
   exit: { opacity: 0, x: -10, transition: { duration: 0.15 } },
 };
 
-export default function SettingsPage() {
+function SettingsPageInner() {
   const { data: session } = useSession();
   const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("negocio");
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "negocio");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [editingWa, setEditingWa] = useState(false);
@@ -941,6 +943,14 @@ export default function SettingsPage() {
         </Tabs>
       </motion.div>
     </motion.div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsPageInner />
+    </Suspense>
   );
 }
 
