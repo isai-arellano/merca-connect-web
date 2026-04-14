@@ -76,7 +76,7 @@ export default function ProductsPage() {
     const { data: response, isLoading } = useSWR(session && productsEndpoint ? productsEndpoint : null, fetcher);
 
     const businessSlug: string | null = settingsData?.slug ?? null;
-    const businessType: string = settingsData?.business_type ?? "abarrotera";
+    const businessType: string = settingsData?.type ?? "abarrotera";
     const config = getIndustryConfig(businessType);
 
     const products = (response?.data || []) as Product[];
