@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationsBell } from "@/components/layout/notifications-bell";
 
 export function Navbar() {
     return (
@@ -31,6 +32,7 @@ export function Navbar() {
 
             <div className="flex items-center gap-3">
                 <ThemeToggle />
+                <NotificationsBell />
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="relative h-9 w-9 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20">
