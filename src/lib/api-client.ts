@@ -81,6 +81,23 @@ export const apiClient = {
         }
         return res.json();
     },
+
+    uploadForm: async (url: string, formData: FormData) => {
+        // No incluir Content-Type — el browser lo establece con el boundary correcto
+        const session = typeof window !== "undefined" ? await getSession() : null;
+        const token = (session as any)?.accessToken;
+        const headers = new Headers();
+        if (token) headers.set("Authorization", `Bearer ${token}`);
+        const res = await fetch(`${url.startsWith("http") ? url : API_URL + url}`, {
+            method: "POST",
+            headers,
+            body: formData,
+        });
+        if (!res.ok) {
+            throw new ApiError(res.status, `API Error: ${res.status} ${res.statusText}`);
+        }
+        return res.json();
+    },
 };
 
 export const fetcher = (url: string) => apiClient.get(url);

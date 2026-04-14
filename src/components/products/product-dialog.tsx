@@ -6,31 +6,45 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { IndustryConfig } from "@/config/industries";
 import { useSWRConfig } from "swr";
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
-import { Loader2, Plus, Trash2, X } from "lucide-react";
+import { Loader2, Plus, Trash2, X, Upload, ImageIcon } from "lucide-react";
 import useSWR from "swr";
 
 export interface ProductDialogProduct {
     id: string;
     name: string;
+    description?: string | null;
     price: string | number;
     category_id?: string | null;
+    category_name?: string | null;
     stock?: number | null;
     barcode?: string | null;
     ingredients?: string | null;
     preparation_time_min?: number | null;
     active_substance?: string | null;
-    category_name?: string | null;
+    product_type?: string | null;
+    unit?: string | null;
+    sku?: string | null;
+    is_visible?: boolean | null;
+    is_optional_offer?: boolean | null;
+    image_url?: string | null;
+    weight_kg?: number | null;
+    length_cm?: number | null;
+    width_cm?: number | null;
+    height_cm?: number | null;
+    currency?: string | null;
 }
 
 interface ProductDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     config: IndustryConfig;
-    industry: string;
+    businessType: string;
     businessPhoneId: string | null;
     product?: ProductDialogProduct;
 }
@@ -40,8 +54,16 @@ interface CategoryOption {
     name: string;
 }
 
+interface UnitOption {
+    id: string;
+    name: string;
+    symbol: string;
+    is_system: boolean;
+}
+
 interface FormState {
     name: string;
+    description: string;
     price: string;
     categoryId: string;
     stock: string;
@@ -49,6 +71,15 @@ interface FormState {
     ingredients: string;
     prepTime: string;
     substance: string;
+    productType: string;
+    unit: string;
+    sku: string;
+    isVisible: boolean;
+    isOptionalOffer: boolean;
+    weightKg: string;
+    lengthCm: string;
+    widthCm: string;
+    heightCm: string;
 }
 
 interface FieldErrors {
@@ -57,18 +88,28 @@ interface FieldErrors {
     name?: string;
 }
 
-const EMPTY_CATEGORY_VALUE = "__none__";
+const EMPTY_VALUE = "__none__";
 
 function getInitialFormState(product?: ProductDialogProduct): FormState {
     return {
         name: product?.name ?? "",
+        description: product?.description ?? "",
         price: product?.price != null ? String(product.price) : "",
-        categoryId: product?.category_id ?? EMPTY_CATEGORY_VALUE,
+        categoryId: product?.category_id ?? EMPTY_VALUE,
         stock: product?.stock != null ? String(product.stock) : "",
         barcode: product?.barcode ?? "",
         ingredients: product?.ingredients ?? "",
         prepTime: product?.preparation_time_min != null ? String(product.preparation_time_min) : "",
         substance: product?.active_substance ?? "",
+        productType: product?.product_type ?? "physical",
+        unit: product?.unit ?? EMPTY_VALUE,
+        sku: product?.sku ?? "",
+        isVisible: product?.is_visible !== false,
+        isOptionalOffer: product?.is_optional_offer ?? false,
+        weightKg: product?.weight_kg != null ? String(product.weight_kg) : "",
+        lengthCm: product?.length_cm != null ? String(product.length_cm) : "",
+        widthCm: product?.width_cm != null ? String(product.width_cm) : "",
+        heightCm: product?.height_cm != null ? String(product.height_cm) : "",
     };
 }
 
@@ -84,7 +125,7 @@ function validateForm(state: FormState): FieldErrors {
     return errors;
 }
 
-export function ProductDialog({ open, onOpenChange, config, industry, businessPhoneId, product }: ProductDialogProps) {
+export function ProductDialog({ open, onOpenChange, config, businessType, businessPhoneId, product }: ProductDialogProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formState, setFormState] = useState<FormState>(getInitialFormState(product));
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -95,6 +136,11 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
     const [isDeletingCategory, setIsDeletingCategory] = useState(false);
     const [categoryError, setCategoryError] = useState<string | null>(null);
     const newCategoryInputRef = useRef<HTMLInputElement>(null);
+
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const { mutate } = useSWRConfig();
     const productsEndpoint = businessPhoneId ? endpoints.products.list(businessPhoneId) : null;
@@ -109,13 +155,15 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
         open && categoriesEndpoint ? categoriesEndpoint : null,
         fetcher,
     );
-    const { data: productResponse, isLoading: isLoadingProduct } = useSWR(
-        productDetailEndpoint,
-        fetcher,
-    );
+    const { data: unitsResponse } = useSWR(open ? endpoints.units.list : null, fetcher);
+    const { data: productResponse, isLoading: isLoadingProduct } = useSWR(productDetailEndpoint, fetcher);
 
     const currentProduct = (productResponse ?? product) as ProductDialogProduct | undefined;
     const categoryOptions = (categoriesResponse?.data ?? []) as CategoryOption[];
+    const allUnits = (unitsResponse?.data ?? []) as UnitOption[];
+    const relevantUnits = allUnits.filter((u) =>
+        config.relevantUnits.includes(u.symbol) || !u.is_system
+    );
     const selectedCategory = categoryOptions.find((c) => c.id === formState.categoryId) ?? null;
 
     useEffect(() => {
@@ -125,6 +173,8 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
             setNewCategoryMode(false);
             setNewCategoryName("");
             setCategoryError(null);
+            setImageFile(null);
+            setImagePreview(null);
             return;
         }
         setFormState(getInitialFormState(currentProduct));
@@ -136,12 +186,38 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
         }
     }, [newCategoryMode]);
 
-    const updateField = (field: keyof FormState, value: string) => {
+    const updateField = (field: keyof FormState, value: string | boolean) => {
         setFormState((prev) => ({ ...prev, [field]: value }));
-        if (field in fieldErrors) {
+        if (typeof value === "string" && field in fieldErrors) {
             setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
         }
     };
+
+    function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setImageFile(file);
+        const url = URL.createObjectURL(file);
+        setImagePreview(url);
+    }
+
+    async function handleUploadImage() {
+        if (!imageFile || !product?.id) return;
+        setIsUploadingImage(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", imageFile);
+            await apiClient.uploadForm(endpoints.products.uploadImage(product.id), formData);
+            await mutate(productsEndpoint);
+            if (productDetailEndpoint) await mutate(productDetailEndpoint);
+            setImageFile(null);
+            setImagePreview(null);
+        } catch {
+            // error silencioso — el usuario ve que la imagen no cambió
+        } finally {
+            setIsUploadingImage(false);
+        }
+    }
 
     async function handleCreateCategory() {
         const name = newCategoryName.trim();
@@ -155,8 +231,8 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
             updateField("categoryId", created.id);
             setNewCategoryMode(false);
             setNewCategoryName("");
-        } catch (err: any) {
-            const msg = err?.message ?? "";
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "";
             setCategoryError(msg.includes("409") ? "Ya existe una categoría con ese nombre" : "No se pudo crear la categoría");
         } finally {
             setIsCreatingCategory(false);
@@ -170,9 +246,9 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
         try {
             await apiClient.delete(endpoints.categories.delete(selectedCategory.id));
             await mutate(categoriesEndpoint);
-            updateField("categoryId", EMPTY_CATEGORY_VALUE);
-        } catch (err: any) {
-            const msg = err?.message ?? "";
+            updateField("categoryId", EMPTY_VALUE);
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "";
             setCategoryError(msg.includes("409") ? `No se puede eliminar: "${selectedCategory.name}" tiene productos activos` : "No se pudo eliminar la categoría");
         } finally {
             setIsDeletingCategory(false);
@@ -191,13 +267,23 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
 
         const payload = {
             name: formState.name.trim(),
+            description: formState.description.trim() || null,
             price: Number.parseFloat(formState.price),
             stock: formState.stock !== "" ? Number.parseInt(formState.stock, 10) : 0,
             barcode: formState.barcode || null,
             ingredients: formState.ingredients || null,
             preparation_time_min: formState.prepTime !== "" ? Number.parseInt(formState.prepTime, 10) : null,
             active_substance: formState.substance || null,
-            category_id: formState.categoryId === EMPTY_CATEGORY_VALUE ? null : formState.categoryId,
+            category_id: formState.categoryId === EMPTY_VALUE ? null : formState.categoryId,
+            product_type: formState.productType,
+            unit: formState.unit === EMPTY_VALUE ? null : formState.unit,
+            sku: formState.sku || null,
+            is_visible: formState.isVisible,
+            is_optional_offer: formState.isOptionalOffer,
+            weight_kg: formState.weightKg !== "" ? Number.parseFloat(formState.weightKg) : null,
+            length_cm: formState.lengthCm !== "" ? Number.parseFloat(formState.lengthCm) : null,
+            width_cm: formState.widthCm !== "" ? Number.parseFloat(formState.widthCm) : null,
+            height_cm: formState.heightCm !== "" ? Number.parseFloat(formState.heightCm) : null,
         };
 
         try {
@@ -216,31 +302,93 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
         }
     };
 
+    const currentImageUrl = imagePreview ?? currentProduct?.image_url ?? null;
+    const moduleLabel = config.view === "menu" ? "menú" : "catálogo";
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle>{isEditing ? "Editar Producto" : "Nuevo Producto"}</DialogTitle>
+                    <DialogTitle>
+                        {isEditing ? `Editar ${config.productLabel}` : `Nuevo ${config.productLabel}`}
+                    </DialogTitle>
                     <DialogDescription>
-                        {isEditing ? "Actualiza los datos del producto." : "Agrega un nuevo producto a tu catálogo."}{" "}
-                        Modo: <span className="capitalize">{industry}</span>.
+                        {isEditing ? `Actualiza los datos del ${config.productLabel.toLowerCase()}.` : `Agrega un nuevo ${config.productLabel.toLowerCase()} a tu ${moduleLabel}.`}
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit}>
                     <div className="grid gap-4 py-4">
                         {isEditing && isLoadingProduct && (
                             <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                                <Loader2 className="h-4 w-4 animate-spin" /> Cargando producto...
+                                <Loader2 className="h-4 w-4 animate-spin" /> Cargando...
                             </div>
                         )}
 
+                        {/* Imagen — solo en modo edición */}
+                        {isEditing && (
+                            <div className="grid grid-cols-4 items-start gap-4">
+                                <Label className="text-right pt-2">Imagen</Label>
+                                <div className="col-span-3 space-y-2">
+                                    <div className="flex items-center gap-3">
+                                        {currentImageUrl ? (
+                                            <img
+                                                src={currentImageUrl}
+                                                alt="Vista previa"
+                                                className="w-16 h-16 rounded-md object-cover border border-border"
+                                            />
+                                        ) : (
+                                            <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center text-muted-foreground border border-border">
+                                                <ImageIcon className="h-6 w-6" />
+                                            </div>
+                                        )}
+                                        <div className="flex flex-col gap-1">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => fileInputRef.current?.click()}
+                                            >
+                                                Seleccionar
+                                            </Button>
+                                            {imageFile && (
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    disabled={isUploadingImage}
+                                                    onClick={handleUploadImage}
+                                                    className="bg-primary text-primary-foreground hover:opacity-90"
+                                                >
+                                                    {isUploadingImage
+                                                        ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                                        : <Upload className="h-3 w-3 mr-1" />
+                                                    }
+                                                    Subir
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleFileChange}
+                                    />
+                                    {imageFile && (
+                                        <p className="text-xs text-muted-foreground">{imageFile.name}</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Nombre */}
                         <div className="grid grid-cols-4 items-start gap-4">
                             <Label htmlFor="name" className="text-right pt-2">Nombre</Label>
                             <div className="col-span-3">
                                 <Input
                                     id="name"
                                     required
-                                    placeholder="Ej. Coca Cola 600ml"
+                                    placeholder={`Ej. ${config.productLabel}`}
                                     value={formState.name}
                                     onChange={(e) => updateField("name", e.target.value)}
                                     className={fieldErrors.name ? "border-destructive" : ""}
@@ -249,9 +397,23 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
                             </div>
                         </div>
 
+                        {/* Descripción */}
                         <div className="grid grid-cols-4 items-start gap-4">
-                            <Label htmlFor="price" className="text-right pt-2">Precio ($)</Label>
-                            <div className="col-span-3">
+                            <Label htmlFor="description" className="text-right pt-2">Descripción</Label>
+                            <Textarea
+                                id="description"
+                                placeholder="Descripción breve (opcional)"
+                                className="col-span-3 resize-none"
+                                rows={2}
+                                value={formState.description}
+                                onChange={(e) => updateField("description", e.target.value)}
+                            />
+                        </div>
+
+                        {/* Precio */}
+                        <div className="grid grid-cols-4 items-start gap-4">
+                            <Label htmlFor="price" className="text-right pt-2">Precio</Label>
+                            <div className="col-span-3 flex items-center gap-2">
                                 <Input
                                     id="price"
                                     required
@@ -261,12 +423,34 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
                                     placeholder="0.00"
                                     value={formState.price}
                                     onChange={(e) => updateField("price", e.target.value)}
-                                    className={fieldErrors.price ? "border-destructive" : ""}
+                                    className={fieldErrors.price ? "border-destructive flex-1" : "flex-1"}
                                 />
-                                {fieldErrors.price && <p className="mt-1 text-xs text-destructive">{fieldErrors.price}</p>}
+                                <span className="text-sm font-medium text-muted-foreground bg-muted px-2 py-1 rounded-md border border-border">MXN</span>
                             </div>
                         </div>
+                        {fieldErrors.price && (
+                            <div className="grid grid-cols-4 gap-4">
+                                <div />
+                                <p className="col-span-3 text-xs text-destructive -mt-2">{fieldErrors.price}</p>
+                            </div>
+                        )}
 
+                        {/* Tipo de producto */}
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label className="text-right">Tipo</Label>
+                            <Select value={formState.productType} onValueChange={(v) => updateField("productType", v)}>
+                                <SelectTrigger className="col-span-3">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="physical">Físico</SelectItem>
+                                    <SelectItem value="digital">Digital</SelectItem>
+                                    <SelectItem value="service">Servicio</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Categoría */}
                         <div className="grid grid-cols-4 items-start gap-4">
                             <Label className="text-right pt-2">Categoría</Label>
                             <div className="col-span-3 space-y-2">
@@ -280,11 +464,11 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
                                             }}
                                             disabled={isLoadingCategories}
                                         >
-                                            <SelectTrigger id="category" className="flex-1">
+                                            <SelectTrigger className="flex-1">
                                                 <SelectValue placeholder={isLoadingCategories ? "Cargando..." : "Selecciona una"} />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value={EMPTY_CATEGORY_VALUE}>Sin categoría</SelectItem>
+                                                <SelectItem value={EMPTY_VALUE}>Sin categoría</SelectItem>
                                                 {categoryOptions.map((option) => (
                                                     <SelectItem key={option.id} value={option.id}>
                                                         {option.name}
@@ -359,9 +543,42 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
                             </div>
                         </div>
 
+                        {/* Unidad */}
+                        <div className="grid grid-cols-4 items-center gap-4">
+                            <Label className="text-right">Unidad</Label>
+                            <Select value={formState.unit} onValueChange={(v) => updateField("unit", v)}>
+                                <SelectTrigger className="col-span-3">
+                                    <SelectValue placeholder="Sin unidad" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value={EMPTY_VALUE}>Sin unidad</SelectItem>
+                                    {relevantUnits.map((u) => (
+                                        <SelectItem key={u.id} value={u.symbol}>
+                                            {u.name} ({u.symbol})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* SKU — condicional */}
+                        {config.productFields.showSKU && (
+                            <div className="grid grid-cols-4 items-center gap-4">
+                                <Label htmlFor="sku" className="text-right">SKU</Label>
+                                <Input
+                                    id="sku"
+                                    placeholder="Código interno (opcional)"
+                                    className="col-span-3"
+                                    value={formState.sku}
+                                    onChange={(e) => updateField("sku", e.target.value)}
+                                />
+                            </div>
+                        )}
+
+                        {/* Stock — condicional */}
                         {config.productFields.showStock && (
                             <div className="grid grid-cols-4 items-start gap-4">
-                                <Label htmlFor="stock" className="text-right pt-2">Stock Inicial</Label>
+                                <Label htmlFor="stock" className="text-right pt-2">Stock</Label>
                                 <div className="col-span-3">
                                     <Input
                                         id="stock"
@@ -377,9 +594,10 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
                             </div>
                         )}
 
+                        {/* Código de barras — condicional */}
                         {config.productFields.showBarcode && (
                             <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="barcode" className="text-right">Cod. Barras</Label>
+                                <Label htmlFor="barcode" className="text-right">Cód. Barras</Label>
                                 <Input
                                     id="barcode"
                                     placeholder="Opcional"
@@ -390,19 +608,22 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
                             </div>
                         )}
 
+                        {/* Ingredientes — condicional */}
                         {config.productFields.showIngredients && (
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="ingredients" className="text-right">Ingredientes</Label>
-                                <Input
+                            <div className="grid grid-cols-4 items-start gap-4">
+                                <Label htmlFor="ingredients" className="text-right pt-2">Ingredientes</Label>
+                                <Textarea
                                     id="ingredients"
                                     placeholder="Ej. Tomate, Cebolla..."
-                                    className="col-span-3"
+                                    className="col-span-3 resize-none"
+                                    rows={2}
                                     value={formState.ingredients}
                                     onChange={(e) => updateField("ingredients", e.target.value)}
                                 />
                             </div>
                         )}
 
+                        {/* Tiempo de preparación — condicional */}
                         {config.productFields.showPreparationTime && (
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="prepTime" className="text-right">T. Prep (min)</Label>
@@ -418,6 +639,7 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
                             </div>
                         )}
 
+                        {/* Sustancia activa — condicional */}
                         {config.productFields.showActiveSubstance && (
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="substance" className="text-right">Sust. Activa</Label>
@@ -430,13 +652,98 @@ export function ProductDialog({ open, onOpenChange, config, industry, businessPh
                                 />
                             </div>
                         )}
+
+                        {/* Dimensiones — condicional (solo para físicos) */}
+                        {config.productFields.showDimensions && formState.productType === "physical" && (
+                            <div className="grid grid-cols-4 items-start gap-4">
+                                <Label className="text-right pt-2">Dimensiones</Label>
+                                <div className="col-span-3 grid grid-cols-2 gap-2">
+                                    <div>
+                                        <Label htmlFor="weightKg" className="text-xs text-muted-foreground mb-1 block">Peso (kg)</Label>
+                                        <Input
+                                            id="weightKg"
+                                            type="number"
+                                            step="0.001"
+                                            min="0"
+                                            placeholder="0.000"
+                                            value={formState.weightKg}
+                                            onChange={(e) => updateField("weightKg", e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="lengthCm" className="text-xs text-muted-foreground mb-1 block">Largo (cm)</Label>
+                                        <Input
+                                            id="lengthCm"
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            placeholder="0.00"
+                                            value={formState.lengthCm}
+                                            onChange={(e) => updateField("lengthCm", e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="widthCm" className="text-xs text-muted-foreground mb-1 block">Ancho (cm)</Label>
+                                        <Input
+                                            id="widthCm"
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            placeholder="0.00"
+                                            value={formState.widthCm}
+                                            onChange={(e) => updateField("widthCm", e.target.value)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="heightCm" className="text-xs text-muted-foreground mb-1 block">Alto (cm)</Label>
+                                        <Input
+                                            id="heightCm"
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            placeholder="0.00"
+                                            value={formState.heightCm}
+                                            onChange={(e) => updateField("heightCm", e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Checkboxes: Visible + Oferta opcional */}
+                        <div className="grid grid-cols-4 items-start gap-4">
+                            <div className="col-start-2 col-span-3 space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <Checkbox
+                                        id="isVisible"
+                                        checked={formState.isVisible}
+                                        onCheckedChange={(checked) => updateField("isVisible", Boolean(checked))}
+                                    />
+                                    <div>
+                                        <Label htmlFor="isVisible" className="cursor-pointer">Visible en {moduleLabel}</Label>
+                                        <p className="text-xs text-muted-foreground">Los clientes pueden ver este producto</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <Checkbox
+                                        id="isOptionalOffer"
+                                        checked={formState.isOptionalOffer}
+                                        onCheckedChange={(checked) => updateField("isOptionalOffer", Boolean(checked))}
+                                    />
+                                    <div>
+                                        <Label htmlFor="isOptionalOffer" className="cursor-pointer">Oferta opcional (Zafer)</Label>
+                                        <p className="text-xs text-muted-foreground">Zafer puede sugerir este producto como complemento</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <DialogFooter>
                         <Button type="submit" disabled={isSubmitting || isLoadingProduct || newCategoryMode}>
                             {isSubmitting
                                 ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Guardando...</>
-                                : isEditing ? "Guardar Cambios" : "Guardar Producto"
+                                : isEditing ? "Guardar Cambios" : `Guardar ${config.productLabel}`
                             }
                         </Button>
                     </DialogFooter>

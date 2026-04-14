@@ -28,6 +28,12 @@ export const endpoints = {
     products: {
         list: (businessPhoneId: string) => withBusinessPhoneId(`${API_URL}/api/v1/products`, businessPhoneId),
         detail: (id: string, businessPhoneId?: string | null) => withBusinessPhoneId(`${API_URL}/api/v1/products/${id}`, businessPhoneId),
+        uploadImage: (id: string) => `${API_URL}/api/v1/products/${id}/image`,
+    },
+    units: {
+        list: `${API_URL}/api/v1/units`,
+        create: `${API_URL}/api/v1/units`,
+        delete: (id: string) => `${API_URL}/api/v1/units/${id}`,
     },
     dashboard: {
         stats: `${API_URL}/api/v1/dashboard/stats`,
