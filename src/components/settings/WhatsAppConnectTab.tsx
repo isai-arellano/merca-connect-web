@@ -99,15 +99,10 @@ export function WhatsAppConnectTab() {
     }, [status.meta_app_id]);
 
     // ── Escuchar mensajes de Meta (postMessage) ──────────────────────────────
-    // Según la doc de Meta, el SDK JS despacha el evento WA_EMBEDDED_SIGNUP
-    // en la ventana padre (origin puede ser vacío o de facebook.com/staticxx).
+    // Meta envía phone_number_id y waba_id vía postMessage cuando el usuario
+    // completa el flujo. Puede llegar antes o después del callback de FB.login.
     useEffect(() => {
         function handleMessage(event: MessageEvent) {
-            // Log temporal para diagnóstico — remover en producción
-            if (event.data) {
-                console.log("[postMessage raw]", event.origin, typeof event.data, event.data);
-            }
-
             let data: Record<string, unknown>;
             try {
                 data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
@@ -117,20 +112,14 @@ export function WhatsAppConnectTab() {
 
             if (!data || typeof data !== "object") return;
 
-            // Meta envía este evento cuando el usuario completa el flujo
             // Estructura: { type: "WA_EMBEDDED_SIGNUP", event: "FINISH", data: { waba_id, phone_number_id } }
             if (data.type === "WA_EMBEDDED_SIGNUP") {
                 const eventType = data.event as string | undefined;
-                // Aceptar FINISH y FINISH_ONLY_WABA
                 if (eventType !== "FINISH" && eventType !== "FINISH_ONLY_WABA") return;
 
                 const inner = (data.data || {}) as { phone_number_id?: string; waba_id?: string };
-                const { phone_number_id, waba_id } = inner;
-
-                if (phone_number_id) pendingSignupData.current.phone_number_id = phone_number_id;
-                if (waba_id) pendingSignupData.current.waba_id = waba_id;
-
-                console.log("[WA_EMBEDDED_SIGNUP FINISH]", { phone_number_id, waba_id });
+                if (inner.phone_number_id) pendingSignupData.current.phone_number_id = inner.phone_number_id;
+                if (inner.waba_id) pendingSignupData.current.waba_id = inner.waba_id;
             }
         }
 
@@ -150,25 +139,15 @@ export function WhatsAppConnectTab() {
             setErrorMsg("La App ID de Meta no está configurada en el servidor. Contacta al soporte.");
             return;
         }
-        if (!process.env.NEXT_PUBLIC_META_CONFIG_ID) {
-            setStep("error");
-            setErrorMsg("NEXT_PUBLIC_META_CONFIG_ID no está configurado. Agrega el Config ID de tu Embedded Signup en las variables de entorno.");
-            return;
-        }
 
-        // Limpiar datos previos
         pendingSignupData.current = {};
         setStep("awaiting_meta");
         setErrorMsg(null);
 
-        // FB.login con Embedded Signup
         // El code llega en authResponse; phone_number_id y waba_id llegan por postMessage
         window.FB.login(
             (response) => {
-                console.log("[FB.login callback]", JSON.stringify(response));
-
                 if (!response.authResponse?.code) {
-                    // Usuario canceló el flujo
                     setStep("idle");
                     return;
                 }
@@ -177,8 +156,7 @@ export function WhatsAppConnectTab() {
                 const { phone_number_id, waba_id } = pendingSignupData.current;
 
                 if (!phone_number_id || !waba_id) {
-                    // Los datos del postMessage aún no llegaron — esperar brevemente
-                    // Meta puede enviar el postMessage ligeramente después del callback
+                    // El postMessage puede llegar ligeramente después del callback
                     let attempts = 0;
                     const interval = setInterval(() => {
                         const d = pendingSignupData.current;
@@ -188,10 +166,7 @@ export function WhatsAppConnectTab() {
                         } else if (++attempts >= 10) {
                             clearInterval(interval);
                             setStep("error");
-                            setErrorMsg(
-                                "Meta no devolvió los datos del número de WhatsApp. " +
-                                "Verifica que tu config_id de Embedded Signup esté configurado correctamente y vuelve a intentarlo."
-                            );
+                            setErrorMsg("Meta no devolvió los datos del número. Intenta de nuevo.");
                         }
                     }, 500);
                     return;
@@ -200,9 +175,9 @@ export function WhatsAppConnectTab() {
                 completeSignup(code, phone_number_id, waba_id);
             },
             {
-                config_id:                        process.env.NEXT_PUBLIC_META_CONFIG_ID || "",
-                response_type:                    "code",
-                override_default_response_type:   true,
+                config_id:                      process.env.NEXT_PUBLIC_META_CONFIG_ID || "",
+                response_type:                  "code",
+                override_default_response_type: true,
             }
         );
     }
