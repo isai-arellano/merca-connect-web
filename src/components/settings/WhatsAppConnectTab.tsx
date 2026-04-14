@@ -62,6 +62,9 @@ export function WhatsAppConnectTab() {
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const sdkLoaded = useRef(false);
 
+    // Acumula los datos que llegan por postMessage (pueden llegar antes del callback de FB.login)
+    const pendingSignupData = useRef<{ phone_number_id?: string; waba_id?: string }>({});
+
     const {
         data: statusRes,
         isLoading: statusLoading,
@@ -95,32 +98,39 @@ export function WhatsAppConnectTab() {
         }
     }, [status.meta_app_id]);
 
-    // ── Escuchar mensajes de Meta (postMessage del iframe) ──────────────────
+    // ── Escuchar mensajes de Meta (postMessage) ──────────────────────────────
+    // Meta envía phone_number_id y waba_id por postMessage durante el flujo.
+    // Este evento puede llegar antes o después del callback de FB.login.
     useEffect(() => {
         function handleMessage(event: MessageEvent) {
-            // Meta envía desde facebook.com
+            if (typeof event.origin !== "string") return;
             if (!event.origin.includes("facebook.com")) return;
 
-            const data = typeof event.data === "string"
-                ? JSON.parse(event.data)
-                : event.data;
-
-            if (data?.type !== "WA_EMBEDDED_SIGNUP") return;
-
-            const { code, phone_number_id, waba_id } = data;
-
-            if (!code || !phone_number_id || !waba_id) {
-                setStep("error");
-                setErrorMsg("Meta no devolvió los datos necesarios. Intenta de nuevo.");
+            let data: Record<string, unknown>;
+            try {
+                data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+            } catch {
                 return;
             }
 
-            completeSignup(code, phone_number_id, waba_id);
+            if (!data || typeof data !== "object") return;
+
+            // Meta envía este evento con los datos del WABA seleccionado
+            if (data.type === "WA_EMBEDDED_SIGNUP") {
+                const { phone_number_id, waba_id } = data as {
+                    phone_number_id?: string;
+                    waba_id?: string;
+                };
+                // Guardar los datos; el code viene del callback de FB.login
+                if (phone_number_id) pendingSignupData.current.phone_number_id = phone_number_id;
+                if (waba_id) pendingSignupData.current.waba_id = waba_id;
+
+                console.log("[WA_EMBEDDED_SIGNUP postMessage]", { phone_number_id, waba_id });
+            }
         }
 
         window.addEventListener("message", handleMessage);
         return () => window.removeEventListener("message", handleMessage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // ── Iniciar flujo con FB.login ───────────────────────────────────────────
@@ -135,19 +145,54 @@ export function WhatsAppConnectTab() {
             setErrorMsg("La App ID de Meta no está configurada en el servidor. Contacta al soporte.");
             return;
         }
+        if (!process.env.NEXT_PUBLIC_META_CONFIG_ID) {
+            setStep("error");
+            setErrorMsg("NEXT_PUBLIC_META_CONFIG_ID no está configurado. Agrega el Config ID de tu Embedded Signup en las variables de entorno.");
+            return;
+        }
 
+        // Limpiar datos previos
+        pendingSignupData.current = {};
         setStep("awaiting_meta");
         setErrorMsg(null);
 
-        // FB.login con Embedded Signup — requiere config_id de Meta
-        // El config_id es el ID de la configuración de Embedded Signup en Meta Developers
+        // FB.login con Embedded Signup
+        // El code llega en authResponse; phone_number_id y waba_id llegan por postMessage
         window.FB.login(
             (response) => {
+                console.log("[FB.login callback]", JSON.stringify(response));
+
                 if (!response.authResponse?.code) {
-                    // El usuario canceló o hubo error
+                    // Usuario canceló el flujo
                     setStep("idle");
+                    return;
                 }
-                // El callback con code/waba_id/phone_number_id llega vía postMessage
+
+                const code = response.authResponse.code;
+                const { phone_number_id, waba_id } = pendingSignupData.current;
+
+                if (!phone_number_id || !waba_id) {
+                    // Los datos del postMessage aún no llegaron — esperar brevemente
+                    // Meta puede enviar el postMessage ligeramente después del callback
+                    let attempts = 0;
+                    const interval = setInterval(() => {
+                        const d = pendingSignupData.current;
+                        if (d.phone_number_id && d.waba_id) {
+                            clearInterval(interval);
+                            completeSignup(code, d.phone_number_id, d.waba_id);
+                        } else if (++attempts >= 10) {
+                            clearInterval(interval);
+                            setStep("error");
+                            setErrorMsg(
+                                "Meta no devolvió los datos del número de WhatsApp. " +
+                                "Verifica que tu config_id de Embedded Signup esté configurado correctamente y vuelve a intentarlo."
+                            );
+                        }
+                    }, 500);
+                    return;
+                }
+
+                completeSignup(code, phone_number_id, waba_id);
             },
             {
                 config_id:                        process.env.NEXT_PUBLIC_META_CONFIG_ID || "",
