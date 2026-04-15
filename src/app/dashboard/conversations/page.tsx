@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useSWRConfig } from "swr";
-import { Search, Send, User, Loader2, MessageSquare } from "lucide-react";
+import { Search, Send, User, Loader2, MessageSquare, ArrowLeft } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import { endpoints } from "@/lib/api";
@@ -83,9 +83,9 @@ export default function InboxPage() {
     };
 
     return (
-        <div className="flex h-[calc(100vh-8rem)] rounded-xl border border-border bg-background shadow-sm overflow-hidden">
-            {/* LEFT SIDEBAR (Inbox List) */}
-            <div className="w-80 border-r border-border flex flex-col bg-muted/20">
+        <div className="flex min-h-[calc(100dvh-8rem)] md:min-h-[calc(100dvh-9rem)] rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            {/* LEFT SIDEBAR (Inbox List) — oculto en móvil cuando hay conversación activa */}
+            <div className={`border-r border-border flex flex-col bg-muted/20 w-full md:w-80 md:shrink-0 ${selectedId ? "hidden md:flex" : "flex"}`}>
                 <div className="p-4 border-b border-border bg-background">
                     <h2 className="text-xl font-semibold mb-4 text-foreground">Inbox WhatsApp</h2>
                     <div className="relative">
@@ -145,8 +145,21 @@ export default function InboxPage() {
                 </ScrollArea>
             </div>
 
-            {/* RIGHT SIDE (Active Chat) */}
-            <div className="flex-1 flex flex-col bg-background relative">
+            {/* RIGHT SIDE (Active Chat) — full screen en móvil cuando hay conversación */}
+            <div className={`flex-1 flex flex-col bg-background relative ${selectedId ? "flex" : "hidden md:flex"}`}>
+                {selectedId && (
+                    <div className="md:hidden flex items-center gap-2 px-4 py-2 border-b border-border bg-background shrink-0">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-1.5 text-sm"
+                            onClick={() => setSelectedId(null)}
+                        >
+                            <ArrowLeft className="h-4 w-4" />
+                            Conversaciones
+                        </Button>
+                    </div>
+                )}
                 {!selectedId ? (
                     <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
                         <MessageSquare className="h-16 w-16 mb-4 opacity-10" />
@@ -187,8 +200,8 @@ export default function InboxPage() {
                                                 className={`flex ${isInbound ? "justify-start" : "justify-end"}`}
                                             >
                                                 <div
-                                                    className={`max-w-[70%] rounded-2xl px-4 py-2 shadow-sm ${isInbound
-                                                        ? "bg-white dark:bg-zinc-900 border border-border text-foreground rounded-tl-none"
+                            className={`max-w-[80%] sm:max-w-[70%] rounded-2xl px-4 py-2 shadow-sm ${isInbound
+                                                        ? "bg-card border border-border text-foreground rounded-tl-none"
                                                         : "bg-primary text-primary-foreground rounded-tr-none"
                                                         }`}
                                                 >

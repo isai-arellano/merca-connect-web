@@ -65,10 +65,10 @@ export default function CustomersPage() {
         >
             <motion.div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4" variants={itemVariants}>
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
                         Gestión de Clientes
                     </h1>
-                    <p className="text-muted-foreground mt-2">
+                    <p className="text-sm text-muted-foreground mt-0.5">
                         Base de datos de tus clientes que han interactuado por WhatsApp.
                     </p>
                 </div>
@@ -87,7 +87,8 @@ export default function CustomersPage() {
                 </div>
             </motion.div>
 
-            <motion.div className="rounded-xl border border-border bg-background overflow-hidden shadow-sm" variants={itemVariants}>
+            <motion.div className="rounded-2xl border border-border/60 bg-background overflow-hidden shadow-sm" variants={itemVariants}>
+                <div className="overflow-x-auto">
                 <Table>
                     <TableHeader className="bg-muted/50">
                         <TableRow className="border-border">
@@ -160,6 +161,7 @@ export default function CustomersPage() {
                         )}
                     </TableBody>
                 </Table>
+                </div>
             </motion.div>
 
             <CustomerDialog

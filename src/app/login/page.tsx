@@ -10,6 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
+import { Open_Sans } from "next/font/google";
+
+const openSans = Open_Sans({
+    subsets: ["latin"],
+    weight: ["400"],
+});
 
 export default function LoginPage() {
     return (
@@ -56,9 +62,9 @@ function LoginForm() {
     };
 
     return (
-        <div className="flex min-h-screen">
+        <div className={`${openSans.className} flex min-h-screen bg-background text-foreground`}>
             {/* Left panel - branding */}
-            <div className="hidden lg:flex lg:w-1/2 bg-[#74E79C] flex-col justify-between p-12">
+            <div className="hidden lg:flex lg:w-1/2 bg-[linear-gradient(140deg,#0f2a23_0%,#1A3E35_45%,#245a4a_100%)] text-[#EEFAEE] flex-col justify-between p-12 rounded-r-2xl">
                 <div></div>
 
                 <motion.div
@@ -66,33 +72,31 @@ function LoginForm() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.2 }}
                 >
-                    <h2 className="text-3xl xl:text-4xl font-bold text-[#1A3E35] leading-tight">
-                        Tu negocio, automatizado{" "}
-                        <span className="text-white">automatizado</span>
+                    <h2 className="text-4xl xl:text-5xl font-normal leading-tight">
+                        Tu negocio operando solo.
                     </h2>
-                    <p className="mt-4 text-[#1A3E35]/70 text-lg max-w-md">
+                    <p className="mt-5 text-[#EEFAEE]/85 text-lg xl:text-xl max-w-md font-normal">
                         Gestiona pedidos, clientes y conversaciones desde un solo panel profesional.
                     </p>
                 </motion.div>
 
                 <div className="flex items-center gap-2">
-                    <span className="text-[#1A3E35]/60 text-sm">Powered by</span>
+                    <span className="text-[#EEFAEE]/70 text-sm">Powered by</span>
                     <a href="https://kolyn.io" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:opacity-80 transition-opacity">
                         <Image
-                            src="/kolyn-logo.png"
+                            src="/images/isologo-kolyn-white.webp"
                             alt="Kolyn"
-                            width={20}
-                            height={20}
-                            className="h-5 w-5"
+                            width={101}
+                            height={24}
+                            className="h-5 w-auto object-contain"
                             unoptimized
                         />
-                        <span className="text-[#1A3E35] text-sm font-medium">kolyn.io</span>
                     </a>
                 </div>
             </div>
 
             {/* Right panel - login form */}
-            <div className="flex-1 flex items-center justify-center bg-[#EEFAEE] px-4 py-12">
+            <div className="flex-1 flex items-center justify-center bg-[#F7F7F7] px-4 py-12">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -105,21 +109,21 @@ function LoginForm() {
                             <Image
                                 src="/images/isologo-principal.webp"
                                 alt="MercaConnect"
-                                width={140}
-                                height={60}
-                                className="w-28 h-auto object-contain"
+                                width={160}
+                                height={64}
+                                className="w-32 h-auto object-contain"
                                 priority
                                 unoptimized
                             />
                         </Link>
                     </div>
 
-                    <div className="bg-white rounded-2xl shadow-sm border border-[#74E79C]/20 p-8">
+                    <div className="bg-card rounded-2xl shadow-sm border border-border p-8">
                         <div className="text-center mb-6">
-                            <h1 className="text-2xl font-bold text-[#1A3E35] tracking-tight">
+                            <h1 className="text-2xl font-normal text-[#1A3E35] tracking-tight">
                                 Iniciar Sesion
                             </h1>
-                            <p className="text-sm text-gray-500 mt-1">
+                            <p className="text-sm text-muted-foreground mt-1 font-normal">
                                 Ingresa a tu panel de MercaConnect
                             </p>
                         </div>
@@ -132,7 +136,7 @@ function LoginForm() {
                                 </div>
                             )}
                             <div className="space-y-2">
-                                <Label htmlFor="email" className="text-[#1A3E35]">Correo Electronico</Label>
+                                <Label htmlFor="email" className="text-[#1A3E35] font-normal">Correo Electronico</Label>
                                 <Input
                                     id="email"
                                     type="email"
@@ -140,11 +144,11 @@ function LoginForm() {
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
                                     required
-                                    className="h-11 border-gray-200 focus:border-[#74E79C] focus:ring-[#74E79C] placeholder:text-gray-400 rounded-full"
+                                    className="h-11 border-border focus:border-[#74E79C] focus:ring-[#74E79C] placeholder:text-gray-400 rounded-lg"
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="password" className="text-[#1A3E35]">Contrasena</Label>
+                                <Label htmlFor="password" className="text-[#1A3E35] font-normal">Contrasena</Label>
                                 <div className="relative">
                                     <Input
                                         id="password"
@@ -153,7 +157,7 @@ function LoginForm() {
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         required
-                                        className="h-11 border-gray-200 focus:border-[#74E79C] focus:ring-[#74E79C] pr-10 placeholder:text-gray-400 rounded-full"
+                                        className="h-11 border-border focus:border-[#74E79C] focus:ring-[#74E79C] pr-10 placeholder:text-gray-400 rounded-lg"
                                     />
                                     <button
                                         type="button"
@@ -170,7 +174,7 @@ function LoginForm() {
                             </div>
                             <Button
                                 type="submit"
-                                className="w-full h-11 bg-[#1A3E35] hover:bg-[#1A3E35]/90 text-white font-semibold rounded-full"
+                                className="w-full h-11 bg-[#1A3E35] hover:bg-[#1A3E35]/90 text-white font-normal rounded-lg"
                                 disabled={isLoading}
                             >
                                 {isLoading ? (

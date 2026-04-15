@@ -52,7 +52,7 @@ function MessageMedia({ msg }: { msg: any }) {
 
         if (imgError) {
             return (
-                <div className="flex items-center gap-2 rounded-lg border border-border bg-white/60 dark:bg-card/60 px-3 py-2">
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-white/60 px-3 py-2">
                     <ImageIcon className="h-5 w-5 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">Imagen no disponible</span>
                 </div>
@@ -119,7 +119,7 @@ function MessageMedia({ msg }: { msg: any }) {
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 rounded-lg border border-border bg-white/60 dark:bg-card/60 px-3 py-2 hover:bg-white dark:hover:bg-card transition-colors"
+                className="flex items-center gap-3 rounded-lg border border-border bg-white/60 px-3 py-2 hover:bg-white transition-colors"
             >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#1A3E35]/10">
                     <FileText className="h-5 w-5 text-[#1A3E35]" />
@@ -257,14 +257,14 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     }
 
     return (
-        <div className="flex flex-col h-full w-full bg-white dark:bg-card overflow-hidden">
+        <div className="flex flex-col h-full w-full overflow-hidden">
             {/* Header */}
-            <div className="border-b border-border p-4 flex items-center justify-between gap-3">
+            <div className="border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-3">
                 <div className="min-w-0">
                     <h3 className="font-semibold truncate">{detailData.customer?.name || detailData.customer?.phone_number}</h3>
                     <p className="text-xs text-muted-foreground">{detailData.customer?.phone_number}</p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 flex-wrap shrink-0">
                     {detailData.agent_enabled && (
                         <Button
                             size="sm"
@@ -273,7 +273,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                             disabled={isTogglingHandoff}
                             className={detailData.status === "handoff"
                                 ? "bg-[#1A3E35] hover:bg-[#1A3E35]/90 text-white gap-1.5"
-                                : "gap-1.5 text-amber-700 border-amber-300 hover:bg-amber-50 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-950"
+                                : "gap-1.5 text-amber-700 border-amber-300 hover:bg-amber-50"
                             }
                         >
                             {isTogglingHandoff ? (
@@ -288,8 +288,8 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                     )}
                     <span className={`text-xs px-2 py-1 rounded font-medium ${
                         detailData.status === "handoff"
-                            ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                            : "bg-[#74E79C]/20 text-[#1A3E35] dark:text-[#74E79C]"
+                            ? "bg-amber-100 text-amber-800"
+                            : "bg-[#74E79C]/20 text-[#1A3E35]"
                     }`}>
                         {detailData.status === "handoff" ? "Atención humana" : detailData.status === "ai_active" ? "Agente IA" : detailData.status}
                     </span>
@@ -297,8 +297,8 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             </div>
 
             {/* Messages */}
-            <ScrollArea className="flex-1 p-4">
-                <div className="flex flex-col gap-3">
+            <ScrollArea className="flex-1">
+                <div className="flex flex-col gap-3 px-3 sm:px-4 py-3">
                     {messages.map((msg: any) => {
                         const isInbound = msg.direction === 'inbound';
                         const hasMedia = !!msg.media_id && msg.message_type !== "text";
@@ -306,9 +306,9 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
 
                         return (
                             <div key={msg.id} className={`flex ${isInbound ? 'justify-start' : 'justify-end'}`}>
-                                <div className={`max-w-[75%] flex flex-col gap-1.5 rounded-lg px-3 py-2 text-sm ${
+                                <div className={`max-w-[88%] sm:max-w-[75%] flex flex-col gap-1.5 rounded-lg px-3 py-2 text-sm ${
                                     isInbound
-                                    ? 'bg-[#EEFAEE] text-[#1A3E35] border border-border dark:bg-secondary dark:text-foreground'
+                                    ? 'bg-[#EEFAEE] text-[#1A3E35] border border-border'
                                     : 'bg-[#1A3E35] text-white'
                                 }`}>
                                     {/* Media content */}
@@ -316,7 +316,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
 
                                     {/* Text / caption */}
                                     {hasCaption && (
-                                        <span className="whitespace-pre-wrap">{msg.content}</span>
+                                        <span className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{msg.content}</span>
                                     )}
 
                                     {/* Fallback if neither media nor text */}
@@ -336,17 +336,17 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             </ScrollArea>
 
             {/* Input area */}
-            <div className="p-4 border-t border-border bg-[#EEFAEE] dark:bg-secondary flex gap-2">
+            <div className="border-t border-border flex gap-2 px-3 sm:px-4 py-3">
                 {/* Template selector */}
                 <Popover open={templatePopoverOpen} onOpenChange={setTemplatePopoverOpen}>
                     <PopoverTrigger asChild>
                         <Button
                             size="icon"
                             variant="outline"
-                            className="shrink-0 border-border bg-white dark:bg-card hover:bg-[#74E79C]/20 hover:border-[#1A3E35]/30"
+                            className="shrink-0 border-border bg-white hover:bg-[#74E79C]/20 hover:border-[#1A3E35]/30"
                             title="Enviar plantilla"
                         >
-                            <FileText className="h-4 w-4 text-[#1A3E35] dark:text-foreground" />
+                            <FileText className="h-4 w-4 text-[#1A3E35]" />
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent
@@ -355,7 +355,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                         className="w-80 p-0"
                     >
                         <div className="px-4 py-3 border-b border-border">
-                            <h4 className="font-semibold text-sm text-[#1A3E35] dark:text-foreground">
+                            <h4 className="font-semibold text-sm text-[#1A3E35]">
                                 Plantillas de mensaje
                             </h4>
                             <p className="text-xs text-muted-foreground mt-0.5">
@@ -383,7 +383,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                                                 onClick={() => handleSendTemplate(template.name, template.language)}
                                                 className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
                                                     isApproved
-                                                        ? "hover:bg-[#EEFAEE] dark:hover:bg-secondary cursor-pointer"
+                                                        ? "hover:bg-[#EEFAEE] cursor-pointer"
                                                         : "opacity-50 cursor-not-allowed"
                                                 }`}
                                             >
@@ -431,7 +431,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                 <input
                     type="text"
                     placeholder="Escribe un mensaje..."
-                    className="flex-1 bg-white dark:bg-card border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#74E79C]"
+                    className="flex-1 min-w-0 bg-white border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#74E79C]"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={(e) => {

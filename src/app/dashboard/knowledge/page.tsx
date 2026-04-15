@@ -146,23 +146,23 @@ export default function KnowledgePage() {
 
     return (
         <motion.div
-            className="space-y-6 max-w-4xl mx-auto"
+            className="space-y-6 max-w-6xl mx-auto"
             variants={containerVariants}
             initial="hidden"
             animate="show"
         >
             {/* Header */}
-            <motion.div variants={itemVariants} className="flex items-start justify-between">
+            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
                         <BookOpen className="h-7 w-7 text-primary" />
                         Base de Conocimiento
                     </h1>
-                    <p className="text-muted-foreground mt-2">
+                    <p className="text-sm text-muted-foreground mt-0.5">
                         Información que el agente IA usa para responder preguntas sobre tu negocio.
                     </p>
                 </div>
-                <Button onClick={openCreate} className="gap-2 shrink-0">
+                <Button onClick={openCreate} className="gap-2 shrink-0 w-full sm:w-auto">
                     <Plus className="h-4 w-4" />
                     Nuevo documento
                 </Button>
@@ -170,7 +170,7 @@ export default function KnowledgePage() {
 
             {/* Info banner */}
             <motion.div variants={itemVariants}>
-                <div className="flex items-start gap-3 p-4 bg-primary/5 border border-primary/20 rounded-xl text-sm">
+                <div className="flex items-start gap-3 p-3 sm:p-4 bg-primary/5 border border-primary/20 rounded-xl text-sm">
                     <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
                     <div className="text-muted-foreground">
                         <span className="font-medium text-foreground">¿Cómo funciona?</span>{" "}
@@ -253,7 +253,7 @@ function DocCard({
     return (
         <Card className="hover:border-primary/20 transition-all duration-200">
             <CardContent className="pt-4 pb-4">
-                <div className="flex items-start gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-3">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                             <Badge variant="outline" className={`gap-1 text-xs ${meta.color}`}>
@@ -266,7 +266,7 @@ function DocCard({
                             {doc.content}
                         </p>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
                         <Button
                             variant="ghost"
                             size="icon"

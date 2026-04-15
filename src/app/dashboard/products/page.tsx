@@ -104,25 +104,25 @@ export default function ProductsPage() {
                 variants={itemVariants}
             >
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">{moduleTitle}</h1>
-                    <p className="text-muted-foreground mt-2">
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">{moduleTitle}</h1>
+                    <p className="text-sm text-muted-foreground mt-0.5">
                         {config.label} · Gestiona tus {config.productLabel.toLowerCase()}s
                     </p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-2">
                     {businessSlug ? (
-                        <Button variant="outline" asChild>
+                        <Button variant="outline" asChild className="w-full sm:w-auto justify-center">
                             <a href={`/catalogo/${businessSlug}`} target="_blank" rel="noopener noreferrer">
                                 <ExternalLink className="mr-2 h-4 w-4" /> Ver {moduleTitle.toLowerCase()} público
                             </a>
                         </Button>
                     ) : (
-                        <Button variant="outline" disabled title="Configura un slug en Ajustes">
+                        <Button variant="outline" disabled title="Configura un slug en Ajustes" className="w-full sm:w-auto justify-center">
                             <ExternalLink className="mr-2 h-4 w-4" /> {moduleTitle} público (sin slug)
                         </Button>
                     )}
                     <Button
-                        className="bg-primary text-primary-foreground shadow-sm hover:opacity-90 transition-opacity"
+                        className="w-full sm:w-auto bg-primary text-primary-foreground shadow-sm hover:opacity-90 transition-opacity"
                         onClick={openCreate}
                     >
                         <Plus className="mr-2 h-4 w-4" /> Nuevo {config.productLabel}
@@ -155,7 +155,8 @@ export default function ProductsPage() {
                             </Button>
                         </div>
 
-                        <div className="rounded-xl border border-border bg-background overflow-hidden shadow-sm">
+                        <div className="rounded-2xl border border-border/60 bg-background overflow-hidden shadow-sm">
+                            <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader className="bg-muted/50">
                                     <TableRow className="border-border">
@@ -256,6 +257,7 @@ export default function ProductsPage() {
                                     )}
                                 </TableBody>
                             </Table>
+                            </div>
                         </div>
                     </TabsContent>
 
