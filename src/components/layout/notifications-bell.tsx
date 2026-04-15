@@ -61,7 +61,7 @@ export function NotificationsBell() {
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="relative h-9 w-9 text-white/70 hover:text-white hover:bg-white/10"
+                    className="relative h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-primary"
                 >
                     <Bell className="h-5 w-5" />
                     {count > 0 && (

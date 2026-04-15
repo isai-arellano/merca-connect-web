@@ -65,14 +65,14 @@ export default function AdminPage() {
     }
 
     return (
-        <div className="space-y-6 max-w-4xl mx-auto">
+        <div className="space-y-6 max-w-6xl mx-auto">
             <div className="flex items-center gap-3">
                 <div className="p-2 bg-amber-500/10 rounded-lg">
                     <ShieldAlert className="h-5 w-5 text-amber-500" />
                 </div>
                 <div>
-                    <h1 className="text-xl font-semibold">Clientes</h1>
-                    <p className="text-sm text-muted-foreground">Gestión de negocios en la plataforma</p>
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">Clientes</h1>
+                    <p className="text-sm text-muted-foreground mt-0.5">Gestión de negocios en la plataforma</p>
                 </div>
             </div>
 

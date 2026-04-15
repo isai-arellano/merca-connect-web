@@ -146,7 +146,7 @@ export default function KnowledgePage() {
 
     return (
         <motion.div
-            className="space-y-6 max-w-4xl mx-auto"
+            className="space-y-6 max-w-6xl mx-auto"
             variants={containerVariants}
             initial="hidden"
             animate="show"
@@ -154,11 +154,11 @@ export default function KnowledgePage() {
             {/* Header */}
             <motion.div variants={itemVariants} className="flex items-start justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
                         <BookOpen className="h-7 w-7 text-primary" />
                         Base de Conocimiento
                     </h1>
-                    <p className="text-muted-foreground mt-2">
+                    <p className="text-sm text-muted-foreground mt-0.5">
                         Información que el agente IA usa para responder preguntas sobre tu negocio.
                     </p>
                 </div>
