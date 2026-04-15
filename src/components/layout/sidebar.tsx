@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
@@ -71,7 +72,7 @@ function NavLink({
         locked
           ? "text-foreground/30 cursor-not-allowed"
           : isActive
-          ? "bg-accent/25 text-[#1A3E35] shadow-sm"
+          ? "bg-[#1A3E35] text-white shadow-sm"
           : "text-foreground/65 hover:text-foreground hover:bg-primary cursor-pointer"
       )}
     >
@@ -189,12 +190,24 @@ export function SidebarContent({
         )}
       </nav>
 
-      {!collapsed && (
-        <div className="px-5 py-3 border-t border-border/70 shrink-0">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Merca Connect</p>
-          <p className="text-[10px] text-muted-foreground/80 mt-0.5">v0.1.0-alpha</p>
-        </div>
-      )}
+      <div className="px-4 py-3 border-t border-border/70 shrink-0">
+        {collapsed ? (
+          <div className="mx-auto relative h-8 w-8">
+            <Image
+              src="/images/isologo-principal.webp"
+              alt="MercaConnect"
+              fill
+              sizes="32px"
+              className="object-contain"
+            />
+          </div>
+        ) : (
+          <div className="space-y-0.5">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Merca Connect</p>
+            <p className="text-[10px] text-muted-foreground/80">v0.1.0-alpha</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -218,7 +231,16 @@ export function Sidebar() {
         collapsed ? "justify-center" : "justify-between"
       )}>
         {!collapsed && (
-          <span className="font-bold text-[#1A3E35] text-sm tracking-tight">MercaConnect</span>
+          <div className="relative h-8 w-36">
+            <Image
+              src="/images/isologo-principal.webp"
+              alt="MercaConnect"
+              fill
+              sizes="144px"
+              className="object-contain object-left"
+              priority
+            />
+          </div>
         )}
         <button
           onClick={toggle}
