@@ -23,14 +23,14 @@ export default function InboxPage() {
     );
 
     return (
-        <div className="min-h-[calc(100dvh-8rem)] md:min-h-[calc(100dvh-9rem)] border border-border rounded-xl overflow-hidden shadow-sm flex bg-card">
+        <div className="min-h-[calc(100dvh-8rem)] md:min-h-[calc(100dvh-9rem)] border border-border rounded-xl overflow-hidden shadow-sm flex">
             {/* List Sidebar — oculto en móvil cuando hay conv seleccionada */}
             <div className={`
-                flex flex-col h-full border-r border-border bg-muted/20
+                flex flex-col h-full border-r border-border
                 w-full md:w-1/3 md:min-w-[280px] md:max-w-[340px]
                 ${selectedConv ? "hidden md:flex" : "flex"}
             `}>
-                <div className="p-4 border-b border-border bg-background">
+                <div className="p-4 border-b border-border">
                     <h2 className="font-semibold text-base flex items-center gap-2">
                         Inbox
                         {isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
@@ -51,13 +51,13 @@ export default function InboxPage() {
 
             {/* Chat area — pantalla completa en móvil cuando hay conv seleccionada */}
             <div className={`
-                flex-1 h-full flex flex-col bg-background
+                flex-1 h-full w-full flex flex-col
                 ${selectedConv ? "flex" : "hidden md:flex"}
             `}>
                 {selectedConv ? (
                     <div className="flex flex-col h-full">
                         {/* Back button — solo visible en móvil */}
-                        <div className="md:hidden flex items-center gap-2 px-4 py-2 border-b border-border bg-background">
+                        <div className="md:hidden flex items-center gap-2 px-4 py-2 border-b border-border">
                             <Button
                                 variant="ghost"
                                 size="sm"

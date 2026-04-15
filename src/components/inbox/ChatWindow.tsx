@@ -52,7 +52,7 @@ function MessageMedia({ msg }: { msg: any }) {
 
         if (imgError) {
             return (
-                <div className="flex items-center gap-2 rounded-lg border border-border bg-white/60 dark:bg-card/60 px-3 py-2">
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-white/60 px-3 py-2">
                     <ImageIcon className="h-5 w-5 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">Imagen no disponible</span>
                 </div>
@@ -119,7 +119,7 @@ function MessageMedia({ msg }: { msg: any }) {
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 rounded-lg border border-border bg-white/60 dark:bg-card/60 px-3 py-2 hover:bg-white dark:hover:bg-card transition-colors"
+                className="flex items-center gap-3 rounded-lg border border-border bg-white/60 px-3 py-2 hover:bg-white transition-colors"
             >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#1A3E35]/10">
                     <FileText className="h-5 w-5 text-[#1A3E35]" />
@@ -257,9 +257,9 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     }
 
     return (
-        <div className="flex flex-col h-full w-full bg-card overflow-hidden">
+        <div className="flex flex-col h-full w-full overflow-hidden">
             {/* Header */}
-            <div className="border-b border-border p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+            <div className="border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-3">
                 <div className="min-w-0">
                     <h3 className="font-semibold truncate">{detailData.customer?.name || detailData.customer?.phone_number}</h3>
                     <p className="text-xs text-muted-foreground">{detailData.customer?.phone_number}</p>
@@ -297,8 +297,8 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             </div>
 
             {/* Messages */}
-            <ScrollArea className="flex-1 p-3 sm:p-4">
-                <div className="flex flex-col gap-3">
+            <ScrollArea className="flex-1">
+                <div className="flex flex-col gap-3 px-3 sm:px-4 py-3">
                     {messages.map((msg: any) => {
                         const isInbound = msg.direction === 'inbound';
                         const hasMedia = !!msg.media_id && msg.message_type !== "text";
@@ -336,7 +336,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             </ScrollArea>
 
             {/* Input area */}
-            <div className="p-3 sm:p-4 border-t border-border bg-[#EEFAEE] flex gap-2">
+            <div className="border-t border-border flex gap-2 px-3 sm:px-4 py-3">
                 {/* Template selector */}
                 <Popover open={templatePopoverOpen} onOpenChange={setTemplatePopoverOpen}>
                     <PopoverTrigger asChild>

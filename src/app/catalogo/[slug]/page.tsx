@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { API_URL } from "@/lib/api";
 import type { Metadata } from "next";
+import Image from "next/image";
 import { ShoppingBag, Package } from "lucide-react";
 
 interface CatalogProductItem {
@@ -113,7 +114,7 @@ export default async function CatalogPage(
                 </div>
 
                 {atLimit && (
-                    <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                    <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                         Mostrando los primeros {catalog.plan_limit} productos del catálogo.
                     </div>
                 )}
@@ -143,9 +144,35 @@ export default async function CatalogPage(
                     </div>
                 )}
 
-                <p className="mt-12 text-center text-xs text-muted-foreground">
-                    Impulsado por <span className="font-medium">MercaConnect</span>
-                </p>
+                <div className="mt-12 flex flex-col items-center justify-center gap-2 border-t border-border pt-6 text-xs text-muted-foreground">
+                    <img
+                        src="/images/isologo-principal.webp"
+                        alt="MercaConnect"
+                        className="h-6 w-auto object-contain"
+                        onError={(e) => {
+                            e.currentTarget.src = "/mc-green-light.png";
+                        }}
+                    />
+                    <div className="flex items-center gap-2">
+                        <span>Powered by</span>
+                        <a
+                            href="https://kolyn.io"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 hover:text-foreground"
+                        >
+                            <Image
+                                src="/images/isologo-kolyn.webp"
+                                alt="Kolyn"
+                                width={16}
+                                height={16}
+                                className="h-4 w-4 object-contain"
+                                unoptimized
+                            />
+                            <span className="font-medium">kolyn.io</span>
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
     );

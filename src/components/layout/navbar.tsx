@@ -2,7 +2,7 @@
 
 import { LogOut, Menu } from "lucide-react";
 import { signOut } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -17,6 +17,11 @@ interface NavbarProps {
 
 export function Navbar({ sidebarWidth: _ }: NavbarProps) {
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     return (
         <>
@@ -39,29 +44,37 @@ export function Navbar({ sidebarWidth: _ }: NavbarProps) {
                 <div className="hidden md:block flex-1" />
 
                 {/* Acciones */}
-                <div className="flex items-center gap-1.5">
-                    <NotificationsBell />
-                    <div className="w-px h-5 bg-border/60 mx-1" />
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="ghost"
-                                className="h-8 w-8 rounded-lg bg-primary text-[#1A3E35] hover:bg-primary/80 p-0 font-semibold text-sm"
-                            >
-                                A
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem
-                                className="text-destructive cursor-pointer flex items-center gap-2"
-                                onClick={() => signOut({ callbackUrl: "/login" })}
-                            >
-                                <LogOut className="h-4 w-4" />
-                                Cerrar sesión
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
+                {mounted ? (
+                    <div className="flex items-center gap-1.5">
+                        <NotificationsBell />
+                        <div className="w-px h-5 bg-border/60 mx-1" />
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    className="h-8 w-8 rounded-lg bg-primary text-[#1A3E35] hover:bg-primary/80 p-0 font-semibold text-sm"
+                                >
+                                    A
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem
+                                    className="text-destructive cursor-pointer flex items-center gap-2"
+                                    onClick={() => signOut({ callbackUrl: "/login" })}
+                                >
+                                    <LogOut className="h-4 w-4" />
+                                    Cerrar sesión
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-1.5">
+                        <div className="h-9 w-9 rounded-lg border border-border/70" />
+                        <div className="w-px h-5 bg-border/60 mx-1" />
+                        <div className="h-8 w-8 rounded-lg bg-primary" />
+                    </div>
+                )}
             </header>
 
             {/* Sheet mobile — ancho completo hasta 280px */}
