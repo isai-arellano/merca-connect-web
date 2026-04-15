@@ -270,17 +270,17 @@ function SettingsPageInner() {
 
   return (
     <motion.div
-      className="space-y-6 max-w-4xl mx-auto"
+      className="space-y-6 max-w-6xl mx-auto"
       variants={containerVariants}
       initial="hidden"
       animate="show"
     >
       {/* Header */}
       <motion.div variants={itemVariants}>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
           Configuración
         </h1>
-        <p className="text-muted-foreground mt-2">
+        <p className="text-sm text-muted-foreground mt-0.5">
           Administra los ajustes de tu negocio y tu perfil de WhatsApp Business.
         </p>
       </motion.div>
@@ -303,26 +303,26 @@ function SettingsPageInner() {
       {/* Tabs */}
       <motion.div variants={itemVariants}>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="negocio" className="gap-2">
-              <Store className="h-4 w-4" />
-              Negocio
+          <TabsList className="flex flex-wrap h-auto gap-1 p-1 sm:grid sm:grid-cols-5">
+            <TabsTrigger value="negocio" className="gap-1.5 flex-1 sm:flex-none">
+              <Store className="h-4 w-4 shrink-0" />
+              <span className="hidden xs:inline sm:inline">Negocio</span>
             </TabsTrigger>
-            <TabsTrigger value="conectar" className="gap-2">
-              <Smartphone className="h-4 w-4" />
-              Conectar
+            <TabsTrigger value="conectar" className="gap-1.5 flex-1 sm:flex-none">
+              <Smartphone className="h-4 w-4 shrink-0" />
+              <span className="hidden xs:inline sm:inline">Conectar</span>
             </TabsTrigger>
-            <TabsTrigger value="whatsapp" className="gap-2">
-              <MessageCircle className="h-4 w-4" />
-              WhatsApp
+            <TabsTrigger value="whatsapp" className="gap-1.5 flex-1 sm:flex-none">
+              <MessageCircle className="h-4 w-4 shrink-0" />
+              <span className="hidden xs:inline sm:inline">WhatsApp</span>
             </TabsTrigger>
-            <TabsTrigger value="webhooks" className="gap-2">
-              <Webhook className="h-4 w-4" />
-              Webhooks
+            <TabsTrigger value="webhooks" className="gap-1.5 flex-1 sm:flex-none">
+              <Webhook className="h-4 w-4 shrink-0" />
+              <span className="hidden xs:inline sm:inline">Webhooks</span>
             </TabsTrigger>
-            <TabsTrigger value="agente" className="gap-2">
-              <Bot className="h-4 w-4" />
-              Agente
+            <TabsTrigger value="agente" className="gap-1.5 flex-1 sm:flex-none">
+              <Bot className="h-4 w-4 shrink-0" />
+              <span className="hidden xs:inline sm:inline">Agente</span>
             </TabsTrigger>
           </TabsList>
 

@@ -212,7 +212,7 @@ function KanbanSkeleton() {
       {Array.from({ length: 4 }).map((_, i) => (
         <div
           key={i}
-          className="flex flex-col w-72 md:w-80 shrink-0 bg-muted/30 rounded-xl border border-border overflow-hidden"
+          className="flex flex-col w-72 md:w-80 shrink-0 bg-muted/30 rounded-2xl border border-border/60 overflow-hidden"
         >
           <div className="p-4 border-b border-border bg-background">
             <Skeleton className="h-5 w-28" />
@@ -531,7 +531,8 @@ function OrdersTableView({
   onSort: (key: string) => void;
 }) {
   return (
-    <div className="flex-1 overflow-auto rounded-xl border border-border bg-background">
+    <div className="flex-1 overflow-auto rounded-2xl border border-border/60 bg-background">
+      <div className="min-w-[600px]">
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/30">
@@ -627,6 +628,7 @@ function OrdersTableView({
           })}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }
@@ -721,25 +723,25 @@ export default function OrdersPage() {
   const totalOrders = orders.length;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-6rem)]">
+    <div className="flex flex-col min-h-[calc(100dvh-8rem)]">
       {/* Header */}
       <div className="mb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shrink-0">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-[#1A3E35]">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
               Pedidos
             </h1>
             <Badge
               variant="secondary"
-              className="bg-[#74E79C]/20 text-[#1A3E35] border-[#74E79C]/40"
+              className="bg-accent/20 text-primary border-accent/40"
             >
               {totalOrders}
             </Badge>
           </div>
-          <p className="text-muted-foreground text-sm mt-1 flex items-center gap-2">
+          <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-2">
             <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#74E79C] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#74E79C]"></span>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
             </span>
             Sincronizando con WhatsApp
           </p>
@@ -753,7 +755,7 @@ export default function OrdersPage() {
               size="sm"
               className={`h-7 px-2.5 ${
                 view === "kanban"
-                  ? "bg-[#1A3E35] text-white hover:bg-[#1A3E35]/90"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : ""
               }`}
               onClick={() => setView("kanban")}
@@ -766,7 +768,7 @@ export default function OrdersPage() {
               size="sm"
               className={`h-7 px-2.5 ${
                 view === "table"
-                  ? "bg-[#1A3E35] text-white hover:bg-[#1A3E35]/90"
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : ""
               }`}
               onClick={() => setView("table")}
@@ -806,7 +808,7 @@ export default function OrdersPage() {
             return (
               <div
                 key={column.id}
-                className="flex flex-col w-72 md:w-80 shrink-0 bg-muted/30 rounded-xl border border-border overflow-hidden"
+                className="flex flex-col w-72 md:w-80 shrink-0 bg-muted/30 rounded-2xl border border-border/60 overflow-hidden"
               >
                 {/* Column header */}
                 <div

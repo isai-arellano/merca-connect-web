@@ -104,8 +104,8 @@ export default function ProductsPage() {
                 variants={itemVariants}
             >
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">{moduleTitle}</h1>
-                    <p className="text-muted-foreground mt-2">
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">{moduleTitle}</h1>
+                    <p className="text-sm text-muted-foreground mt-0.5">
                         {config.label} · Gestiona tus {config.productLabel.toLowerCase()}s
                     </p>
                 </div>
@@ -155,7 +155,8 @@ export default function ProductsPage() {
                             </Button>
                         </div>
 
-                        <div className="rounded-xl border border-border bg-background overflow-hidden shadow-sm">
+                        <div className="rounded-2xl border border-border/60 bg-background overflow-hidden shadow-sm">
+                            <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader className="bg-muted/50">
                                     <TableRow className="border-border">
@@ -256,6 +257,7 @@ export default function ProductsPage() {
                                     )}
                                 </TableBody>
                             </Table>
+                            </div>
                         </div>
                     </TabsContent>
 

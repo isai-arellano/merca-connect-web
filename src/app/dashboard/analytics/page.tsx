@@ -127,10 +127,10 @@ export default function AnalyticsPage() {
     >
       {/* Header */}
       <motion.div variants={itemVariants}>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
           Analytics
         </h1>
-        <p className="text-muted-foreground mt-2">
+        <p className="text-sm text-muted-foreground mt-0.5">
           Métricas y estadísticas de tu operación en tiempo real.
         </p>
       </motion.div>
