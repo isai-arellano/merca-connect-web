@@ -52,7 +52,7 @@ function MessageMedia({ msg }: { msg: any }) {
 
         if (imgError) {
             return (
-                <div className="flex items-center gap-2 rounded-lg border border-border bg-white/60 dark:bg-card/60 px-3 py-2">
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-white/60 px-3 py-2">
                     <ImageIcon className="h-5 w-5 text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">Imagen no disponible</span>
                 </div>
@@ -119,7 +119,7 @@ function MessageMedia({ msg }: { msg: any }) {
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 rounded-lg border border-border bg-white/60 dark:bg-card/60 px-3 py-2 hover:bg-white dark:hover:bg-card transition-colors"
+                className="flex items-center gap-3 rounded-lg border border-border bg-white/60 px-3 py-2 hover:bg-white transition-colors"
             >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#1A3E35]/10">
                     <FileText className="h-5 w-5 text-[#1A3E35]" />
