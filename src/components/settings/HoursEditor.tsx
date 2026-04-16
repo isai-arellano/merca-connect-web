@@ -1,8 +1,11 @@
 "use client";
 
+import { useMemo } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export interface DaySchedule {
     open: boolean;
@@ -43,6 +46,8 @@ const DAY_LABELS: Record<keyof WeekSchedule, string> = {
 const DAY_ORDER: (keyof WeekSchedule)[] = [
     "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
 ];
+const WEEKDAY_ORDER: (keyof WeekSchedule)[] = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+const WEEKEND_ORDER: (keyof WeekSchedule)[] = ["saturday", "sunday"];
 
 interface HoursEditorProps {
     value: WeekSchedule;
@@ -62,8 +67,68 @@ export function HoursEditor({ value, onChange }: HoursEditorProps) {
         onChange({ ...value, [day]: { ...value[day], ...patch } });
     }
 
+    function applyScheduleToDays(days: (keyof WeekSchedule)[], source: DaySchedule) {
+        const nextSchedule: WeekSchedule = { ...value };
+        days.forEach((day) => {
+            nextSchedule[day] = { ...source };
+        });
+        onChange(nextSchedule);
+    }
+
+    function handleApplyWeekdays() {
+        applyScheduleToDays(WEEKDAY_ORDER, value.monday);
+    }
+
+    function handleApplyWeekend() {
+        applyScheduleToDays(WEEKEND_ORDER, value.monday);
+    }
+
+    function handleSameScheduleChecked(checked: boolean) {
+        if (!checked) {
+            return;
+        }
+        applyScheduleToDays(DAY_ORDER, value.monday);
+    }
+
+    const sameScheduleChecked = useMemo(() => {
+        const mondaySchedule = value.monday;
+        return DAY_ORDER.every((day) => {
+            const current = value[day];
+            return (
+                current.open === mondaySchedule.open
+                && current.from_ === mondaySchedule.from_
+                && current.to === mondaySchedule.to
+            );
+        });
+    }, [value]);
+
     return (
         <div className="space-y-2">
+            <div className="rounded-md border border-border/70 bg-muted/20 p-3 space-y-3">
+                <div className="flex items-start gap-2">
+                    <Checkbox
+                        id="hours-same-all-week"
+                        checked={sameScheduleChecked}
+                        onCheckedChange={(checked) => handleSameScheduleChecked(Boolean(checked))}
+                    />
+                    <div>
+                        <Label htmlFor="hours-same-all-week" className="text-sm cursor-pointer">
+                            Usar mismo horario toda la semana
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                            Copia automáticamente el horario de lunes al resto de días.
+                        </p>
+                    </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <Button type="button" size="sm" variant="outline" onClick={handleApplyWeekdays}>
+                        Aplicar a Lun-Vie
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" onClick={handleApplyWeekend}>
+                        Aplicar a fin de semana
+                    </Button>
+                </div>
+            </div>
             {DAY_ORDER.map((day) => {
                 const schedule = value[day];
                 const incomplete = isDayIncomplete(schedule);
