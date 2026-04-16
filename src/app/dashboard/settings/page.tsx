@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
-import { apiClient, fetcher, ApiError } from "@/lib/api-client";
+import { apiClient, fetcher, ApiError, NetworkError } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { AgentTab } from "@/components/settings/AgentTab";
 import { WhatsAppConnectTab } from "@/components/settings/WhatsAppConnectTab";
@@ -47,6 +47,30 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { INDUSTRIES, type IndustryType } from "@/config/industries";
+
+const COUNTRY_CODE_MX = "+52";
+const MEXICO_FLAG = "\uD83C\uDDF2\uD83C\uDDFD";
+
+interface BusinessFormErrors {
+  name?: string;
+  type?: string;
+  slug?: string;
+  hours?: string;
+  paymentMethods?: string;
+}
+
+function getPhoneDigits(value: string): string {
+  return value.replace(/\D/g, "");
+}
+
+function sanitizePhoneInput(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 10);
+}
+
+function buildPhoneForApi(phoneDigits: string): string {
+  const trimmedDigits = phoneDigits.trim();
+  return trimmedDigits ? `${COUNTRY_CODE_MX} ${trimmedDigits}` : "";
+}
 
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -82,6 +106,7 @@ function SettingsPageInner() {
   const [editingWa, setEditingWa] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [slugError, setSlugError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<BusinessFormErrors>({});
 
   // Business settings
   const {
@@ -126,6 +151,7 @@ function SettingsPageInner() {
   const PAYMENT_OPTIONS = ["Efectivo", "Transferencia SPEI", "Tarjeta débito", "Tarjeta crédito"];
   const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
   const [deliveryZone, setDeliveryZone] = useState("");
+  const [contactPhoneNumber, setContactPhoneNumber] = useState("");
 
   // WhatsApp form state
   const [waForm, setWaForm] = useState({
@@ -155,6 +181,7 @@ function SettingsPageInner() {
       if (cfg.delivery_zone) {
         setDeliveryZone(cfg.delivery_zone);
       }
+      setContactPhoneNumber(getPhoneDigits(settings.phone || "").slice(-10));
     }
   }, [settings]);
 
@@ -172,6 +199,40 @@ function SettingsPageInner() {
   }, [waProfile]);
 
   const handleSaveSettings = async () => {
+    const nextErrors: BusinessFormErrors = {};
+    const trimmedName = businessForm.name.trim();
+    const trimmedType = businessForm.type.trim();
+    const slugValue = businessForm.slug.trim();
+    const hasAtLeastOneOpenDay = Object.values(weekSchedule).some((day) => day.open);
+
+    if (!trimmedName) {
+      nextErrors.name = "El nombre del negocio es obligatorio.";
+    }
+    if (!trimmedType) {
+      nextErrors.type = "Selecciona un tipo de negocio.";
+    }
+    if (!slugValue) {
+      nextErrors.slug = "La URL del catálogo es obligatoria.";
+    }
+    if (!hasAtLeastOneOpenDay) {
+      nextErrors.hours = "Activa al menos un día en tu horario de atención.";
+    } else if (hasIncompleteHours(weekSchedule)) {
+      nextErrors.hours = "Todos los días activos deben tener hora de apertura y cierre.";
+    }
+    if (paymentMethods.length === 0) {
+      nextErrors.paymentMethods = "Selecciona al menos un método de pago.";
+    }
+
+    setFormErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      toast({
+        title: "Campos obligatorios pendientes",
+        description: "Completa los datos requeridos para guardar la configuración.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Validar horarios: si hay días activos sin horas, bloquear
     if (hasIncompleteHours(weekSchedule)) {
       toast({
@@ -182,8 +243,6 @@ function SettingsPageInner() {
       return;
     }
 
-    // Basic slug format validation before sending
-    const slugValue = businessForm.slug.trim();
     if (slugValue && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slugValue)) {
       setSlugError("Solo letras minúsculas, números y guiones. Ej: mi-tienda");
       return;
@@ -194,12 +253,16 @@ function SettingsPageInner() {
     }
 
     setSaving(true);
+    setSaveError(null);
     setSlugError(null);
     try {
       await apiClient.patch(
         endpoints.business.settings,
         {
           ...businessForm,
+          name: trimmedName,
+          type: trimmedType,
+          phone: buildPhoneForApi(contactPhoneNumber),
           slug: slugValue || null,
           hours: weekSchedule,
           config: {
@@ -211,6 +274,7 @@ function SettingsPageInner() {
       mutateSettings();
       setSaved(true);
       setSaveError(null);
+      setFormErrors({});
       setTimeout(() => setSaved(false), 3000);
       toast({
         title: "Configuración guardada",
@@ -220,6 +284,20 @@ function SettingsPageInner() {
       console.error("Error al guardar configuración:", error);
       if (error instanceof ApiError && error.status === 409) {
         setSlugError("Este slug ya está en uso. Elige uno diferente.");
+      } else if (error instanceof NetworkError) {
+        setSaveError(error.message);
+        toast({
+          title: "Error de conectividad",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else if (error instanceof ApiError) {
+        setSaveError(error.message || "No se pudo guardar la configuración. Inténtalo de nuevo.");
+        toast({
+          title: "Error al guardar",
+          description: error.message || "No se pudo guardar la configuración del negocio.",
+          variant: "destructive",
+        });
       } else {
         setSaveError("No se pudo guardar la configuración. Inténtalo de nuevo.");
         toast({
@@ -327,7 +405,7 @@ function SettingsPageInner() {
           </TabsList>
 
           {/* NEGOCIO TAB */}
-          <AnimatePresence mode="wait">
+          <AnimatePresence>
             <TabsContent value="negocio" key="negocio">
               <motion.div
                 variants={tabContentVariants}
@@ -370,7 +448,14 @@ function SettingsPageInner() {
                               }))
                             }
                             placeholder="Mi Negocio"
+                            className={formErrors.name ? "border-destructive focus-visible:ring-destructive" : ""}
                           />
+                          {formErrors.name && (
+                            <p className="text-xs text-destructive flex items-center gap-1.5">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              {formErrors.name}
+                            </p>
+                          )}
                         </div>
 
                         <div className="space-y-2">
@@ -384,7 +469,7 @@ function SettingsPageInner() {
                               setBusinessForm((prev) => ({ ...prev, type: val }))
                             }
                           >
-                            <SelectTrigger>
+                            <SelectTrigger className={formErrors.type ? "border-destructive focus-visible:ring-destructive" : ""}>
                               <SelectValue placeholder="Selecciona tu industria" />
                             </SelectTrigger>
                             <SelectContent>
@@ -395,6 +480,12 @@ function SettingsPageInner() {
                               ))}
                             </SelectContent>
                           </Select>
+                          {formErrors.type && (
+                            <p className="text-xs text-destructive flex items-center gap-1.5">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              {formErrors.type}
+                            </p>
+                          )}
                           <p className="text-xs text-muted-foreground">
                             Determina cómo se llama y organiza tu catálogo (Catálogo, Menú, etc.)
                           </p>
@@ -423,19 +514,37 @@ function SettingsPageInner() {
                             <Phone className="h-3.5 w-3.5 text-muted-foreground" />
                             Teléfono de contacto
                           </Label>
-                          <Input
-                            id="biz-phone"
-                            value={businessForm.phone}
-                            onChange={(e) =>
-                              setBusinessForm((prev) => ({
-                                ...prev,
-                                phone: e.target.value,
-                              }))
-                            }
-                            placeholder="+52 55 1234 5678"
-                          />
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[180px_1fr]">
+                            <Select value={COUNTRY_CODE_MX} disabled>
+                              <SelectTrigger id="biz-phone-country">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={COUNTRY_CODE_MX}>
+                                  {MEXICO_FLAG} México ({COUNTRY_CODE_MX})
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              id="biz-phone"
+                              type="tel"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              autoComplete="tel-national"
+                              value={contactPhoneNumber}
+                              onChange={(e) => {
+                                const sanitizedPhone = sanitizePhoneInput(e.target.value);
+                                setContactPhoneNumber(sanitizedPhone);
+                                setBusinessForm((prev) => ({
+                                  ...prev,
+                                  phone: buildPhoneForApi(sanitizedPhone),
+                                }));
+                              }}
+                              placeholder="5512345678"
+                            />
+                          </div>
                           <p className="text-xs text-muted-foreground">
-                            Teléfono de atención al cliente (puede ser diferente al número de WhatsApp).
+                            Teléfono de atención al cliente en México (solo números, 10 dígitos).
                           </p>
                         </div>
 
@@ -445,6 +554,12 @@ function SettingsPageInner() {
                             Horario de atención
                           </Label>
                           <HoursEditor value={weekSchedule} onChange={setWeekSchedule} />
+                          {formErrors.hours && (
+                            <p className="text-xs text-destructive flex items-center gap-1.5">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              {formErrors.hours}
+                            </p>
+                          )}
                         </div>
 
                         <div className="space-y-2">
@@ -494,9 +609,15 @@ function SettingsPageInner() {
                                 }));
                               }}
                               placeholder="mi-tienda"
-                              className={slugError ? "border-destructive focus-visible:ring-destructive" : ""}
+                              className={slugError || formErrors.slug ? "border-destructive focus-visible:ring-destructive" : ""}
                             />
                           </div>
+                          {formErrors.slug && (
+                            <p className="text-xs text-destructive flex items-center gap-1.5">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              {formErrors.slug}
+                            </p>
+                          )}
                           {slugError && (
                             <p className="text-xs text-destructive flex items-center gap-1.5">
                               <AlertCircle className="h-3.5 w-3.5" />
@@ -547,6 +668,12 @@ function SettingsPageInner() {
                               </div>
                             ))}
                           </div>
+                          {formErrors.paymentMethods && (
+                            <p className="text-xs text-destructive flex items-center gap-1.5">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              {formErrors.paymentMethods}
+                            </p>
+                          )}
                         </div>
 
                         {/* Zona de entrega */}

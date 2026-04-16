@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Package, ShoppingBag, Users, Activity, Loader2, MessageSquare, MessageCircle,
-  CheckCircle2, Circle, ArrowRight, Settings, Smartphone, ChevronRight,
+  CheckCircle2, Circle, ArrowRight, Smartphone, ChevronRight,
 } from "lucide-react";
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import useSWR from "swr";
@@ -50,6 +50,38 @@ interface OnboardingStep {
     done: boolean;
     href: string;
     cta: string;
+}
+
+interface DayScheduleLike {
+    open?: boolean;
+    from_?: string;
+    to?: string;
+}
+
+interface SettingsLike {
+    name?: string;
+    slug?: string;
+    type?: string;
+    hours?: Record<string, DayScheduleLike>;
+    config?: {
+        payment_methods?: unknown;
+    };
+}
+
+function hasValidBusinessHours(hours: SettingsLike["hours"]): boolean {
+    if (!hours || typeof hours !== "object") {
+        return false;
+    }
+    return Object.values(hours).some((day) => {
+        if (!day?.open) {
+            return false;
+        }
+        return Boolean(day.from_?.trim() && day.to?.trim());
+    });
+}
+
+function hasAtLeastOnePaymentMethod(config: SettingsLike["config"]): boolean {
+    return Array.isArray(config?.payment_methods) && config.payment_methods.length > 0;
 }
 
 function OnboardingCard({ steps }: { steps: OnboardingStep[] }) {
@@ -190,7 +222,7 @@ export default function DashboardPage() {
         { refreshInterval: 30000 }
     );
 
-    const settings = settingsData || {};
+    const settings = ((settingsData?.data || settingsData || {}) as SettingsLike);
     const businessType: string = settings.type || "abarrotera";
     const industryConfig = getIndustryConfig(businessType);
     const catalogLabel = industryConfig.view === "menu" ? "Menú" : "Catálogo";
@@ -202,6 +234,8 @@ export default function DashboardPage() {
     const hasName = Boolean(settings.name);
     const hasSlug = Boolean(settings.slug);
     const hasIndustry = Boolean(settings.type);
+    const hasHours = hasValidBusinessHours(settings.hours);
+    const hasPaymentMethods = hasAtLeastOnePaymentMethod(settings.config);
     const hasWhatsApp = Boolean(sessionBusinessPhoneId);
     const hasProducts = (stats?.active_products ?? 0) > 0;
 
@@ -209,8 +243,8 @@ export default function DashboardPage() {
         {
             id: "business",
             title: "Configura tu negocio",
-            description: "Agrega nombre, tipo de industria y URL de tu catálogo público",
-            done: hasName && hasSlug && hasIndustry,
+            description: "Completa datos del negocio, horario, URL de catálogo y métodos de pago",
+            done: hasName && hasSlug && hasIndustry && hasHours && hasPaymentMethods,
             href: "/dashboard/settings",
             cta: "Configurar",
         },

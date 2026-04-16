@@ -42,9 +42,9 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                     top: 92,
                 }}
             >
-                <div className="h-full w-full rounded-2xl bg-[#F7F7F7] border border-border/70 shadow-sm p-3 sm:p-4 md:p-5">
-                    <div className="dashboard-scroll h-full w-full overflow-y-auto pr-0.5">
-                        <div className="space-y-5 min-h-full">
+                <div className="h-full w-full rounded-2xl bg-[#F7F7F7] border border-border/70 shadow-sm overflow-hidden relative [&:has(.inbox-fullbleed)]:bg-white">
+                    <div className="dashboard-scroll h-full w-full overflow-y-auto [&:has(.inbox-fullbleed)]:overflow-hidden">
+                        <div className="p-3 sm:p-4 md:p-5 space-y-5 min-h-full [&:has(.inbox-fullbleed)]:p-0 [&:has(.inbox-fullbleed)]:h-full [&:has(.inbox-fullbleed)]:space-y-0">
                             {children}
                         </div>
                     </div>

@@ -24,32 +24,36 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
 
     return (
         <ScrollArea className="h-full">
-            <div className="flex flex-col gap-2 p-4">
+            <div className="flex flex-col gap-2 p-3">
                 {conversations.map((conv) => {
                     const lastMessage = conv.last_message || conv.messages?.[conv.messages.length - 1];
                     return (
                         <button
                             key={conv.id}
                             onClick={() => onSelect(conv.id)}
-                            className={`flex flex-col items-start gap-2 rounded-lg border p-3 text-left text-sm transition-all hover:bg-[#74E79C]/5 ${
+                            className={`group flex flex-col items-start gap-2 rounded-xl border p-3 text-left text-sm transition-colors hover:bg-muted/40 ${
                                 selectedId === conv.id
-                                    ? "bg-[#74E79C]/10 border-[#74E79C] dark:bg-[#74E79C]/10 dark:border-[#74E79C]"
-                                    : "border-transparent hover:border-border"
+                                    ? "bg-muted/50 border-border/70"
+                                    : "border-transparent hover:border-border/60"
                             }`}
                         >
                             <div className="flex w-full flex-col gap-1">
                                 <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <Avatar className="h-8 w-8">
-                                            <AvatarFallback className="bg-[#1A3E35] text-white text-xs">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <Avatar className="h-9 w-9 ring-1 ring-border/70">
+                                            <AvatarImage src={conv.customer?.avatar_url} alt={conv.customer?.name || "Cliente"} />
+                                            <AvatarFallback className="bg-primary text-primary-foreground text-[11px]">
                                                 {conv.customer?.name?.substring(0,2).toUpperCase() || "C"}
                                             </AvatarFallback>
                                         </Avatar>
-                                        <div className="font-semibold">{conv.customer?.name || conv.customer?.phone}</div>
+                                        <div className="min-w-0">
+                                            <div className="font-medium truncate">{conv.customer?.name || conv.customer?.phone}</div>
+                                            <div className="text-[11px] text-muted-foreground truncate">{conv.customer?.phone || ""}</div>
+                                        </div>
                                         {conv.agent_enabled === true && conv.status === "handoff" && (
                                             <Badge
                                                 variant="outline"
-                                                className="text-[10px] px-1.5 py-0 h-4 border-orange-400 text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10"
+                                                className="text-[10px] px-1.5 py-0 h-4 border-orange-400/40 text-orange-700 bg-orange-500/10"
                                             >
                                                 Humano
                                             </Badge>
@@ -57,18 +61,18 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                                         {conv.agent_enabled === true && conv.status !== "handoff" && (
                                             <Badge
                                                 variant="outline"
-                                                className="text-[10px] px-1.5 py-0 h-4 border-blue-400 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-500/10 gap-0.5"
+                                                className="text-[10px] px-1.5 py-0 h-4 border-blue-400/40 text-blue-700 bg-blue-500/10 gap-0.5"
                                             >
                                                 <Bot className="h-2.5 w-2.5" />
                                                 IA
                                             </Badge>
                                         )}
                                     </div>
-                                    <div className="text-xs text-muted-foreground">
+                                    <div className="text-[11px] text-muted-foreground shrink-0">
                                         {conv.updated_at ? formatDistanceToNow(new Date(conv.updated_at), { addSuffix: true, locale: es }) : ""}
                                     </div>
                                 </div>
-                                <div className="text-xs text-muted-foreground line-clamp-1 ml-10">
+                                <div className="text-xs text-muted-foreground line-clamp-1 ml-11 group-hover:text-foreground/70 transition-colors">
                                     {lastMessage?.content || conv.status.toUpperCase()}
                                 </div>
                             </div>
