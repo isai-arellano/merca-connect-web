@@ -8,7 +8,6 @@ import { motion, AnimatePresence, Variants } from "framer-motion";
 import {
   Store,
   MessageCircle,
-  Webhook,
   Loader2,
   Save,
   CheckCircle2,
@@ -19,7 +18,6 @@ import {
   FileText,
   ExternalLink,
   AlertCircle,
-  CircleDot,
   Bot,
   Link,
   Smartphone,
@@ -388,7 +386,7 @@ function SettingsPageInner() {
       {/* Tabs */}
       <motion.div variants={itemVariants}>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="flex flex-wrap h-auto gap-1 p-1 sm:grid sm:grid-cols-5">
+          <TabsList className="flex flex-wrap h-auto gap-1 p-1 sm:grid sm:grid-cols-4">
             <TabsTrigger value="negocio" className="gap-1.5 flex-1 sm:flex-none">
               <Store className="h-4 w-4 shrink-0" />
               <span className="hidden xs:inline sm:inline">Negocio</span>
@@ -400,10 +398,6 @@ function SettingsPageInner() {
             <TabsTrigger value="whatsapp" className="gap-1.5 flex-1 sm:flex-none">
               <MessageCircle className="h-4 w-4 shrink-0" />
               <span className="hidden xs:inline sm:inline">WhatsApp</span>
-            </TabsTrigger>
-            <TabsTrigger value="webhooks" className="gap-1.5 flex-1 sm:flex-none">
-              <Webhook className="h-4 w-4 shrink-0" />
-              <span className="hidden xs:inline sm:inline">Webhooks</span>
             </TabsTrigger>
             <TabsTrigger value="agente" className="gap-1.5 flex-1 sm:flex-none">
               <Bot className="h-4 w-4 shrink-0" />
@@ -939,129 +933,6 @@ function SettingsPageInner() {
               </motion.div>
             </TabsContent>
 
-            {/* WEBHOOKS TAB */}
-            <TabsContent value="webhooks" key="webhooks">
-              <motion.div
-                variants={tabContentVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                className="space-y-4"
-              >
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Configuración de Webhooks</CardTitle>
-                    <CardDescription>
-                      Estado actual de la conexión con la API de WhatsApp Cloud.
-                      Esta configuración es de solo lectura.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* Status */}
-                    <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-emerald-500/10">
-                          <CircleDot className="h-5 w-5 text-emerald-500" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground">
-                            Estado del Webhook
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Conexión con Meta WhatsApp Cloud API
-                          </p>
-                        </div>
-                      </div>
-                      <Badge
-                        variant="default"
-                        className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20"
-                      >
-                        <span className="relative flex h-2 w-2 mr-1.5">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                        </span>
-                        Activo
-                      </Badge>
-                    </div>
-
-                    <Separator />
-
-                    {/* Webhook URL */}
-                    <div className="space-y-2">
-                      <Label className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">
-                        URL del Webhook
-                      </Label>
-                      <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg border border-border font-mono text-sm">
-                        <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0" />
-                        <span className="truncate text-foreground">
-                          https://api.kolyn.io/webhooks/whatsapp
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Events */}
-                    <div className="space-y-3">
-                      <Label className="text-muted-foreground text-xs uppercase tracking-wider font-semibold">
-                        Eventos Suscritos
-                      </Label>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        {[
-                          {
-                            event: "messages",
-                            label: "Mensajes entrantes",
-                            active: true,
-                          },
-                          {
-                            event: "message_status",
-                            label: "Estado de mensajes",
-                            active: true,
-                          },
-                          {
-                            event: "message_template_status_update",
-                            label: "Estado de templates",
-                            active: true,
-                          },
-                          {
-                            event: "phone_number_quality_update",
-                            label: "Calidad del número",
-                            active: false,
-                          },
-                        ].map((item) => (
-                          <div
-                            key={item.event}
-                            className="flex items-center justify-between p-3 rounded-lg border border-border bg-background"
-                          >
-                            <div>
-                              <p className="text-sm font-medium text-foreground">
-                                {item.label}
-                              </p>
-                              <p className="text-xs text-muted-foreground font-mono">
-                                {item.event}
-                              </p>
-                            </div>
-                            <Badge
-                              variant={item.active ? "default" : "secondary"}
-                              className="text-xs"
-                            >
-                              {item.active ? "Activo" : "Inactivo"}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2 p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg text-sm">
-                      <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                      <p className="text-muted-foreground">
-                        La configuración de webhooks se administra desde el panel
-                        de Meta for Developers. Contacta al equipo de desarrollo
-                        para realizar cambios.
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </TabsContent>
             {/* AGENTE TAB */}
             <TabsContent value="agente" key="agente">
               <motion.div
