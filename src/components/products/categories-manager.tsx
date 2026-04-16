@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiClient, fetcher } from "@/lib/api-client";
 import { endpoints } from "@/lib/api";
 import useSWR from "swr";
+import { type ApiList } from "@/types/api";
 
 interface Category {
     id: string;
@@ -30,8 +31,8 @@ export function CategoriesManager({ businessPhoneId }: CategoriesManagerProps) {
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const endpoint = businessPhoneId ? endpoints.categories.list(businessPhoneId) : null;
-    const { data, isLoading, mutate } = useSWR(endpoint, fetcher);
-    const categories = (data?.data ?? []) as Category[];
+    const { data, isLoading, mutate } = useSWR<ApiList<Category>>(endpoint, fetcher);
+    const categories: Category[] = data?.data ?? [];
 
     async function handleCreate() {
         const name = newName.trim();

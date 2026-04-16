@@ -148,4 +148,4 @@ export const apiClient = {
     },
 };
 
-export const fetcher = (url: string) => apiClient.get(url);
+export const fetcher = <T = unknown>(url: string): Promise<T> => apiClient.get<T>(url);

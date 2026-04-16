@@ -10,10 +10,12 @@ import { useSession } from "next-auth/react";
 import { motion, Variants } from "framer-motion";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
+import { fetcher } from "@/lib/api-client";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { CustomerDialog, type Customer } from "@/components/customers/customer-dialog";
+import { type ApiList } from "@/types/api";
 
 const TAG_COLORS: Record<string, string> = {
     VIP: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -40,11 +42,12 @@ export default function CustomersPage() {
 
     const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
 
-    const { data: response, isLoading, mutate } = useSWR(
-        session && sessionBusinessPhoneId ? endpoints.customers.list : null
+    const { data: response, isLoading, mutate } = useSWR<ApiList<Customer>>(
+        session && sessionBusinessPhoneId ? endpoints.customers.list : null,
+        fetcher
     );
 
-    const customers = (response?.data || []) as Customer[];
+    const customers: Customer[] = response?.data ?? [];
 
     const filteredCustomers = customers.filter((customer) =>
         (customer.name && customer.name.toLowerCase().includes(searchTerm.toLowerCase())) ||

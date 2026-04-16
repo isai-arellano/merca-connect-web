@@ -69,9 +69,12 @@ export function WhatsAppConnectTab() {
         data: statusRes,
         isLoading: statusLoading,
         mutate: mutateStatus,
-    } = useSWR(session ? endpoints.business.whatsappSignupStatus : null, fetcher);
+    } = useSWR<SignupStatus | { data: SignupStatus }>(session ? endpoints.business.whatsappSignupStatus : null, fetcher);
 
-    const status: SignupStatus = statusRes?.data || statusRes || {};
+    const status: SignupStatus =
+        (statusRes as { data: SignupStatus } | null)?.data ??
+        (statusRes as SignupStatus | null) ??
+        { connected: false };
 
     // ── Cargar SDK de Facebook ───────────────────────────────────────────────
     useEffect(() => {

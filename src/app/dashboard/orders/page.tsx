@@ -7,6 +7,7 @@ import { es } from "date-fns/locale";
 import { endpoints } from "@/lib/api";
 import { apiClient } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
+import { type ApiList } from "@/types/api";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -655,11 +656,11 @@ export default function OrdersPage() {
     data: response,
     isLoading,
     mutate,
-  } = useSWR(swrKey, {
+  } = useSWR<ApiList<Order>>(swrKey, {
     refreshInterval: 30000,
   });
 
-  const orders = useMemo(() => (response?.data || []) as Order[], [response]);
+  const orders = useMemo(() => response?.data ?? [], [response]);
 
   // Sort orders for table view
   const sortedOrders = [...orders].sort((a, b) => {
@@ -697,7 +698,7 @@ export default function OrdersPage() {
           o.id === orderId ? { ...o, status: newStatus } : o
         );
         mutate(
-          { ...response, data: optimisticOrders },
+          { ...(response ?? { data: [] }), data: optimisticOrders },
           { revalidate: false }
         );
 
