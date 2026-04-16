@@ -145,13 +145,13 @@ export default async function CatalogPage(
                 )}
 
                 <div className="mt-12 flex flex-col items-center justify-center gap-2 border-t border-border pt-6 text-xs text-muted-foreground">
-                    <img
-                        src="/images/isologo-principal.webp"
+                    <Image
+                        src="/images/isologo-mc-white.webp"
                         alt="MercaConnect"
+                        width={80}
+                        height={24}
                         className="h-6 w-auto object-contain"
-                        onError={(e) => {
-                            e.currentTarget.src = "/mc-green-light.png";
-                        }}
+                        unoptimized
                     />
                     <div className="flex items-center gap-2">
                         <span>Powered by</span>
