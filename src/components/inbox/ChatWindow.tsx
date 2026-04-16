@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
+import { type ConversationDetail, type ApiList, type MessageTemplate, type ConversationMessage } from "@/types/api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -38,7 +39,7 @@ const categoryLabels: Record<string, string> = {
 };
 
 /** Renders the media attachment for a message based on its type */
-function MessageMedia({ msg }: { msg: any }) {
+function MessageMedia({ msg }: { msg: ConversationMessage }) {
     const [expanded, setExpanded] = useState(false);
     const [imgError, setImgError] = useState(false);
 
@@ -157,19 +158,21 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
-    const { data: detailData, error, isLoading, mutate } = useSWR(
+    const { data: detailData, error, isLoading, mutate } = useSWR<ConversationDetail>(
         endpoints.conversations.detail(conversationId),
         fetcher,
         { refreshInterval: 8000 }
     );
 
-    const { data: templatesResponse, isLoading: templatesLoading } = useSWR(
+    const { data: templatesResponse, isLoading: templatesLoading } = useSWR<ApiList<MessageTemplate> | MessageTemplate[]>(
         templatePopoverOpen ? endpoints.templates.list : null,
         fetcher
     );
 
-    const templates = templatesResponse?.data || templatesResponse || [];
-    const messages = detailData?.messages || [];
+    const templates: MessageTemplate[] =
+        (templatesResponse as ApiList<MessageTemplate> | null)?.data ??
+        (Array.isArray(templatesResponse) ? templatesResponse : []);
+    const messages: ConversationMessage[] = detailData?.messages ?? [];
     const customerPhone = detailData?.customer?.phone_number;
     const customerName = detailData?.customer?.name || detailData?.customer?.phone_number || "Cliente";
     const initials = customerName.substring(0, 2).toUpperCase();
@@ -193,7 +196,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
         if (inputRef.current) inputRef.current.style.height = "auto";
         setIsSending(true);
         try {
-            const optimisticMsg = {
+            const optimisticMsg: ConversationMessage = {
                 id: crypto.randomUUID(),
                 direction: "outbound",
                 content: textToSend,
@@ -202,13 +205,13 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                 created_at: new Date().toISOString(),
             };
             await mutate(
-                async (current: any) => {
+                async () => {
                     await apiClient.post(endpoints.conversations.reply(conversationId), { text: textToSend });
                     return undefined;
                 },
                 {
-                    optimisticData: (current: any) => ({
-                        ...current,
+                    optimisticData: (current: ConversationDetail | undefined) => ({
+                        ...(current ?? { id: conversationId, status: "ai_active", messages: [] }),
                         messages: [...(current?.messages ?? []), optimisticMsg],
                     }),
                     revalidate: true,
@@ -328,7 +331,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             {/* ── Messages ── */}
             <ScrollArea className="flex-1 overflow-hidden">
                 <div className="flex flex-col gap-1 px-4 py-4">
-                    {messages.map((msg: any, idx: number) => {
+                    {messages.map((msg, idx) => {
                         const isInbound = msg.direction === "inbound";
                         const hasMedia = !!msg.media_id && msg.message_type !== "text";
                         const hasCaption = !!msg.content;
@@ -402,17 +405,17 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                                     </div>
                                 ) : Array.isArray(templates) && templates.length > 0 ? (
                                     <div className="py-1">
-                                        {templates.map((template: any) => {
+                                        {templates.map((template) => {
                                             const isApproved = template.status?.toUpperCase() === "APPROVED";
-                                            const status = statusConfig[template.status] || statusConfig["PENDING"];
-                                            const category = categoryLabels[template.category] || template.category;
+                                            const status = (template.status ? statusConfig[template.status] : undefined) || statusConfig["PENDING"];
+                                            const category = (template.category ? categoryLabels[template.category] : undefined) || template.category;
                                             const isSendingThis = sendingTemplate === template.name;
                                             const isSentThis = sentTemplate === template.name;
                                             return (
                                                 <button
                                                     key={template.id || template.name}
                                                     disabled={!isApproved || isSendingThis}
-                                                    onClick={() => handleSendTemplate(template.name, template.language)}
+                                                    onClick={() => handleSendTemplate(template.name, template.language ?? "es_MX")}
                                                     className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
                                                         isApproved
                                                             ? "hover:bg-[#EEFAEE] cursor-pointer"

@@ -7,6 +7,7 @@ import useSWR from "swr";
 import { ShieldAlert, Plus, Loader2, CheckCircle2, Building2, Wifi, WifiOff } from "lucide-react";
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
+import { type Business, type ApiList, type ProvisionResult } from "@/types/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,13 +15,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-
-interface Business {
-    id: string;
-    name: string;
-    phone_number: string | null;
-    signup_completed: boolean;
-}
 
 export default function AdminPage() {
     const { data: session, status } = useSession();
@@ -31,17 +25,17 @@ export default function AdminPage() {
     const [loading, setLoading] = useState(false);
     const [lastProvisioned, setLastProvisioned] = useState<{ business_id: string; email: string } | null>(null);
 
-    const { data: bizData, isLoading: bizLoading, mutate } = useSWR(
-        (session as any)?.role === "admin" ? endpoints.admin.businesses : null,
+    const { data: bizData, isLoading: bizLoading, mutate } = useSWR<ApiList<Business>>(
+        session?.role === "admin" ? endpoints.admin.businesses : null,
         fetcher
     );
-    const businesses: Business[] = bizData?.data || bizData || [];
+    const businesses: Business[] = bizData?.data ?? [];
 
     if (status === "loading") {
         return <div className="flex items-center justify-center h-64"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
     }
 
-    if ((session as any)?.role !== "admin") {
+    if (session?.role !== "admin") {
         router.replace("/dashboard");
         return null;
     }
@@ -50,8 +44,8 @@ export default function AdminPage() {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await apiClient.post(endpoints.admin.provision, form);
-            const data = res.data || res;
+            const res = await apiClient.post<ProvisionResult>(endpoints.admin.provision, form);
+            const data: ProvisionResult = (res as unknown as { data: ProvisionResult }).data ?? res;
             setLastProvisioned({ business_id: data.business_id, email: data.email });
             setForm({ business_name: "", email: "", password: "" });
             await mutate();

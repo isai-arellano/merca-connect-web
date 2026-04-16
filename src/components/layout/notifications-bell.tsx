@@ -39,7 +39,7 @@ export function NotificationsBell() {
     const router = useRouter();
     const [open, setOpen] = useState(false);
 
-    const { data } = useSWR(
+    const { data } = useSWR<HandoffNotification[] | { data: HandoffNotification[] }>(
         session && sessionBusinessPhoneId
             ? endpoints.conversations.handoffNotifications
             : null,
@@ -47,7 +47,7 @@ export function NotificationsBell() {
         { refreshInterval: 15000 }
     );
 
-    const notifications: HandoffNotification[] = Array.isArray(data) ? data : (data?.data ?? []);
+    const notifications: HandoffNotification[] = Array.isArray(data) ? data : ((data as { data: HandoffNotification[] } | null)?.data ?? []);
     const count = notifications.length;
 
     function handleGoToConversation(id: string) {

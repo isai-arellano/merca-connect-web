@@ -18,6 +18,7 @@ import {
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
+import { type ApiList } from "@/types/api";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -126,12 +127,14 @@ export default function TemplatesPage() {
   const [creating, setCreating] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<MessageTemplate | null>(null);
 
-  const { data: response, isLoading, mutate } = useSWR(
+  const { data: response, isLoading, mutate } = useSWR<ApiList<MessageTemplate> | MessageTemplate[]>(
     session && sessionBusinessPhoneId ? endpoints.templates.list : null,
     fetcher
   );
 
-  const templates = (response?.data || response || []) as MessageTemplate[];
+  const templates: MessageTemplate[] =
+    (response as ApiList<MessageTemplate> | null)?.data ??
+    (Array.isArray(response) ? response : []);
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

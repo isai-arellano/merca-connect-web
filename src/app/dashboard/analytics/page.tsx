@@ -17,6 +17,7 @@ import {
 
 import { endpoints } from "@/lib/api";
 import { fetcher } from "@/lib/api-client";
+import { type AnalyticsOverview } from "@/types/api";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -94,13 +95,16 @@ export default function AnalyticsPage() {
   const { data: session } = useSession();
   const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
 
-  const { data: response, isLoading } = useSWR(
+  const { data: response, isLoading } = useSWR<AnalyticsOverview | { data: AnalyticsOverview }>(
     session && sessionBusinessPhoneId ? endpoints.analytics.overview : null,
     fetcher,
     { refreshInterval: 30000 }
   );
 
-  const analytics = response?.data || response || {};
+  const analytics: AnalyticsOverview =
+    (response as { data: AnalyticsOverview } | null)?.data ??
+    (response as AnalyticsOverview | null) ??
+    {};
   const messageStats = analytics.messages || {};
   const ordersByStatus =
     (analytics.orders_by_status as Record<string, number | string | null | undefined>) || {};
@@ -154,8 +158,10 @@ export default function AnalyticsPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {statCards.map((stat) => {
             const Icon = stat.icon;
-            const value = analytics[stat.key] ?? stat.fallback;
-            const change = analytics[`${stat.key}_change`];
+            const rawValue = analytics[stat.key as keyof typeof analytics];
+            const value = (typeof rawValue === "number" || typeof rawValue === "string") ? rawValue : stat.fallback;
+            const rawChange = analytics[`${stat.key}_change` as keyof typeof analytics];
+            const change = typeof rawChange === "number" ? rawChange : undefined;
 
             return (
               <motion.div key={stat.key} variants={itemVariants}>

@@ -6,9 +6,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bot } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
+import { type ConversationSummary } from "@/types/api";
 
 interface ConversationListProps {
-    conversations: any[];
+    conversations: ConversationSummary[];
     selectedId: string | null;
     onSelect: (id: string) => void;
 }

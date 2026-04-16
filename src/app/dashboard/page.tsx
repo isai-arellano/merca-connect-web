@@ -15,6 +15,7 @@ import { fetcher } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { getIndustryConfig } from "@/config/industries";
 import Link from "next/link";
+import { type ApiList, type AnalyticsOverview, type DashboardStats } from "@/types/api";
 
 interface RecentOrder {
     id: string;
@@ -199,36 +200,44 @@ export default function DashboardPage() {
     const { data: session } = useSession();
     const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
 
-    const { data: settingsData, isLoading: settingsLoading } = useSWR(
+    const { data: settingsData, isLoading: settingsLoading } = useSWR<SettingsLike | { data: SettingsLike }>(
         session && sessionBusinessPhoneId ? endpoints.business.settings : null,
         fetcher
     );
 
-    const { data: stats, isLoading: statsLoading } = useSWR(
+    const { data: statsRaw, isLoading: statsLoading } = useSWR<DashboardStats>(
         session && sessionBusinessPhoneId ? endpoints.dashboard.stats : null,
         fetcher,
         { refreshInterval: 10000 }
     );
 
-    const { data: ordersData, isLoading: ordersLoading } = useSWR(
+    const stats: DashboardStats | undefined = statsRaw;
+
+    const { data: ordersData, isLoading: ordersLoading } = useSWR<ApiList<RecentOrder>>(
         session && sessionBusinessPhoneId ? endpoints.orders.list : null,
         fetcher,
         { refreshInterval: 10000 }
     );
 
-    const { data: analyticsData } = useSWR(
+    const { data: analyticsData } = useSWR<AnalyticsOverview | { data: AnalyticsOverview }>(
         session && sessionBusinessPhoneId ? endpoints.analytics.overview : null,
         fetcher,
         { refreshInterval: 30000 }
     );
 
-    const settings = ((settingsData?.data || settingsData || {}) as SettingsLike);
+    const settings: SettingsLike =
+        (settingsData as { data: SettingsLike } | null)?.data ??
+        (settingsData as SettingsLike | null) ??
+        {};
     const businessType: string = settings.type || "abarrotera";
     const industryConfig = getIndustryConfig(businessType);
     const catalogLabel = industryConfig.view === "menu" ? "Menú" : "Catálogo";
 
-    const recentOrders = (ordersData?.data || []) as RecentOrder[];
-    const analytics = analyticsData?.data || analyticsData || {};
+    const recentOrders: RecentOrder[] = ordersData?.data ?? [];
+    const analytics: AnalyticsOverview =
+        (analyticsData as { data: AnalyticsOverview } | null)?.data ??
+        (analyticsData as AnalyticsOverview | null) ??
+        {};
     const messageStats = analytics.messages || {};
 
     const hasName = Boolean(settings.name);
