@@ -257,9 +257,9 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     }
 
     return (
-        <div className="flex flex-col h-full w-full overflow-hidden">
-            {/* Header */}
-            <div className="border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-3">
+        <div className="flex flex-col h-full w-full bg-muted/5 overflow-hidden">
+            {/* Header (fijo dentro del panel, scroll solo en mensajes) */}
+            <div className="border-b border-border/70 bg-background flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-3">
                 <div className="min-w-0">
                     <h3 className="font-semibold truncate">{detailData.customer?.name || detailData.customer?.phone_number}</h3>
                     <p className="text-xs text-muted-foreground">{detailData.customer?.phone_number}</p>
@@ -298,17 +298,17 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
 
             {/* Messages */}
             <ScrollArea className="flex-1">
-                <div className="flex flex-col gap-3 px-3 sm:px-4 py-3">
+                <div className="flex flex-col gap-3 px-3 sm:px-4 py-4">
                     {messages.map((msg: any) => {
                         const isInbound = msg.direction === 'inbound';
                         const hasMedia = !!msg.media_id && msg.message_type !== "text";
                         const hasCaption = !!msg.content;
 
                         return (
-                            <div key={msg.id} className={`flex ${isInbound ? 'justify-start' : 'justify-end'}`}>
-                                <div className={`max-w-[88%] sm:max-w-[75%] flex flex-col gap-1.5 rounded-lg px-3 py-2 text-sm ${
+                            <div key={msg.id} className={`flex ${isInbound ? 'justify-start' : 'justify-end'} animate-in fade-in-0 slide-in-from-bottom-1 duration-200`}>
+                                <div className={`max-w-[88%] sm:max-w-[75%] flex flex-col gap-1.5 rounded-2xl px-3 py-2 text-sm shadow-sm ${
                                     isInbound
-                                    ? 'bg-[#EEFAEE] text-[#1A3E35] border border-border'
+                                    ? 'bg-card text-card-foreground border border-border/70'
                                     : 'bg-[#1A3E35] text-white'
                                 }`}>
                                     {/* Media content */}
@@ -336,14 +336,14 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             </ScrollArea>
 
             {/* Input area */}
-            <div className="border-t border-border flex gap-2 px-3 sm:px-4 py-3">
+            <div className="border-t border-border/70 bg-background flex gap-2 px-3 sm:px-4 py-3">
                 {/* Template selector */}
                 <Popover open={templatePopoverOpen} onOpenChange={setTemplatePopoverOpen}>
                     <PopoverTrigger asChild>
                         <Button
                             size="icon"
                             variant="outline"
-                            className="shrink-0 border-border bg-white hover:bg-[#74E79C]/20 hover:border-[#1A3E35]/30"
+                            className="shrink-0 border-border bg-background hover:bg-muted/40 hover:border-[#1A3E35]/30 transition-colors"
                             title="Enviar plantilla"
                         >
                             <FileText className="h-4 w-4 text-[#1A3E35]" />
@@ -431,7 +431,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                 <input
                     type="text"
                     placeholder="Escribe un mensaje..."
-                    className="flex-1 min-w-0 bg-white border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#74E79C]"
+                    className="flex-1 min-w-0 bg-background border border-border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#74E79C] transition-shadow"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={(e) => {
@@ -443,7 +443,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                     size="icon"
                     onClick={handleSend}
                     disabled={isSending || !inputValue.trim()}
-                    className="bg-[#1A3E35] hover:bg-[#1A3E35]/90 text-white"
+                    className="rounded-full bg-[#1A3E35] hover:bg-[#1A3E35]/90 text-white"
                 >
                     {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>

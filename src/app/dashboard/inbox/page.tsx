@@ -23,60 +23,69 @@ export default function InboxPage() {
     );
 
     return (
-        <div className="min-h-[calc(100dvh-8rem)] md:min-h-[calc(100dvh-9rem)] border border-border rounded-xl overflow-hidden shadow-sm flex">
-            {/* List Sidebar — oculto en móvil cuando hay conv seleccionada */}
-            <div className={`
-                flex flex-col h-full border-r border-border
-                w-full md:w-1/3 md:min-w-[280px] md:max-w-[340px]
-                ${selectedConv ? "hidden md:flex" : "flex"}
-            `}>
-                <div className="p-4 border-b border-border">
-                    <h2 className="font-semibold text-base flex items-center gap-2">
-                        Inbox
-                        {isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                    </h2>
+        <div className="h-[calc(100dvh-8rem)] md:h-[calc(100dvh-9rem)] bg-background">
+            <div className="h-full flex overflow-hidden rounded-2xl border border-border/60">
+                {/* List Sidebar — oculto en móvil cuando hay conv seleccionada */}
+                <div
+                    className={`
+                        flex flex-col h-full border-r border-border
+                        w-full md:w-1/3 md:min-w-[280px] md:max-w-[340px]
+                        ${selectedConv ? "hidden md:flex" : "flex"}
+                    `}
+                >
+                    <div className="p-4 border-b border-border/70 bg-muted/10">
+                        <h2 className="font-semibold text-base flex items-center gap-2 tracking-tight">
+                            Inbox
+                            {isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                        </h2>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Conversaciones y pedidos por WhatsApp
+                        </p>
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                        {error ? (
+                            <div className="p-4 text-sm text-destructive text-center">Error al cargar conversaciones</div>
+                        ) : (
+                            <ConversationList
+                                conversations={convData?.data || []}
+                                selectedId={selectedConv}
+                                onSelect={setSelectedConv}
+                            />
+                        )}
+                    </div>
                 </div>
-                <div className="flex-1 overflow-hidden">
-                    {error ? (
-                        <div className="p-4 text-sm text-destructive text-center">Error al cargar conversaciones</div>
+
+                {/* Chat area — pantalla completa en móvil cuando hay conv seleccionada */}
+                <div
+                    className={`
+                        flex-1 h-full w-full flex flex-col overflow-hidden
+                        ${selectedConv ? "flex" : "hidden md:flex"}
+                    `}
+                >
+                    {selectedConv ? (
+                        <div className="flex flex-col h-full">
+                            {/* Back button — solo visible en móvil */}
+                            <div className="md:hidden flex items-center gap-2 px-4 py-2 border-b border-border/70 bg-muted/10">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-1.5 text-sm"
+                                    onClick={() => setSelectedConv(null)}
+                                >
+                                    <ArrowLeft className="h-4 w-4" />
+                                    Conversaciones
+                                </Button>
+                            </div>
+                            <div className="flex-1 overflow-hidden">
+                                <ChatWindow conversationId={selectedConv} />
+                            </div>
+                        </div>
                     ) : (
-                        <ConversationList
-                            conversations={convData?.data || []}
-                            selectedId={selectedConv}
-                            onSelect={setSelectedConv}
-                        />
+                        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm bg-muted/5">
+                            Selecciona una conversación para empezar
+                        </div>
                     )}
                 </div>
-            </div>
-
-            {/* Chat area — pantalla completa en móvil cuando hay conv seleccionada */}
-            <div className={`
-                flex-1 h-full w-full flex flex-col
-                ${selectedConv ? "flex" : "hidden md:flex"}
-            `}>
-                {selectedConv ? (
-                    <div className="flex flex-col h-full">
-                        {/* Back button — solo visible en móvil */}
-                        <div className="md:hidden flex items-center gap-2 px-4 py-2 border-b border-border">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="gap-1.5 text-sm"
-                                onClick={() => setSelectedConv(null)}
-                            >
-                                <ArrowLeft className="h-4 w-4" />
-                                Conversaciones
-                            </Button>
-                        </div>
-                        <div className="flex-1 overflow-hidden">
-                            <ChatWindow conversationId={selectedConv} />
-                        </div>
-                    </div>
-                ) : (
-                    <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-                        Selecciona una conversación para empezar
-                    </div>
-                )}
             </div>
         </div>
     );
