@@ -17,6 +17,7 @@ import useSWR from "swr";
 import { endpoints } from "@/lib/api";
 import { fetcher } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
+import { type ApiList } from "@/types/api";
 
 interface Product {
     id: string;
@@ -71,15 +72,15 @@ export default function ProductsPage() {
 
     const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
 
-    const { data: settingsData } = useSWR(session ? endpoints.business.settings : null, fetcher);
+    const { data: settingsData } = useSWR<{ slug?: string; type?: string }>(session ? endpoints.business.settings : null, fetcher);
     const productsEndpoint = sessionBusinessPhoneId ? endpoints.products.list(sessionBusinessPhoneId) : null;
-    const { data: response, isLoading } = useSWR(session && productsEndpoint ? productsEndpoint : null, fetcher);
+    const { data: response, isLoading } = useSWR<ApiList<Product>>(session && productsEndpoint ? productsEndpoint : null, fetcher);
 
     const businessSlug: string | null = settingsData?.slug ?? null;
     const businessType: string = settingsData?.type ?? "abarrotera";
     const config = getIndustryConfig(businessType);
 
-    const products = (response?.data || []) as Product[];
+    const products: Product[] = response?.data ?? [];
     const filteredProducts = searchTerm.trim()
         ? products.filter((p) =>
             p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||

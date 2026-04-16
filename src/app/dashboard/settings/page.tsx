@@ -30,6 +30,7 @@ import {
 
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher, ApiError, NetworkError } from "@/lib/api-client";
+import { type WhatsAppProfile, type BusinessSettings } from "@/types/api";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { AgentTab } from "@/components/settings/AgentTab";
 import { WhatsAppConnectTab } from "@/components/settings/WhatsAppConnectTab";
@@ -113,7 +114,7 @@ function SettingsPageInner() {
     data: settingsRes,
     isLoading: settingsLoading,
     mutate: mutateSettings,
-  } = useSWR(
+  } = useSWR<BusinessSettings | { data: BusinessSettings }>(
     session
       && sessionBusinessPhoneId
       ? endpoints.business.settings
@@ -126,7 +127,7 @@ function SettingsPageInner() {
     data: waProfileRes,
     isLoading: waLoading,
     mutate: mutateWaProfile,
-  } = useSWR(
+  } = useSWR<WhatsAppProfile | { data: WhatsAppProfile }>(
     session
       && sessionBusinessPhoneId
       ? endpoints.business.whatsappProfile
@@ -134,8 +135,14 @@ function SettingsPageInner() {
     fetcher
   );
 
-  const settings = settingsRes?.data || settingsRes || {};
-  const waProfile = waProfileRes?.data || waProfileRes || {};
+  const settings: BusinessSettings =
+    (settingsRes as { data: BusinessSettings } | null)?.data ??
+    (settingsRes as BusinessSettings | null) ??
+    {};
+  const waProfile: WhatsAppProfile =
+    (waProfileRes as { data: WhatsAppProfile } | null)?.data ??
+    (waProfileRes as WhatsAppProfile | null) ??
+    {};
 
   // Business form state
   const [businessForm, setBusinessForm] = useState({

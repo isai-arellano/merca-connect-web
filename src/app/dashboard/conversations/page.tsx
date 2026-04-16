@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import { endpoints } from "@/lib/api";
 import { apiClient } from "@/lib/api-client";
+import { type ApiList } from "@/types/api";
 import { useSession } from "next-auth/react";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { Input } from "@/components/ui/input";
@@ -50,17 +51,16 @@ export default function InboxPage() {
 
     const { mutate } = useSWRConfig();
 
-    const { data: conversationsResponse, isLoading: isLoadingList } = useSWR(
+    const { data: conversationsResponse, isLoading: isLoadingList } = useSWR<ApiList<ConversationSummary>>(
         session && sessionBusinessPhoneId ? endpoints.conversations.list : null,
         { refreshInterval: 15000 } // Polling cada 15 segundos para nuevos mensajes
     );
-    const conversations = (conversationsResponse?.data || []) as ConversationSummary[];
+    const conversations: ConversationSummary[] = conversationsResponse?.data ?? [];
 
-    const { data: activeConversation, isLoading: isLoadingChat } = useSWR(
+    const { data: activeConversationData, isLoading: isLoadingChat } = useSWR<ActiveConversation>(
         selectedId && session && sessionBusinessPhoneId ? endpoints.conversations.detail(selectedId) : null,
         { refreshInterval: 8000 } // Polling cuando estamos leyendo un chat
     );
-    const activeConversationData = activeConversation as ActiveConversation | null;
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();

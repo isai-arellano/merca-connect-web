@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiClient, fetcher } from "@/lib/api-client";
 import { endpoints } from "@/lib/api";
 import useSWR from "swr";
+import { type ApiList } from "@/types/api";
 
 interface Unit {
     id: string;
@@ -28,8 +29,8 @@ export function UnitsManager({ relevantUnits }: { relevantUnits?: string[] }) {
     const [isCreating, setIsCreating] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
-    const { data, isLoading, mutate } = useSWR(endpoints.units.list, fetcher);
-    const allUnits = (data?.data ?? []) as Unit[];
+    const { data, isLoading, mutate } = useSWR<ApiList<Unit>>(endpoints.units.list, fetcher);
+    const allUnits: Unit[] = data?.data ?? [];
     const systemUnits = allUnits.filter((u) => {
         if (!u.is_system) return false;
         if (!relevantUnits || relevantUnits.length === 0) return true;

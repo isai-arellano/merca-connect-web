@@ -25,6 +25,7 @@ import { endpoints } from "@/lib/api";
 import { fetcher } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { getIndustryConfig } from "@/config/industries";
+import { type BusinessSettings } from "@/types/api";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { createContext, useContext, useState } from "react";
 
@@ -120,14 +121,14 @@ export function SidebarContent({
   const pathname = usePathname();
   const { data: session } = useSession();
   const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
-  const isAdmin = (session as any)?.role === "admin";
+  const isAdmin = session?.role === "admin";
 
-  const { data: settingsData } = useSWR(
+  const { data: settingsData } = useSWR<BusinessSettings>(
     session && sessionBusinessPhoneId ? endpoints.business.settings : null,
     fetcher
   );
 
-  const settings = settingsData || {};
+  const settings: BusinessSettings = settingsData ?? {};
   const businessType: string = settings.type || "abarrotera";
   const industryConfig = getIndustryConfig(businessType);
   const catalogLabel = industryConfig.view === "menu" ? "Menú" : "Catálogo";

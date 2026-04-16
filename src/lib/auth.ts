@@ -79,7 +79,7 @@ export const authOptions: NextAuthOptions = {
                 token.businessId = user.businessId ?? null;
                 token.businessPhoneId = user.businessPhoneId ?? null;
                 token.businessName = user.businessName ?? null;
-                token.role = (user as any).role ?? "operator";
+                token.role = user.role ?? "operator";
             }
 
             return token;
@@ -96,7 +96,7 @@ export const authOptions: NextAuthOptions = {
             session.businessId = token.businessId ?? null;
             session.businessPhoneId = token.businessPhoneId ?? null;
             session.businessName = token.businessName ?? null;
-            (session as any).role = (token as any).role ?? "operator";
+            session.role = token.role ?? "operator";
 
             return session;
         },

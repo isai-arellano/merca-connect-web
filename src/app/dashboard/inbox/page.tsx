@@ -10,13 +10,14 @@ import { useSession } from "next-auth/react";
 import { fetcher } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { Button } from "@/components/ui/button";
+import { type ApiList, type ConversationSummary } from "@/types/api";
 
 export default function InboxPage() {
     const { data: session } = useSession();
     const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
     const [selectedConv, setSelectedConv] = useState<string | null>(null);
 
-    const { data: convData, error, isLoading } = useSWR(
+    const { data: convData, error, isLoading } = useSWR<ApiList<ConversationSummary>>(
         session && sessionBusinessPhoneId ? endpoints.conversations.list : null,
         fetcher,
         { refreshInterval: 10000 }
@@ -46,7 +47,7 @@ export default function InboxPage() {
                         <div className="p-4 text-sm text-destructive text-center">Error al cargar conversaciones</div>
                     ) : (
                         <ConversationList
-                            conversations={convData?.data || []}
+                            conversations={convData?.data ?? []}
                             selectedId={selectedConv}
                             onSelect={setSelectedConv}
                         />

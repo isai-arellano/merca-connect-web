@@ -22,6 +22,7 @@ import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
 import { useSession as useAuthSession } from "next-auth/react";
 import { getSessionBusinessId } from "@/lib/business";
+import { type ApiList } from "@/types/api";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,13 +95,15 @@ export default function KnowledgePage() {
     const [editing, setEditing] = useState<KnowledgeDoc | null>(null);
     const [deleting, setDeleting] = useState<string | null>(null);
 
-    const { data: response, isLoading, error: swrError, mutate } = useSWR(
+    const { data: response, isLoading, error: swrError, mutate } = useSWR<ApiList<KnowledgeDoc> | KnowledgeDoc[]>(
         session && businessId ? endpoints.knowledge.list(businessId) : null,
         fetcher,
         { shouldRetryOnError: false }
     );
 
-    const docs: KnowledgeDoc[] = response?.data || response || [];
+    const docs: KnowledgeDoc[] =
+        (response as ApiList<KnowledgeDoc> | null)?.data ??
+        (Array.isArray(response) ? response : []);
 
     function openCreate() {
         setEditing(null);

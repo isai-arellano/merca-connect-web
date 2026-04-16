@@ -14,6 +14,7 @@ import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
 import { Loader2, Plus, Trash2, X, Upload, ImageIcon } from "lucide-react";
 import useSWR from "swr";
+import { type ApiList, type CategoryOption as ApiCategoryOption, type UnitOption as ApiUnitOption } from "@/types/api";
 
 export interface ProductDialogProduct {
     id: string;
@@ -151,16 +152,16 @@ export function ProductDialog({ open, onOpenChange, config, businessType, busine
         ? endpoints.products.detail(product.id, businessPhoneId)
         : null;
 
-    const { data: categoriesResponse, isLoading: isLoadingCategories, error: categoriesError } = useSWR(
+    const { data: categoriesResponse, isLoading: isLoadingCategories, error: categoriesError } = useSWR<ApiList<CategoryOption>>(
         open && categoriesEndpoint ? categoriesEndpoint : null,
         fetcher,
     );
-    const { data: unitsResponse } = useSWR(open ? endpoints.units.list : null, fetcher);
-    const { data: productResponse, isLoading: isLoadingProduct } = useSWR(productDetailEndpoint, fetcher);
+    const { data: unitsResponse } = useSWR<ApiList<UnitOption>>(open ? endpoints.units.list : null, fetcher);
+    const { data: productResponse, isLoading: isLoadingProduct } = useSWR<ProductDialogProduct>(productDetailEndpoint, fetcher);
 
-    const currentProduct = (productResponse ?? product) as ProductDialogProduct | undefined;
-    const categoryOptions = (categoriesResponse?.data ?? []) as CategoryOption[];
-    const allUnits = (unitsResponse?.data ?? []) as UnitOption[];
+    const currentProduct: ProductDialogProduct | undefined = productResponse ?? product;
+    const categoryOptions: CategoryOption[] = categoriesResponse?.data ?? [];
+    const allUnits: UnitOption[] = unitsResponse?.data ?? [];
     const relevantUnits = allUnits.filter((u) =>
         config.relevantUnits.includes(u.symbol) || !u.is_system
     );
@@ -226,7 +227,7 @@ export function ProductDialog({ open, onOpenChange, config, businessType, busine
         setCategoryError(null);
         setIsCreatingCategory(true);
         try {
-            const created = await apiClient.post(endpoints.categories.create, { name });
+            const created = await apiClient.post<ApiCategoryOption>(endpoints.categories.create, { name });
             await mutate(categoriesEndpoint);
             updateField("categoryId", created.id);
             setNewCategoryMode(false);

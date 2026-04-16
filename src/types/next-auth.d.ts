@@ -6,6 +6,7 @@ declare module "next-auth" {
     businessId?: string | null;
     businessPhoneId?: string | null;
     businessName?: string | null;
+    role?: string;
     user: DefaultSession["user"] & {
       id?: string;
       businessId?: string | null;
@@ -19,6 +20,7 @@ declare module "next-auth" {
     businessId?: string | null;
     businessPhoneId?: string | null;
     businessName?: string | null;
+    role?: string;
   }
 }
 
@@ -28,5 +30,6 @@ declare module "next-auth/jwt" {
     businessId?: string | null;
     businessPhoneId?: string | null;
     businessName?: string | null;
+    role?: string;
   }
 }

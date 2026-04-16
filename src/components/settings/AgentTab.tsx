@@ -121,7 +121,7 @@ export function AgentTab() {
     data: settingsRes,
     isLoading: settingsLoading,
     mutate: mutateSettings,
-  } = useSWR(
+  } = useSWR<SettingsResponse>(
     sessionBusinessPhoneId ? endpoints.business.settings : null,
     fetcher
   );
