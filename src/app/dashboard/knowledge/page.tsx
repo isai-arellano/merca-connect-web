@@ -61,7 +61,7 @@ interface KnowledgeDoc {
 }
 
 const DOC_TYPE_META: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-    faq:    { label: "Pregunta frecuente", icon: <HelpCircle className="h-3.5 w-3.5" />,  color: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20" },
+    faq:    { label: "Preguntas frecuentes", icon: <HelpCircle className="h-3.5 w-3.5" />,  color: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20" },
     policy: { label: "Política",           icon: <ShieldCheck className="h-3.5 w-3.5" />, color: "bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20" },
     hours:  { label: "Horarios",           icon: <Clock className="h-3.5 w-3.5" />,       color: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20" },
     custom: { label: "General",            icon: <FileText className="h-3.5 w-3.5" />,    color: "bg-muted text-muted-foreground border-border" },
@@ -155,14 +155,14 @@ export default function KnowledgePage() {
             animate="show"
         >
             {/* Header */}
-            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 ">
+                <div className="text-left">
+                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight  text-justify flex items-center gap-2">
                         <BookOpen className="h-7 w-7 text-primary" />
-                        Base de Conocimiento
+                        Base de conocimiento
                     </h1>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                        Información que el agente IA usa para responder preguntas sobre tu negocio.
+                    <p className="text-sm text-muted-foreground mt-0.5 text-left">
+                        Información que el agente usa para responder preguntas de tu negocio.
                     </p>
                 </div>
                 <Button onClick={openCreate} className="gap-2 shrink-0 w-full sm:w-auto">
@@ -175,11 +175,11 @@ export default function KnowledgePage() {
             <motion.div variants={itemVariants}>
                 <div className="flex items-start gap-3 p-3 sm:p-4 bg-primary/5 border border-primary/20 rounded-xl text-sm">
                     <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                    <div className="text-muted-foreground">
+                    <div className="text-muted-foreground text-justify">
                         <span className="font-medium text-foreground">¿Cómo funciona?</span>{" "}
                         Cuando un cliente pregunte "¿tienen estacionamiento?" o "¿hacen envíos a Zapopan?",
-                        el agente buscará aquí primero antes de responder. Agrega FAQs, políticas y
-                        horarios para que el agente siempre tenga la respuesta correcta.
+                        el agente consultará esta sección antes de responder. Agrega preguntas frecuentes,
+                        políticas y horarios para mantener respuestas claras y correctas.
                     </div>
                 </div>
             </motion.div>
@@ -197,7 +197,7 @@ export default function KnowledgePage() {
                         <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                             <AlertCircle className="h-8 w-8 text-destructive mb-3" />
                             <p className="font-medium text-foreground mb-1">No se pudo conectar con el servicio</p>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="text-sm text-muted-foreground text-justify">
                                 El servicio de agentes no está disponible en este momento.
                             </p>
                         </CardContent>
@@ -265,7 +265,7 @@ function DocCard({
                             </Badge>
                         </div>
                         <p className="font-medium text-foreground text-sm">{doc.title}</p>
-                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2 text-justify">
                             {doc.content}
                         </p>
                     </div>
@@ -306,10 +306,10 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
                 <div className="p-4 bg-primary/5 rounded-full mb-4">
                     <BookOpen className="h-8 w-8 text-primary" />
                 </div>
-                <p className="font-semibold text-foreground mb-1">Sin documentos todavía</p>
+                <p className="font-semibold text-foreground mb-1 text-justify">Todavía no hay documentos</p>
                 <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-                    Agrega FAQs, horarios y políticas para que el agente pueda
-                    responder preguntas específicas de tu negocio.
+                    Agrega preguntas frecuentes, horarios y políticas para que el agente
+                    responda preguntas de tu negocio.
                 </p>
                 <Button onClick={onAdd} className="gap-2">
                     <Plus className="h-4 w-4" />
@@ -373,13 +373,11 @@ function DocDialog({
         <Dialog open={open} onOpenChange={handleOpenChange}>
             <DialogContent className="max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>
-                        {isEdit ? "Editar documento" : "Nuevo documento"}
-                    </DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle>{isEdit ? "Editar documento" : "Crear documento"}</DialogTitle>
+                    <DialogDescription className="text-justify">
                         {isEdit
-                            ? "Modifica el contenido del documento."
-                            : "El agente usará este texto para responder preguntas de tus clientes."
+                            ? "Actualiza la información que usa el agente en sus respuestas."
+                            : "Agrega información para mejorar las respuestas del agente."
                         }
                     </DialogDescription>
                 </DialogHeader>
@@ -421,8 +419,8 @@ function DocDialog({
                             rows={5}
                             placeholder={example}
                         />
-                        <p className="text-xs text-muted-foreground">
-                            Escribe la información tal como quieres que el agente la transmita.
+                        <p className="text-xs text-muted-foreground text-justify">
+                            Escribe la información como quieres que el agente la comunique.
                         </p>
                     </div>
                 </div>
