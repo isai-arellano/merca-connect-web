@@ -74,17 +74,30 @@ export const authOptions: NextAuthOptions = {
     },
     callbacks: {
         async jwt({ token, user }) {
+            // Primera vez que el usuario hace login — guardar campos custom
             if (user) {
                 token.accessToken = user.accessToken;
                 token.businessId = user.businessId ?? null;
                 token.businessPhoneId = user.businessPhoneId ?? null;
                 token.businessName = user.businessName ?? null;
                 token.role = user.role ?? "operator";
+                // Guardar timestamp de expiración (maxAge desde ahora)
+                token.expiresAt = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
+            }
+
+            // Token expirado — propagar error para que el cliente redirija a login
+            if (token.expiresAt && Date.now() / 1000 > (token.expiresAt as number)) {
+                return { ...token, error: "TokenExpired" as const };
             }
 
             return token;
         },
         async session({ session, token }) {
+            // Propagar error de expiración al cliente
+            if (token.error === "TokenExpired") {
+                session.error = "TokenExpired";
+            }
+
             session.user = {
                 ...session.user,
                 id: token.sub,

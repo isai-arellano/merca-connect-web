@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { signIn } from "next-auth/react";
+import { Suspense, useEffect, useState } from "react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -26,15 +26,30 @@ export default function LoginPage() {
 }
 
 function LoginForm() {
+    const { status } = useSession();
     const router = useRouter();
     const searchParams = useSearchParams();
     const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+
+    useEffect(() => {
+        if (status === "authenticated") {
+            router.replace("/dashboard");
+        }
+    }, [status, router]);
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+
+    if (status === "loading" || status === "authenticated") {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-[#F7F7F7]">
+                <Loader2 className="h-6 w-6 animate-spin text-[#1A3E35]" />
+            </div>
+        );
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

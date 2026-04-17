@@ -157,6 +157,8 @@ function SettingsPageInner() {
   const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
   const [deliveryZone, setDeliveryZone] = useState("");
   const [contactPhoneNumber, setContactPhoneNumber] = useState("");
+  const [allowOrdersOutsideHours, setAllowOrdersOutsideHours] = useState(false);
+  const [outOfHoursMessage, setOutOfHoursMessage] = useState("");
 
   // WhatsApp form state
   const [waForm, setWaForm] = useState({
@@ -186,6 +188,8 @@ function SettingsPageInner() {
       if (cfg.delivery_zone) {
         setDeliveryZone(cfg.delivery_zone);
       }
+      setAllowOrdersOutsideHours(!!cfg.allow_orders_outside_hours);
+      setOutOfHoursMessage(cfg.out_of_hours_message || "");
       setContactPhoneNumber(getPhoneDigits(settings.phone || "").slice(-10));
     }
   }, [settings]);
@@ -274,6 +278,8 @@ function SettingsPageInner() {
             payment_methods: paymentMethods,
             delivery_zone: deliveryZone.trim() || null,
           },
+          allow_orders_outside_hours: allowOrdersOutsideHours,
+          out_of_hours_message: outOfHoursMessage.trim() || null,
         }
       );
       mutateSettings();
@@ -561,6 +567,39 @@ function SettingsPageInner() {
                               {formErrors.hours}
                             </p>
                           )}
+                          <div className="mt-3 space-y-2">
+                            <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-amber-50/40 px-3 py-2.5">
+                              <Checkbox
+                                id="allow-orders-outside-hours"
+                                checked={allowOrdersOutsideHours}
+                                onCheckedChange={(v) => setAllowOrdersOutsideHours(!!v)}
+                                className="mt-0.5"
+                              />
+                              <div className="space-y-0.5">
+                                <label htmlFor="allow-orders-outside-hours" className="text-sm font-medium cursor-pointer leading-tight">
+                                  Levantar pedidos fuera de horario
+                                </label>
+                                <p className="text-xs text-muted-foreground leading-snug">
+                                  El agente seguirá atendiendo aunque el negocio esté cerrado. Los pedidos quedarán registrados para revisarlos al abrir.
+                                </p>
+                              </div>
+                            </div>
+                            {!allowOrdersOutsideHours && (
+                              <div className="space-y-1">
+                                <Label htmlFor="out-of-hours-msg" className="text-xs text-muted-foreground">
+                                  Mensaje automático fuera de horario
+                                </Label>
+                                <Textarea
+                                  id="out-of-hours-msg"
+                                  value={outOfHoursMessage}
+                                  onChange={(e) => setOutOfHoursMessage(e.target.value)}
+                                  placeholder="¡Hola! En este momento estamos fuera de horario. Te atenderemos cuando abramos."
+                                  rows={2}
+                                  className="text-sm"
+                                />
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         <div className="space-y-2">
