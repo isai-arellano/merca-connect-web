@@ -1,7 +1,7 @@
 /**
  * Single source of truth for onboarding completion (dashboard + sidebar).
- * Tres pasos: industria → nombre + horarios válidos → WhatsApp.
- * Sin requisito de slug, métodos de pago ni productos en catálogo para avanzar.
+ * Flujo en producto: datos mínimos en Configuración → pestaña Negocio (industria + nombre + horarios válidos),
+ * luego Conectar WhatsApp. Sin requisito de slug ni métodos de pago para desbloquear Conectar.
  */
 
 export interface DayScheduleLike {
@@ -49,7 +49,7 @@ export interface OnboardingState {
     /** Solo informativo / métricas; ya no bloquea pasos. */
     hasCatalogContent: boolean;
     hasWhatsApp: boolean;
-    /** Pasos 1–2 listos — habilita conectar WhatsApp (paso 3). */
+    /** Perfil mínimo listo — habilita la pestaña Conectar WhatsApp. */
     canStartWhatsApp: boolean;
     /** Industria + perfil básico + WhatsApp — onboarding terminado. */
     allComplete: boolean;

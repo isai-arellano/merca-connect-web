@@ -1,33 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  CheckCircle2,
-  Circle,
-  ChevronRight,
-  Loader2,
-  Smartphone,
-} from "lucide-react";
+import { CheckCircle2, Circle, ChevronRight, Smartphone, Building2 } from "lucide-react";
 import { motion } from "framer-motion";
-import { useSWRConfig } from "swr";
-import { apiClient } from "@/lib/api-client";
-import { endpoints } from "@/lib/api";
-import {
-  FALLBACK_INDUSTRIES,
-  FLAT_INDUSTRY_SLUGS_ORDER,
-  getIndustryConfig,
-  industryApiRowToConfig,
-  type IndustryConfig,
-} from "@/config/industries";
-import { useIndustries } from "@/hooks/useIndustries";
-import { type BusinessSettings } from "@/types/api";
 import { type OnboardingState } from "@/lib/onboarding";
-import { BusinessSetupSheet } from "@/components/onboarding/BusinessSetupSheet";
-import { cn } from "@/lib/utils";
 
 const itemVariants = {
   hidden: { y: 16, opacity: 0 },
@@ -35,270 +15,147 @@ const itemVariants = {
 };
 
 interface DashboardOnboardingProps {
-  settings: BusinessSettings;
   onboarding: OnboardingState;
   catalogLabel: string;
-  businessType: string;
 }
 
-export function DashboardOnboarding({
-  settings,
-  onboarding,
-  catalogLabel,
-  businessType,
-}: DashboardOnboardingProps) {
-  const { mutate } = useSWRConfig();
-  const [industrySaving, setIndustrySaving] = useState<string | null>(null);
-  const [businessSheetOpen, setBusinessSheetOpen] = useState(false);
+export function DashboardOnboarding({ onboarding, catalogLabel }: DashboardOnboardingProps) {
+  const step1Done = onboarding.canStartWhatsApp;
+  const step2Done = onboarding.hasWhatsApp;
 
-  const [showIndustryPicker, setShowIndustryPicker] = useState(false);
-
-  const { industriesMap, orderedRows } = useIndustries();
-
-  const directGrid = useMemo(() => {
-    if (orderedRows?.length) {
-      return orderedRows
-        .filter((r) => r.is_active && r.is_selectable !== false)
-        .map((r) => ({ slug: r.slug, cfg: industryApiRowToConfig(r) }));
-    }
-    return FLAT_INDUSTRY_SLUGS_ORDER.map((slug) => {
-      const cfg = FALLBACK_INDUSTRIES[slug];
-      if (!cfg) return null;
-      return { slug, cfg };
-    }).filter((x): x is { slug: string; cfg: IndustryConfig } => x !== null);
-  }, [orderedRows]);
-
-  const industryConfig = getIndustryConfig(businessType, industriesMap);
-
-  const stepsComplete = [
-    onboarding.hasIndustry,
-    onboarding.hasBusinessProfile,
-    onboarding.hasWhatsApp,
-  ].filter(Boolean).length;
-  const progress = Math.round((stepsComplete / 3) * 100);
-
-  const refreshAfterSave = async () => {
-    await mutate(() => true, undefined, { revalidate: true });
-  };
-
-  const handleSelectIndustry = async (slug: string) => {
-    setIndustrySaving(slug);
-    try {
-      await apiClient.patch(endpoints.business.settings, { type: slug });
-      setShowIndustryPicker(false);
-      await refreshAfterSave();
-    } finally {
-      setIndustrySaving(null);
-    }
-  };
-
-  const isPickerVisible = !onboarding.hasIndustry || showIndustryPicker;
+  const stepsComplete = useMemo(
+    () => [step1Done, step2Done].filter(Boolean).length,
+    [step1Done, step2Done],
+  );
+  const progress = Math.round((stepsComplete / 2) * 100);
 
   return (
-    <>
-      <motion.div variants={itemVariants}>
-        <Card className="rounded-2xl shadow-sm border-border/60">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between flex-wrap gap-2">
-              <div>
-                <CardTitle className="text-base font-semibold text-foreground">
-                  Configura tu negocio
-                </CardTitle>
-                <CardDescription className="mt-0.5 text-sm">
-                  {stepsComplete} de 3 pasos — industria, datos básicos y WhatsApp
-                </CardDescription>
-              </div>
-              <Badge
-                variant="outline"
-                className="border-brand-spring/30 text-brand-forest font-semibold tabular-nums bg-brand-mint/80"
-              >
-                {progress}%
-              </Badge>
+    <motion.div variants={itemVariants}>
+      <Card className="rounded-2xl shadow-sm border-border/60">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <CardTitle className="text-base font-semibold text-foreground">
+                Configura tu negocio
+              </CardTitle>
+              <CardDescription className="mt-0.5 text-sm">
+                {stepsComplete} de 2 pasos — datos del negocio y conexión WhatsApp
+              </CardDescription>
             </div>
-            <div className="mt-3 h-1.5 w-full rounded-full bg-border overflow-hidden">
-              <motion.div
-                className="h-full rounded-full bg-brand-spring"
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.7, ease: "easeOut" }}
-              />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Step 1 — Industry */}
-            <section
-              className="rounded-xl border border-border/60 p-3 bg-background"
-              aria-labelledby="onboarding-step-industry"
+            <Badge
+              variant="outline"
+              className="border-brand-spring/30 text-brand-forest font-semibold tabular-nums bg-brand-mint/80"
             >
-              <div className="flex items-start gap-3">
-                {onboarding.hasIndustry && !showIndustryPicker ? (
-                  <CheckCircle2 className="h-5 w-5 text-brand-spring shrink-0 mt-0.5" aria-hidden />
-                ) : (
-                  <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" aria-hidden />
-                )}
-                <div className="flex-1 min-w-0 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 id="onboarding-step-industry" className="text-sm font-medium text-foreground">
-                        1. Tipo de negocio
-                      </h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {onboarding.hasIndustry && !showIndustryPicker
-                          ? industryConfig.label
-                          : "Elige el giro que mejor describe tu negocio."}
-                      </p>
-                    </div>
-                    {onboarding.hasIndustry && !showIndustryPicker && (
-                      <button
-                        type="button"
-                        className="text-[11px] text-muted-foreground hover:text-brand-forest underline-offset-2 hover:underline shrink-0 transition-colors"
-                        onClick={() => {
-                          setShowIndustryPicker(true);
-                        }}
-                      >
-                        Cambiar
-                      </button>
-                    )}
-                  </div>
-
-                  {isPickerVisible && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {directGrid.map(({ slug, cfg }) => (
-                        <button
-                          key={slug}
-                          type="button"
-                          disabled={industrySaving !== null}
-                          onClick={() => handleSelectIndustry(slug)}
-                          className={cn(
-                            "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
-                            "border-border/70 hover:border-brand-spring/60 hover:bg-brand-mint/40",
-                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest/30"
-                          )}
-                        >
-                          <span className="font-medium text-brand-forest flex-1 min-w-0">
-                            {cfg.label}
-                          </span>
-                          {industrySaving === slug ? (
-                            <Loader2 className="h-4 w-4 animate-spin shrink-0 text-brand-forest" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-brand-forest/60 shrink-0" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* Step 2 — Name + hours */}
-            <section
-              className={cn(
-                "rounded-xl border border-border/60 p-3 bg-background transition-opacity",
-                !onboarding.hasIndustry && "opacity-50"
+              {progress}%
+            </Badge>
+          </div>
+          <div className="mt-3 h-1.5 w-full rounded-full bg-border overflow-hidden">
+            <motion.div
+              className="h-full rounded-full bg-brand-spring"
+              initial={{ width: 0 }}
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.7, ease: "easeOut" }}
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Paso 1 — Datos del negocio (Configuración → Negocio) */}
+          <section
+            className="rounded-xl border border-border/60 p-3 bg-background"
+            aria-labelledby="onboarding-step-business"
+          >
+            <div className="flex items-start gap-3">
+              {step1Done ? (
+                <CheckCircle2 className="h-5 w-5 text-brand-spring shrink-0 mt-0.5" aria-hidden />
+              ) : (
+                <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" aria-hidden />
               )}
-            >
-              <div className="flex items-start gap-3">
-                {onboarding.hasBusinessProfile ? (
-                  <CheckCircle2 className="h-5 w-5 text-brand-spring shrink-0 mt-0.5" />
-                ) : (
-                  <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" />
-                )}
-                <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div>
-                    <h3 className="text-sm font-medium text-foreground">2. Nombre y horario</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {!onboarding.hasIndustry
-                        ? "Primero elige tu tipo de negocio"
-                        : "Nombre del negocio y al menos un día con horario de atención"}
-                    </p>
-                  </div>
-                  {!onboarding.hasBusinessProfile && (
+              <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0">
+                <div>
+                  <h3 id="onboarding-step-business" className="text-sm font-medium text-foreground">
+                    1. Datos del negocio
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Tipo de negocio, nombre y horario de atención en Configuración.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 border-brand-forest/30 text-brand-forest"
+                  asChild
+                >
+                  <Link href="/dashboard/settings?tab=negocio">
+                    <Building2 className="h-3.5 w-3.5 mr-1" />
+                    {step1Done ? "Revisar" : "Completar"}
+                    <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </section>
+
+          {/* Paso 2 — WhatsApp */}
+          <section
+            className="rounded-xl border border-border/60 p-3 bg-background transition-opacity"
+            style={{ opacity: step1Done ? 1 : 0.55 }}
+            aria-labelledby="onboarding-step-wa"
+          >
+            <div className="flex items-start gap-3">
+              {step2Done ? (
+                <CheckCircle2 className="h-5 w-5 text-brand-spring shrink-0 mt-0.5" aria-hidden />
+              ) : (
+                <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" aria-hidden />
+              )}
+              <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0">
+                <div>
+                  <h3 id="onboarding-step-wa" className="text-sm font-medium text-foreground">
+                    2. WhatsApp Business
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {!step1Done
+                      ? "Completa primero nombre, tipo de negocio y horario en Configuración → Negocio."
+                      : "Vincula tu número para inbox y pedidos."}
+                  </p>
+                </div>
+                <div className="flex flex-col items-stretch sm:items-end gap-1">
+                  {step2Done ? (
+                    <span className="text-xs text-brand-forest font-medium">Conectado</span>
+                  ) : step1Done ? (
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
                       className="shrink-0 border-brand-forest/30 text-brand-forest"
-                      onClick={() => {
-                        if (onboarding.hasIndustry) setBusinessSheetOpen(true);
-                      }}
-                      disabled={!onboarding.hasIndustry}
+                      asChild
                     >
-                      Completar
-                      <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                      <Link href="/dashboard/settings?tab=conectar">
+                        <Smartphone className="h-3.5 w-3.5 mr-1" />
+                        Conectar
+                        <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button type="button" size="sm" variant="outline" disabled className="opacity-60">
+                      <Smartphone className="h-3.5 w-3.5 mr-1" />
+                      Conectar
                     </Button>
                   )}
                 </div>
               </div>
-            </section>
+            </div>
+          </section>
 
-            {/* Step 3 — WhatsApp */}
-            <section
-              className={cn(
-                "rounded-xl border border-border/60 p-3 bg-background transition-opacity",
-                !onboarding.canStartWhatsApp && "opacity-50"
-              )}
-            >
-              <div className="flex items-start gap-3">
-                {onboarding.hasWhatsApp ? (
-                  <CheckCircle2 className="h-5 w-5 text-brand-spring shrink-0 mt-0.5" />
-                ) : (
-                  <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" />
-                )}
-                <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div>
-                    <h3 className="text-sm font-medium text-foreground">3. WhatsApp Business</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {!onboarding.canStartWhatsApp
-                        ? "Completa nombre y horario para habilitar"
-                        : "Vincula tu número para inbox y pedidos"}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-stretch sm:items-end gap-1">
-                    {onboarding.hasWhatsApp ? (
-                      <span className="text-xs text-brand-forest font-medium">Conectado</span>
-                    ) : onboarding.canStartWhatsApp ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="shrink-0 border-brand-forest/30 text-brand-forest"
-                        asChild
-                      >
-                        <Link href="/dashboard/settings?tab=conectar">
-                          <Smartphone className="h-3.5 w-3.5 mr-1" />
-                          Conectar
-                          <ChevronRight className="h-3.5 w-3.5 ml-1" />
-                        </Link>
-                      </Button>
-                    ) : (
-                      <Button type="button" size="sm" variant="outline" disabled className="opacity-60">
-                        <Smartphone className="h-3.5 w-3.5 mr-1" />
-                        Conectar
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <p className="text-[11px] text-muted-foreground px-1">
-              Tu {catalogLabel.toLowerCase()} público, URL y logo los configuras en{" "}
-              <Link href="/dashboard/products" className="text-brand-forest font-medium hover:underline">
-                {catalogLabel}
-              </Link>{" "}
-              cuando quieras.
-            </p>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      <BusinessSetupSheet
-        open={businessSheetOpen}
-        onOpenChange={setBusinessSheetOpen}
-        settings={settings}
-        onSaved={refreshAfterSave}
-      />
-    </>
+          <p className="text-[11px] text-muted-foreground px-1">
+            Tu {catalogLabel.toLowerCase()} público, URL y logo los configuras en{" "}
+            <Link href="/dashboard/products" className="text-brand-forest font-medium hover:underline">
+              {catalogLabel}
+            </Link>{" "}
+            cuando quieras.
+          </p>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }

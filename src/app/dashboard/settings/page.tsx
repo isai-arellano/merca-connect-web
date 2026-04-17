@@ -28,8 +28,10 @@ import {
 
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher, ApiError, NetworkError } from "@/lib/api-client";
-import { type WhatsAppProfile, type BusinessSettings } from "@/types/api";
+import { type WhatsAppProfile, type BusinessSettings, type DashboardStats } from "@/types/api";
 import { getSessionBusinessPhoneId } from "@/lib/business";
+import { computeOnboardingState } from "@/lib/onboarding";
+import { cn } from "@/lib/utils";
 import { AgentTab } from "@/components/settings/AgentTab";
 import { WhatsAppConnectTab } from "@/components/settings/WhatsAppConnectTab";
 import { PlanTab } from "@/components/settings/PlanTab";
@@ -55,7 +57,6 @@ interface BusinessFormErrors {
   name?: string;
   type?: string;
   hours?: string;
-  paymentMethods?: string;
 }
 
 function getPhoneDigits(value: string): string {
@@ -117,11 +118,6 @@ function SettingsPageInner() {
     }
   }, []);
 
-  const handleTabChange = (value: string) => {
-    if (!isSettingsTabValue(value)) return;
-    setActiveTab(value);
-    router.replace(`${pathname}?tab=${value}`, { scroll: false });
-  };
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [editingWa, setEditingWa] = useState(false);
@@ -134,10 +130,7 @@ function SettingsPageInner() {
     isLoading: settingsLoading,
     mutate: mutateSettings,
   } = useSWR<BusinessSettings | { data: BusinessSettings }>(
-    session
-      && sessionBusinessPhoneId
-      ? endpoints.business.settings
-      : null,
+    session ? endpoints.business.settings : null,
     fetcher
   );
 
@@ -168,6 +161,88 @@ function SettingsPageInner() {
       {},
     [waProfileRes]
   );
+
+  const { data: statsRaw } = useSWR<DashboardStats>(
+    session ? endpoints.dashboard.stats : null,
+    fetcher,
+  );
+
+  const onboardingState = useMemo(
+    () =>
+      computeOnboardingState({
+        settings,
+        activeProducts: statsRaw?.active_products ?? 0,
+        hasWhatsAppSession: Boolean(sessionBusinessPhoneId),
+      }),
+    [settings, statsRaw?.active_products, sessionBusinessPhoneId],
+  );
+
+  const canUseConnectTab = onboardingState.canStartWhatsApp;
+  const canUsePostConnectTabs = onboardingState.hasWhatsApp;
+
+  /** Evita quedarse en una pestaña de URL no permitida cuando ya cargaron los settings. */
+  useEffect(() => {
+    if (settingsLoading) return;
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (!isSettingsTabValue(tab)) return;
+
+    if (tab === "conectar" && !canUseConnectTab) {
+      setActiveTab("negocio");
+      router.replace(`${pathname}?tab=negocio`, { scroll: false });
+      toast({
+        title: "Completa tu negocio primero",
+        description: "Industria, nombre y horario obligatorios en la pestaña Negocio.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (
+      (tab === "whatsapp" || tab === "agente" || tab === "plan") &&
+      !canUsePostConnectTabs
+    ) {
+      const fallback: SettingsTabValue = canUseConnectTab ? "conectar" : "negocio";
+      setActiveTab(fallback);
+      router.replace(`${pathname}?tab=${fallback}`, { scroll: false });
+      toast({
+        title: "Conecta WhatsApp primero",
+        description: "Usa la pestaña Conectar para vincular tu número.",
+        variant: "destructive",
+      });
+    }
+  }, [
+    settingsLoading,
+    canUseConnectTab,
+    canUsePostConnectTabs,
+    pathname,
+    router,
+    toast,
+  ]);
+
+  const handleTabChange = (value: string) => {
+    if (!isSettingsTabValue(value)) return;
+    if (value === "conectar" && !canUseConnectTab) {
+      toast({
+        title: "Pestaña bloqueada",
+        description: "Completa nombre, tipo de negocio y horario en Negocio.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (
+      (value === "whatsapp" || value === "agente" || value === "plan") &&
+      !canUsePostConnectTabs
+    ) {
+      toast({
+        title: "Pestaña bloqueada",
+        description: "Conecta WhatsApp Business primero (pestaña Conectar).",
+        variant: "destructive",
+      });
+      return;
+    }
+    setActiveTab(value);
+    router.replace(`${pathname}?tab=${value}`, { scroll: false });
+  };
 
   const { orderedRows } = useIndustries();
   const industrySelectOptions = useMemo(() => {
@@ -262,10 +337,6 @@ function SettingsPageInner() {
     } else if (hasIncompleteHours(weekSchedule)) {
       nextErrors.hours = "Todos los días activos deben tener hora de apertura y cierre.";
     }
-    if (paymentMethods.length === 0) {
-      nextErrors.paymentMethods = "Selecciona al menos un método de pago.";
-    }
-
     setFormErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
       toast({
@@ -418,19 +489,47 @@ function SettingsPageInner() {
               <Store className="h-4 w-4 shrink-0" />
               <span className="hidden xs:inline sm:inline">Negocio</span>
             </TabsTrigger>
-            <TabsTrigger value="conectar" className="gap-1.5 flex-1 sm:flex-none">
+            <TabsTrigger
+              value="conectar"
+              disabled={!canUseConnectTab}
+              className={cn(
+                "gap-1.5 flex-1 sm:flex-none",
+                !canUseConnectTab && "opacity-50 cursor-not-allowed",
+              )}
+            >
               <Smartphone className="h-4 w-4 shrink-0" />
               <span className="hidden xs:inline sm:inline">Conectar</span>
             </TabsTrigger>
-            <TabsTrigger value="whatsapp" className="gap-1.5 flex-1 sm:flex-none">
+            <TabsTrigger
+              value="whatsapp"
+              disabled={!canUsePostConnectTabs}
+              className={cn(
+                "gap-1.5 flex-1 sm:flex-none",
+                !canUsePostConnectTabs && "opacity-50 cursor-not-allowed",
+              )}
+            >
               <MessageCircle className="h-4 w-4 shrink-0" />
               <span className="hidden xs:inline sm:inline">WhatsApp</span>
             </TabsTrigger>
-            <TabsTrigger value="agente" className="gap-1.5 flex-1 sm:flex-none">
+            <TabsTrigger
+              value="agente"
+              disabled={!canUsePostConnectTabs}
+              className={cn(
+                "gap-1.5 flex-1 sm:flex-none",
+                !canUsePostConnectTabs && "opacity-50 cursor-not-allowed",
+              )}
+            >
               <Bot className="h-4 w-4 shrink-0" />
               <span className="hidden xs:inline sm:inline">Agente</span>
             </TabsTrigger>
-            <TabsTrigger value="plan" className="gap-1.5 flex-1 sm:flex-none">
+            <TabsTrigger
+              value="plan"
+              disabled={!canUsePostConnectTabs}
+              className={cn(
+                "gap-1.5 flex-1 sm:flex-none",
+                !canUsePostConnectTabs && "opacity-50 cursor-not-allowed",
+              )}
+            >
               <CreditCard className="h-4 w-4 shrink-0" />
               <span className="hidden xs:inline sm:inline">Plan</span>
             </TabsTrigger>
@@ -463,10 +562,19 @@ function SettingsPageInner() {
                       </div>
                     ) : (
                       <div className="space-y-5">
+                        {!canUseConnectTab && (
+                          <p className="rounded-lg border border-amber-200/80 bg-amber-50/60 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+                            Completa los campos obligatorios (nombre, tipo de negocio y horario) para
+                            desbloquear la pestaña Conectar WhatsApp.
+                          </p>
+                        )}
                         <div className="space-y-2">
                           <Label htmlFor="biz-name" className="flex items-center gap-2">
                             <Store className="h-3.5 w-3.5 text-muted-foreground" />
                             Nombre del Negocio
+                            <span className="text-destructive" aria-hidden>
+                              *
+                            </span>
                           </Label>
                           <Input
                             id="biz-name"
@@ -492,6 +600,9 @@ function SettingsPageInner() {
                           <Label className="flex items-center gap-2">
                             <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
                             Tipo de negocio / Industria
+                            <span className="text-destructive" aria-hidden>
+                              *
+                            </span>
                           </Label>
                           <Select
                             value={businessForm.type}
@@ -582,6 +693,9 @@ function SettingsPageInner() {
                           <Label className="flex items-center gap-2">
                             <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                             Horario de atención
+                            <span className="text-destructive" aria-hidden>
+                              *
+                            </span>
                           </Label>
                           <HoursEditor value={weekSchedule} onChange={setWeekSchedule} />
                           {formErrors.hours && (
@@ -661,6 +775,7 @@ function SettingsPageInner() {
                           <Label className="flex items-center gap-2">
                             <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
                             Métodos de pago aceptados
+                            <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
                           </Label>
                           <div className="grid grid-cols-2 gap-2">
                             {PAYMENT_OPTIONS.map((method) => (
@@ -685,12 +800,6 @@ function SettingsPageInner() {
                               </div>
                             ))}
                           </div>
-                          {formErrors.paymentMethods && (
-                            <p className="text-xs text-destructive flex items-center gap-1.5">
-                              <AlertCircle className="h-3.5 w-3.5" />
-                              {formErrors.paymentMethods}
-                            </p>
-                          )}
                         </div>
 
                         <Separator />
