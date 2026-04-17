@@ -36,10 +36,13 @@ export function CategoriesManager({ businessPhoneId }: CategoriesManagerProps) {
 
     async function handleCreate() {
         const name = newName.trim();
-        if (!name || !endpoint) return;
+        if (!name || !endpoint || !businessPhoneId) return;
         setIsCreating(true);
         try {
-            await apiClient.post(endpoints.categories.create, { name, description: newDesc.trim() || null });
+            await apiClient.post(endpoints.categories.create(businessPhoneId), {
+                name,
+                description: newDesc.trim() || null,
+            });
             await mutate();
             setNewName("");
             setNewDesc("");

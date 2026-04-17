@@ -1,6 +1,7 @@
 /**
  * Single source of truth for onboarding completion (dashboard + sidebar).
- * Mirrors validation rules previously inlined in dashboard/page.tsx.
+ * Tres pasos: industria → nombre + horarios válidos → WhatsApp.
+ * Sin requisito de slug, métodos de pago ni productos en catálogo para avanzar.
  */
 
 export interface DayScheduleLike {
@@ -43,12 +44,14 @@ export interface OnboardingComputationInput {
 
 export interface OnboardingState {
     hasIndustry: boolean;
+    /** Nombre + horarios válidos (sin slug ni pagos obligatorios). */
     hasBusinessProfile: boolean;
+    /** Solo informativo / métricas; ya no bloquea pasos. */
     hasCatalogContent: boolean;
     hasWhatsApp: boolean;
-    /** Steps 1–3 complete — enables WhatsApp connect CTA */
+    /** Pasos 1–2 listos — habilita conectar WhatsApp (paso 3). */
     canStartWhatsApp: boolean;
-    /** All four steps complete — unlocks Settings in sidebar */
+    /** Industria + perfil básico + WhatsApp — onboarding terminado. */
     allComplete: boolean;
 }
 
@@ -56,14 +59,12 @@ export function computeOnboardingState(input: OnboardingComputationInput): Onboa
     const { settings, activeProducts, hasWhatsAppSession } = input;
     const hasIndustry = Boolean(settings.type?.trim());
     const hasName = Boolean(settings.name?.trim());
-    const hasSlug = Boolean(settings.slug?.trim());
     const hasHours = hasValidBusinessHours(settings.hours);
-    const hasPaymentMethods = hasAtLeastOnePaymentMethod(settings.config);
-    const hasBusinessProfile = hasName && hasSlug && hasHours && hasPaymentMethods;
+    const hasBusinessProfile = hasName && hasHours;
     const hasCatalogContent = hasIndustry && activeProducts > 0;
     const hasWhatsApp = hasWhatsAppSession;
-    const canStartWhatsApp = hasIndustry && hasBusinessProfile && hasCatalogContent;
-    const allComplete = hasIndustry && hasBusinessProfile && hasCatalogContent && hasWhatsApp;
+    const canStartWhatsApp = hasIndustry && hasBusinessProfile;
+    const allComplete = hasIndustry && hasBusinessProfile && hasWhatsApp;
 
     return {
         hasIndustry,
