@@ -11,10 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { IndustryConfig } from "@/config/industries";
 import { useSWRConfig } from "swr";
 import { endpoints } from "@/lib/api";
-import { apiClient, fetcher } from "@/lib/api-client";
+import { apiClient, ApiError, fetcher, NetworkError } from "@/lib/api-client";
 import { Loader2, Plus, Trash2, X, Upload, ImageIcon } from "lucide-react";
 import useSWR from "swr";
-import { type ApiList, type CategoryOption as ApiCategoryOption, type UnitOption as ApiUnitOption } from "@/types/api";
+import { type ApiList, type CategoryOption as ApiCategoryOption } from "@/types/api";
+import { useToast } from "@/hooks/use-toast";
 
 export interface ProductDialogProduct {
     id: string;
@@ -45,7 +46,6 @@ interface ProductDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     config: IndustryConfig;
-    businessType: string;
     businessPhoneId: string | null;
     product?: ProductDialogProduct;
 }
@@ -90,6 +90,8 @@ interface FieldErrors {
 }
 
 const EMPTY_VALUE = "__none__";
+const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 function getInitialFormState(product?: ProductDialogProduct): FormState {
     return {
@@ -126,7 +128,7 @@ function validateForm(state: FormState): FieldErrors {
     return errors;
 }
 
-export function ProductDialog({ open, onOpenChange, config, businessType, businessPhoneId, product }: ProductDialogProps) {
+export function ProductDialog({ open, onOpenChange, config, businessPhoneId, product }: ProductDialogProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formState, setFormState] = useState<FormState>(getInitialFormState(product));
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -142,6 +144,7 @@ export function ProductDialog({ open, onOpenChange, config, businessType, busine
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const { toast } = useToast();
 
     const { mutate } = useSWRConfig();
     const productsEndpoint = businessPhoneId ? endpoints.products.list(businessPhoneId) : null;
@@ -169,6 +172,9 @@ export function ProductDialog({ open, onOpenChange, config, businessType, busine
 
     useEffect(() => {
         if (!open) {
+            if (imagePreview?.startsWith("blob:")) {
+                URL.revokeObjectURL(imagePreview);
+            }
             setFormState(getInitialFormState(product));
             setFieldErrors({});
             setNewCategoryMode(false);
@@ -179,7 +185,15 @@ export function ProductDialog({ open, onOpenChange, config, businessType, busine
             return;
         }
         setFormState(getInitialFormState(currentProduct));
-    }, [open, product, currentProduct]);
+    }, [open, product, currentProduct, imagePreview]);
+
+    useEffect(() => {
+        return () => {
+            if (imagePreview?.startsWith("blob:")) {
+                URL.revokeObjectURL(imagePreview);
+            }
+        };
+    }, [imagePreview]);
 
     useEffect(() => {
         if (newCategoryMode) {
@@ -197,6 +211,25 @@ export function ProductDialog({ open, onOpenChange, config, businessType, busine
     function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
         if (!file) return;
+
+        if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+            toast({
+                title: "Formato no permitido",
+                description: "Usa JPG, PNG o WEBP para la imagen del producto.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+            toast({
+                title: "Archivo demasiado grande",
+                description: "La imagen debe ser menor a 5 MB.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         setImageFile(file);
         const url = URL.createObjectURL(file);
         setImagePreview(url);
@@ -213,8 +246,22 @@ export function ProductDialog({ open, onOpenChange, config, businessType, busine
             if (productDetailEndpoint) await mutate(productDetailEndpoint);
             setImageFile(null);
             setImagePreview(null);
-        } catch {
-            // error silencioso — el usuario ve que la imagen no cambió
+            toast({
+                title: "Imagen actualizada",
+                description: "La imagen del producto se reemplazó correctamente.",
+            });
+        } catch (error: unknown) {
+            let description = "No se pudo subir la imagen del producto. Intenta nuevamente.";
+            if (error instanceof NetworkError) {
+                description = error.message;
+            } else if (error instanceof ApiError && error.message) {
+                description = error.message;
+            }
+            toast({
+                title: "Error al subir imagen",
+                description,
+                variant: "destructive",
+            });
         } finally {
             setIsUploadingImage(false);
         }

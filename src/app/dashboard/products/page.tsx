@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getIndustryConfig } from "@/config/industries";
+import { getPublicCatalogRoute } from "@/config/industries";
 import { useSession } from "next-auth/react";
 import { ProductDialog, ProductDialogProduct } from "@/components/products/product-dialog";
 import { CategoriesManager } from "@/components/products/categories-manager";
@@ -105,6 +106,7 @@ export default function ProductsPage() {
         : disabledProducts;
 
     const moduleTitle = config.view === "menu" ? "Menú" : "Catálogo";
+    const publicRouteSegment = getPublicCatalogRoute(settingsData?.type);
 
     function openCreate() { setSelectedProduct(undefined); setDialogOpen(true); }
     function openEdit(product: Product) { setSelectedProduct(product as ProductDialogProduct); setDialogOpen(true); }
@@ -188,7 +190,7 @@ export default function ProductsPage() {
                 <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-2">
                     {businessSlug ? (
                         <Button variant="outline" asChild className="w-full sm:w-auto justify-center">
-                            <a href={`/catalogo/${businessSlug}`} target="_blank" rel="noopener noreferrer">
+                            <a href={`/${publicRouteSegment}/${businessSlug}`} target="_blank" rel="noopener noreferrer">
                                 <ExternalLink className="mr-2 h-4 w-4" /> Ver {moduleTitle.toLowerCase()} público
                             </a>
                         </Button>
@@ -423,7 +425,6 @@ export default function ProductsPage() {
                 open={dialogOpen}
                 onOpenChange={setDialogOpen}
                 config={config}
-                businessType={businessType}
                 businessPhoneId={sessionBusinessPhoneId}
                 product={selectedProduct}
             />
