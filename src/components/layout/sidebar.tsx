@@ -135,6 +135,7 @@ export function SidebarContent({
 
   const hasSlug = Boolean(settings.slug);
   const hasName = Boolean(settings.name);
+  const hasIndustry = Boolean(settings.type);
   const hasWhatsApp = Boolean(sessionBusinessPhoneId);
   const hasBasicSetup = hasName && hasSlug;
 
@@ -157,7 +158,15 @@ export function SidebarContent({
           <div className="space-y-0.5">
             <NavLink href="/dashboard" label="Tablero" icon={LayoutDashboard} isActive={isActive("/dashboard")} {...lp} />
             <NavLink href="/dashboard/inbox" label="Inbox" icon={MessageSquare} isActive={isActive("/dashboard/inbox")} locked={!hasWhatsApp} lockReason="Conecta tu WhatsApp Business en Configuración" {...lp} />
-            <NavLink href="/dashboard/products" label={catalogLabel} icon={Package} isActive={isActive("/dashboard/products")} {...lp} />
+            <NavLink
+              href="/dashboard/products"
+              label={catalogLabel}
+              icon={Package}
+              isActive={isActive("/dashboard/products")}
+              locked={!hasIndustry}
+              lockReason="Selecciona tu tipo de negocio en Configuración para habilitar catálogo/menú"
+              {...lp}
+            />
             <NavLink href="/dashboard/orders" label="Pedidos" icon={ShoppingBag} isActive={isActive("/dashboard/orders")} locked={!hasWhatsApp} lockReason="Disponible cuando conectes tu WhatsApp Business" {...lp} />
             <NavLink href="/dashboard/customers" label="Clientes" icon={Users} isActive={isActive("/dashboard/customers")} locked={!hasWhatsApp} lockReason="Disponible cuando conectes tu WhatsApp Business" {...lp} />
           </div>

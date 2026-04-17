@@ -26,8 +26,10 @@ export const endpoints = {
         businesses: `${API_URL}/api/v1/admin/businesses`,
     },
     products: {
-        list: (businessPhoneId: string) => withBusinessPhoneId(`${API_URL}/api/v1/products`, businessPhoneId),
+        list: (businessPhoneId: string, includeInactive = false) => withBusinessPhoneId(`${API_URL}/api/v1/products${includeInactive ? "?include_inactive=true" : ""}`, businessPhoneId),
         detail: (id: string, businessPhoneId?: string | null) => withBusinessPhoneId(`${API_URL}/api/v1/products/${id}`, businessPhoneId),
+        disable: (id: string) => `${API_URL}/api/v1/products/${id}`,
+        hardDelete: (id: string) => `${API_URL}/api/v1/products/${id}/permanent`,
         uploadImage: (id: string) => `${API_URL}/api/v1/products/${id}/image`,
     },
     units: {
@@ -70,6 +72,7 @@ export const endpoints = {
     },
     business: {
         settings: `${API_URL}/api/v1/business/settings`,
+        logoUpload: `${API_URL}/api/v1/business/logo`,
         whatsappProfile: `${API_URL}/api/v1/business/whatsapp-profile`,
         agentToggle: `${API_URL}/api/v1/business/agent-toggle`,
         whatsappSignupComplete: `${API_URL}/api/v1/business/whatsapp-signup/complete`,

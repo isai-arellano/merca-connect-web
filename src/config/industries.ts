@@ -29,6 +29,8 @@ export interface IndustryConfig {
     };
 }
 
+export type PublicCatalogRoute = "catalogo" | "menu";
+
 export const INDUSTRIES: Record<IndustryType, IndustryConfig> = {
     abarrotera: {
         view: "catalogo",
@@ -111,4 +113,9 @@ export const INDUSTRIES: Record<IndustryType, IndustryConfig> = {
 
 export function getIndustryConfig(type: string | undefined | null): IndustryConfig {
     return INDUSTRIES[(type as IndustryType) ?? "abarrotera"] ?? INDUSTRIES.abarrotera;
+}
+
+export function getPublicCatalogRoute(type: string | undefined | null): PublicCatalogRoute {
+    const industry = getIndustryConfig(type);
+    return industry.view === "menu" ? "menu" : "catalogo";
 }

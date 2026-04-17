@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence, Variants } from "framer-motion";
@@ -24,6 +25,8 @@ import {
   CreditCard,
   Truck,
   Building2,
+  ImageIcon,
+  Upload,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
@@ -41,15 +44,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { INDUSTRIES, type IndustryType } from "@/config/industries";
+import { CATALOG_THEME_PRESETS, getDefaultCatalogThemePreset, resolveCatalogThemePreset, type CatalogThemePreset } from "@/config/catalog-themes";
+import { getPublicCatalogRoute } from "@/config/industries";
 
 const COUNTRY_CODE_MX = "+52";
 const MEXICO_FLAG = "\uD83C\uDDF2\uD83C\uDDFD";
+const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 interface BusinessFormErrors {
   name?: string;
@@ -134,14 +140,20 @@ function SettingsPageInner() {
     fetcher
   );
 
-  const settings: BusinessSettings =
-    (settingsRes as { data: BusinessSettings } | null)?.data ??
-    (settingsRes as BusinessSettings | null) ??
-    {};
-  const waProfile: WhatsAppProfile =
-    (waProfileRes as { data: WhatsAppProfile } | null)?.data ??
-    (waProfileRes as WhatsAppProfile | null) ??
-    {};
+  const settings: BusinessSettings = useMemo(
+    () =>
+      (settingsRes as { data: BusinessSettings } | null)?.data ??
+      (settingsRes as BusinessSettings | null) ??
+      {},
+    [settingsRes]
+  );
+  const waProfile: WhatsAppProfile = useMemo(
+    () =>
+      (waProfileRes as { data: WhatsAppProfile } | null)?.data ??
+      (waProfileRes as WhatsAppProfile | null) ??
+      {},
+    [waProfileRes]
+  );
 
   // Business form state
   const [businessForm, setBusinessForm] = useState({
@@ -160,6 +172,10 @@ function SettingsPageInner() {
   const [contactPhoneNumber, setContactPhoneNumber] = useState("");
   const [allowOrdersOutsideHours, setAllowOrdersOutsideHours] = useState(false);
   const [outOfHoursMessage, setOutOfHoursMessage] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [catalogThemePreset, setCatalogThemePreset] = useState<CatalogThemePreset>("brand_classic");
 
   // WhatsApp form state
   const [waForm, setWaForm] = useState({
@@ -192,6 +208,14 @@ function SettingsPageInner() {
       setAllowOrdersOutsideHours(!!cfg.allow_orders_outside_hours);
       setOutOfHoursMessage(typeof cfg.out_of_hours_message === "string" ? cfg.out_of_hours_message : "");
       setContactPhoneNumber(getPhoneDigits(settings.phone || "").slice(-10));
+      const themePresetValue =
+        typeof cfg.catalog_theme === "object" && cfg.catalog_theme !== null
+          ? String((cfg.catalog_theme as { preset?: string }).preset ?? "")
+          : "";
+      const defaultPreset = getDefaultCatalogThemePreset(getPublicCatalogRoute(settings.type));
+      setCatalogThemePreset(resolveCatalogThemePreset(
+        themePresetValue || defaultPreset
+      ));
     }
   }, [settings]);
 
@@ -278,6 +302,9 @@ function SettingsPageInner() {
           config: {
             payment_methods: paymentMethods,
             delivery_zone: deliveryZone.trim() || null,
+            catalog_theme: {
+              preset: catalogThemePreset,
+            },
           },
           allow_orders_outside_hours: allowOrdersOutsideHours,
           out_of_hours_message: outOfHoursMessage.trim() || null,
@@ -357,6 +384,77 @@ function SettingsPageInner() {
       setSaving(false);
     }
   };
+
+  const currentLogoUrl = logoPreview ?? (typeof settings.config?.catalog_logo_url === "string" ? settings.config.catalog_logo_url : null);
+  const publicRouteSegment = getPublicCatalogRoute(businessForm.type);
+
+  const handleLogoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+      toast({
+        title: "Formato no permitido",
+        description: "Usa JPG, PNG o WEBP para el logo.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+      toast({
+        title: "Archivo demasiado grande",
+        description: "El logo debe ser menor a 5 MB.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (logoPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(logoPreview);
+    }
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+  };
+
+  const handleUploadLogo = async () => {
+    if (!logoFile) return;
+    setIsUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", logoFile);
+      await apiClient.uploadForm(endpoints.business.logoUpload, formData);
+      await mutateSettings();
+      setLogoFile(null);
+      setLogoPreview(null);
+      toast({
+        title: "Logo actualizado",
+        description: "El logo se subió y reemplazó correctamente.",
+      });
+    } catch (error: unknown) {
+      let description = "No se pudo actualizar el logo. Intenta nuevamente.";
+      if (error instanceof NetworkError) {
+        description = error.message;
+      } else if (error instanceof ApiError && error.message) {
+        description = error.message;
+      }
+      toast({
+        title: "Error al subir logo",
+        description,
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (logoPreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(logoPreview);
+      }
+    };
+  }, [logoPreview]);
 
   return (
     <motion.div
@@ -637,7 +735,7 @@ function SettingsPageInner() {
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-sm text-muted-foreground shrink-0 hidden sm:inline">
-                              /catalogo/
+                              /{publicRouteSegment}/
                             </span>
                             <Input
                               id="biz-slug"
@@ -667,15 +765,114 @@ function SettingsPageInner() {
                           )}
                           {businessForm.slug && !slugError && (
                             <a
-                              href={`/catalogo/${businessForm.slug}`}
+                              href={`/${publicRouteSegment}/${businessForm.slug}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
                             >
                               <ExternalLink className="h-3 w-3" />
-                              /catalogo/{businessForm.slug}
+                              /{publicRouteSegment}/{businessForm.slug}
                             </a>
                           )}
+                        </div>
+
+                        <Separator />
+
+                        <div className="space-y-3">
+                          <Label className="flex items-center gap-2">
+                            Tema público de catálogo/menú
+                          </Label>
+                          <Select
+                            value={catalogThemePreset}
+                            onValueChange={(value) => setCatalogThemePreset(resolveCatalogThemePreset(value))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona un tema" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(Object.entries(CATALOG_THEME_PRESETS) as [CatalogThemePreset, typeof CATALOG_THEME_PRESETS[CatalogThemePreset]][]).map(([preset, definition]) => (
+                                <SelectItem key={preset} value={preset}>
+                                  {definition.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground">
+                            {CATALOG_THEME_PRESETS[catalogThemePreset].description}
+                          </p>
+                          <div className="grid gap-2 sm:grid-cols-3">
+                            {(Object.entries(CATALOG_THEME_PRESETS) as [CatalogThemePreset, typeof CATALOG_THEME_PRESETS[CatalogThemePreset]][]).map(([preset, definition]) => {
+                              const tokens = definition.tokens[publicRouteSegment];
+                              const selected = preset === catalogThemePreset;
+                              return (
+                                <button
+                                  key={preset}
+                                  type="button"
+                                  onClick={() => setCatalogThemePreset(preset)}
+                                  className={`rounded-lg border p-2 text-left transition ${selected ? "ring-2 ring-primary" : "hover:border-primary/40"} ${tokens.cardBackground} ${tokens.border}`}
+                                >
+                                  <div className={`text-xs font-semibold ${tokens.title}`}>{definition.label}</div>
+                                  <div className={`mt-1 text-[11px] ${tokens.subtitle}`}>{publicRouteSegment === "menu" ? "Vista menú" : "Vista catálogo"}</div>
+                                  <div className="mt-2 flex items-center gap-1.5">
+                                    <span className={`h-2.5 w-2.5 rounded-full ${tokens.badge}`} />
+                                    <span className={`h-2.5 w-2.5 rounded-full ${tokens.accent}`} />
+                                    <span className={`h-2.5 w-2.5 rounded-full ${tokens.pageBackground} border ${tokens.border}`} />
+                                  </div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <Separator />
+
+                        <div className="space-y-3">
+                          <Label className="flex items-center gap-2">
+                            <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                            Logo para catálogo/menú
+                          </Label>
+                          <div className="flex items-center gap-3">
+                            {currentLogoUrl ? (
+                              <Image
+                                src={currentLogoUrl}
+                                alt="Logo de negocio"
+                                width={56}
+                                height={56}
+                                className="h-14 w-14 rounded-md border border-border object-cover"
+                              />
+                            ) : (
+                              <div className="h-14 w-14 rounded-md border border-border bg-muted flex items-center justify-center text-muted-foreground">
+                                <ImageIcon className="h-5 w-5" />
+                              </div>
+                            )}
+                            <div className="flex flex-col gap-2">
+                              <Input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleLogoFileChange}
+                                className="max-w-xs"
+                              />
+                              {logoFile && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={handleUploadLogo}
+                                  disabled={isUploadingLogo}
+                                  className="w-fit"
+                                >
+                                  {isUploadingLogo ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <Upload className="h-4 w-4 mr-2" />
+                                  )}
+                                  Subir logo
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Se convierte y publica como imagen optimizada para tu catálogo/menú.
+                          </p>
                         </div>
 
                         <Separator />
@@ -923,9 +1120,11 @@ function SettingsPageInner() {
                         <div className="flex items-center gap-4">
                           <div className="h-16 w-16 rounded-full bg-emerald-500/10 border-2 border-emerald-500/20 flex items-center justify-center">
                             {waProfile.profile_picture_url ? (
-                              <img
+                              <Image
                                 src={waProfile.profile_picture_url}
                                 alt="Perfil"
+                                width={64}
+                                height={64}
                                 className="h-16 w-16 rounded-full object-cover"
                               />
                             ) : (

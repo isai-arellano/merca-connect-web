@@ -1,3 +1,5 @@
+import type { CatalogThemePreset } from "@/config/catalog-themes";
+
 // ── Wrapper genérico (el backend envuelve listas en { data: [...] }) ──
 export interface ApiList<T> {
     data: T[];
@@ -24,6 +26,11 @@ export interface DaySchedule {
 export interface BusinessConfig {
     payment_methods?: string[];
     delivery_zone?: string | null;
+    catalog_logo_url?: string | null;
+    catalog_logo_key?: string | null;
+    catalog_theme?: {
+        preset: CatalogThemePreset;
+    };
     [key: string]: unknown;
 }
 
