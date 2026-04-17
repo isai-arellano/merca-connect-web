@@ -194,6 +194,22 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
         relevantUnits: ["pza", "und", "g", "L"],
         features: { hasTables: false, hasPrescriptions: true },
     },
+    tienda_online: {
+        view: "catalogo",
+        label: "Tienda en línea",
+        productLabel: "Producto",
+        productFields: {
+            showStock: true,
+            showBarcode: true,
+            showIngredients: false,
+            showActiveSubstance: false,
+            showPreparationTime: false,
+            showDimensions: false,
+            showSKU: true,
+        },
+        relevantUnits: ["pza", "und"],
+        features: { hasTables: false, hasPrescriptions: false },
+    },
 };
 
 export function getIndustryConfig(
@@ -217,3 +233,52 @@ export type IndustryType = IndustrySlug;
 
 /** @deprecated Usar `FALLBACK_INDUSTRIES` o datos de `useIndustries()` */
 export const INDUSTRIES = FALLBACK_INDUSTRIES;
+
+// ─── Subcategory system ───────────────────────────────────────────────────────
+
+export interface IndustrySubcategory {
+    /** slug that gets saved to DB as `businesses.type` */
+    slug: string;
+    /** Display label shown in the subcategory picker */
+    label: string;
+}
+
+export interface IndustryGroup {
+    /** Display label for the group card in the first-level grid */
+    groupLabel: string;
+    /** Optional emoji shown on the group card */
+    groupIcon?: string;
+    /** CatalogView shared by all subcategories in this group */
+    view: CatalogView;
+    subcategories: IndustrySubcategory[];
+}
+
+/**
+ * Industries that map directly to a single slug — clicking them immediately
+ * calls handleSelectIndustry without a second drill-down step.
+ */
+export const DIRECT_INDUSTRIES: { slug: string; label: string; view: CatalogView }[] = [
+    { slug: "abarrotera",  label: "Abarrotera",  view: "catalogo" },
+    { slug: "restaurante", label: "Restaurante", view: "menu" },
+    { slug: "cafeteria",   label: "Cafetería",   view: "menu" },
+    { slug: "ferreteria",  label: "Ferretería",  view: "catalogo" },
+    { slug: "farmacia",    label: "Farmacia",    view: "catalogo" },
+    { slug: "servicios",   label: "Servicios",   view: "catalogo" },
+];
+
+/**
+ * Industries that contain subcategories. Clicking the group card shows
+ * a second-level picker with the subcategories listed.
+ */
+export const GROUPED_INDUSTRIES: IndustryGroup[] = [
+    {
+        groupLabel: "Tienda en línea",
+        groupIcon: "🛒",
+        view: "catalogo",
+        subcategories: [
+            { slug: "tienda_electronica", label: "Electrónicos" },
+            { slug: "tienda_ropa",        label: "Ropa y moda" },
+            { slug: "tienda_online",      label: "General / Otra" },
+        ],
+    },
+];
