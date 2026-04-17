@@ -1,4 +1,5 @@
 import type { Config } from 'tailwindcss'
+import tailwindcssAnimate from 'tailwindcss-animate'
 
 export default {
 	darkMode: ["class"],
@@ -57,10 +58,16 @@ export default {
 					'3': 'hsl(var(--chart-3))',
 					'4': 'hsl(var(--chart-4))',
 					'5': 'hsl(var(--chart-5))'
-				}
+				},
+				/* MercaConnect palette — use for text/icons/links on light surfaces. Do not use text-primary for that (primary token is mint fill). */
+				brand: {
+					forest: '#1A3E35',
+					mint: '#EEFAEE',
+					spring: '#74E79C',
+				},
 			}
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [tailwindcssAnimate],
 } satisfies Config
 

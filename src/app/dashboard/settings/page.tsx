@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, useMemo } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
@@ -20,7 +20,6 @@ import {
   ExternalLink,
   AlertCircle,
   Bot,
-  Link,
   Smartphone,
   CreditCard,
   Truck,
@@ -48,9 +47,8 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { INDUSTRIES, type IndustryType } from "@/config/industries";
-import { CATALOG_THEME_PRESETS, getDefaultCatalogThemePreset, resolveCatalogThemePreset, type CatalogThemePreset } from "@/config/catalog-themes";
-import { getPublicCatalogRoute } from "@/config/industries";
+import { FALLBACK_INDUSTRIES } from "@/config/industries";
+import { useIndustries } from "@/hooks/useIndustries";
 
 const COUNTRY_CODE_MX = "+52";
 const MEXICO_FLAG = "\uD83C\uDDF2\uD83C\uDDFD";
@@ -60,7 +58,6 @@ const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 interface BusinessFormErrors {
   name?: string;
   type?: string;
-  slug?: string;
   hours?: string;
   paymentMethods?: string;
 }
@@ -98,20 +95,41 @@ const itemVariants: Variants = {
 const tabContentVariants: Variants = {
   hidden: { opacity: 0, x: 10 },
   visible: { opacity: 1, x: 0, transition: { duration: 0.3, ease: "easeOut" } },
-  exit: { opacity: 0, x: -10, transition: { duration: 0.15 } },
 };
+
+const SETTINGS_TAB_VALUES = ["negocio", "conectar", "whatsapp", "agente"] as const;
+type SettingsTabValue = (typeof SETTINGS_TAB_VALUES)[number];
+
+function isSettingsTabValue(v: string | null): v is SettingsTabValue {
+  return v !== null && (SETTINGS_TAB_VALUES as readonly string[]).includes(v);
+}
 
 function SettingsPageInner() {
   const { data: session } = useSession();
   const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
   const { toast } = useToast();
-  const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "negocio");
+  const router = useRouter();
+  const pathname = usePathname();
+  /** Mismo valor en servidor y primer paint cliente — evita desync de useId en Radix Tabs */
+  const [activeTab, setActiveTab] = useState<SettingsTabValue>("negocio");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (isSettingsTabValue(tab)) {
+      setActiveTab(tab);
+    }
+  }, []);
+
+  const handleTabChange = (value: string) => {
+    if (!isSettingsTabValue(value)) return;
+    setActiveTab(value);
+    router.replace(`${pathname}?tab=${value}`, { scroll: false });
+  };
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [editingWa, setEditingWa] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [slugError, setSlugError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<BusinessFormErrors>({});
 
   // Business settings
@@ -155,6 +173,17 @@ function SettingsPageInner() {
     [waProfileRes]
   );
 
+  const { industriesMap, orderedRows } = useIndustries();
+  const industrySelectOptions = useMemo(() => {
+    if (orderedRows?.length) {
+      return orderedRows.map((r) => ({ value: r.slug, label: r.label }));
+    }
+    return Object.entries(FALLBACK_INDUSTRIES).map(([value, cfg]) => ({
+      value,
+      label: cfg.label,
+    }));
+  }, [orderedRows]);
+
   // Business form state
   const [businessForm, setBusinessForm] = useState({
     name: "",
@@ -162,7 +191,6 @@ function SettingsPageInner() {
     address: "",
     phone: "",
     description: "",
-    slug: "",
   });
   const [weekSchedule, setWeekSchedule] = useState<WeekSchedule>(EMPTY_WEEK_SCHEDULE);
 
@@ -175,7 +203,6 @@ function SettingsPageInner() {
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
-  const [catalogThemePreset, setCatalogThemePreset] = useState<CatalogThemePreset>("brand_classic");
 
   // WhatsApp form state
   const [waForm, setWaForm] = useState({
@@ -193,7 +220,6 @@ function SettingsPageInner() {
         address: settings.address || "",
         phone: settings.phone || "",
         description: settings.description || "",
-        slug: settings.slug || "",
       });
       if (settings.hours && typeof settings.hours === "object") {
         setWeekSchedule({ ...EMPTY_WEEK_SCHEDULE, ...settings.hours });
@@ -208,14 +234,6 @@ function SettingsPageInner() {
       setAllowOrdersOutsideHours(!!cfg.allow_orders_outside_hours);
       setOutOfHoursMessage(typeof cfg.out_of_hours_message === "string" ? cfg.out_of_hours_message : "");
       setContactPhoneNumber(getPhoneDigits(settings.phone || "").slice(-10));
-      const themePresetValue =
-        typeof cfg.catalog_theme === "object" && cfg.catalog_theme !== null
-          ? String((cfg.catalog_theme as { preset?: string }).preset ?? "")
-          : "";
-      const defaultPreset = getDefaultCatalogThemePreset(getPublicCatalogRoute(settings.type));
-      setCatalogThemePreset(resolveCatalogThemePreset(
-        themePresetValue || defaultPreset
-      ));
     }
   }, [settings]);
 
@@ -236,7 +254,6 @@ function SettingsPageInner() {
     const nextErrors: BusinessFormErrors = {};
     const trimmedName = businessForm.name.trim();
     const trimmedType = businessForm.type.trim();
-    const slugValue = businessForm.slug.trim();
     const hasAtLeastOneOpenDay = Object.values(weekSchedule).some((day) => day.open);
 
     if (!trimmedName) {
@@ -244,9 +261,6 @@ function SettingsPageInner() {
     }
     if (!trimmedType) {
       nextErrors.type = "Selecciona un tipo de negocio.";
-    }
-    if (!slugValue) {
-      nextErrors.slug = "La URL del catálogo es obligatoria.";
     }
     if (!hasAtLeastOneOpenDay) {
       nextErrors.hours = "Activa al menos un día en tu horario de atención.";
@@ -277,18 +291,8 @@ function SettingsPageInner() {
       return;
     }
 
-    if (slugValue && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slugValue)) {
-      setSlugError("Solo letras minúsculas, números y guiones. Ej: mi-tienda");
-      return;
-    }
-    if (slugValue && (slugValue.length < 3 || slugValue.length > 100)) {
-      setSlugError("Debe tener entre 3 y 100 caracteres.");
-      return;
-    }
-
     setSaving(true);
     setSaveError(null);
-    setSlugError(null);
     try {
       await apiClient.patch(
         endpoints.business.settings,
@@ -297,14 +301,10 @@ function SettingsPageInner() {
           name: trimmedName,
           type: trimmedType,
           phone: buildPhoneForApi(contactPhoneNumber),
-          slug: slugValue || null,
           hours: weekSchedule,
           config: {
             payment_methods: paymentMethods,
             delivery_zone: deliveryZone.trim() || null,
-            catalog_theme: {
-              preset: catalogThemePreset,
-            },
           },
           allow_orders_outside_hours: allowOrdersOutsideHours,
           out_of_hours_message: outOfHoursMessage.trim() || null,
@@ -321,9 +321,7 @@ function SettingsPageInner() {
       });
     } catch (error: unknown) {
       console.error("Error al guardar configuración:", error);
-      if (error instanceof ApiError && error.status === 409) {
-        setSlugError("Este slug ya está en uso. Elige uno diferente.");
-      } else if (error instanceof NetworkError) {
+      if (error instanceof NetworkError) {
         setSaveError(error.message);
         toast({
           title: "Error de conectividad",
@@ -386,7 +384,6 @@ function SettingsPageInner() {
   };
 
   const currentLogoUrl = logoPreview ?? (typeof settings.config?.catalog_logo_url === "string" ? settings.config.catalog_logo_url : null);
-  const publicRouteSegment = getPublicCatalogRoute(businessForm.type);
 
   const handleLogoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -490,7 +487,7 @@ function SettingsPageInner() {
 
       {/* Tabs */}
       <motion.div variants={itemVariants}>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="flex flex-wrap h-auto gap-1 p-1 sm:grid sm:grid-cols-4">
             <TabsTrigger value="negocio" className="gap-1.5 flex-1 sm:flex-none">
               <Store className="h-4 w-4 shrink-0" />
@@ -510,14 +507,12 @@ function SettingsPageInner() {
             </TabsTrigger>
           </TabsList>
 
-          {/* NEGOCIO TAB */}
-          <AnimatePresence>
-            <TabsContent value="negocio" key="negocio">
+          {/* TabsContent: sin AnimatePresence envolviendo paneles (conflicto con Radix Presence / hidratación) */}
+          <TabsContent value="negocio">
               <motion.div
                 variants={tabContentVariants}
-                initial="hidden"
+                initial={false}
                 animate="visible"
-                exit="exit"
               >
                 <Card>
                   <CardHeader>
@@ -579,9 +574,9 @@ function SettingsPageInner() {
                               <SelectValue placeholder="Selecciona tu industria" />
                             </SelectTrigger>
                             <SelectContent>
-                              {(Object.entries(INDUSTRIES) as [IndustryType, typeof INDUSTRIES[IndustryType]][]).map(([key, cfg]) => (
-                                <SelectItem key={key} value={key}>
-                                  {cfg.label}
+                              {industrySelectOptions.map(({ value, label }) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -718,110 +713,6 @@ function SettingsPageInner() {
                             placeholder="Describe tu negocio brevemente..."
                             rows={3}
                           />
-                        </div>
-
-                        <Separator />
-
-                        {/* Catálogo público — slug */}
-                        <div className="space-y-3">
-                          <div>
-                            <Label htmlFor="biz-slug" className="flex items-center gap-2">
-                              <Link className="h-3.5 w-3.5 text-muted-foreground" />
-                              URL del Catálogo Público
-                            </Label>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Identificador único para tu catálogo público. Solo letras minúsculas, números y guiones.
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm text-muted-foreground shrink-0 hidden sm:inline">
-                              /{publicRouteSegment}/
-                            </span>
-                            <Input
-                              id="biz-slug"
-                              value={businessForm.slug}
-                              onChange={(e) => {
-                                setSlugError(null);
-                                setBusinessForm((prev) => ({
-                                  ...prev,
-                                  slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
-                                }));
-                              }}
-                              placeholder="mi-tienda"
-                              className={slugError || formErrors.slug ? "border-destructive focus-visible:ring-destructive" : ""}
-                            />
-                          </div>
-                          {formErrors.slug && (
-                            <p className="text-xs text-destructive flex items-center gap-1.5">
-                              <AlertCircle className="h-3.5 w-3.5" />
-                              {formErrors.slug}
-                            </p>
-                          )}
-                          {slugError && (
-                            <p className="text-xs text-destructive flex items-center gap-1.5">
-                              <AlertCircle className="h-3.5 w-3.5" />
-                              {slugError}
-                            </p>
-                          )}
-                          {businessForm.slug && !slugError && (
-                            <a
-                              href={`/${publicRouteSegment}/${businessForm.slug}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              /{publicRouteSegment}/{businessForm.slug}
-                            </a>
-                          )}
-                        </div>
-
-                        <Separator />
-
-                        <div className="space-y-3">
-                          <Label className="flex items-center gap-2">
-                            Tema público de catálogo/menú
-                          </Label>
-                          <Select
-                            value={catalogThemePreset}
-                            onValueChange={(value) => setCatalogThemePreset(resolveCatalogThemePreset(value))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecciona un tema" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(Object.entries(CATALOG_THEME_PRESETS) as [CatalogThemePreset, typeof CATALOG_THEME_PRESETS[CatalogThemePreset]][]).map(([preset, definition]) => (
-                                <SelectItem key={preset} value={preset}>
-                                  {definition.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <p className="text-xs text-muted-foreground">
-                            {CATALOG_THEME_PRESETS[catalogThemePreset].description}
-                          </p>
-                          <div className="grid gap-2 sm:grid-cols-3">
-                            {(Object.entries(CATALOG_THEME_PRESETS) as [CatalogThemePreset, typeof CATALOG_THEME_PRESETS[CatalogThemePreset]][]).map(([preset, definition]) => {
-                              const tokens = definition.tokens[publicRouteSegment];
-                              const selected = preset === catalogThemePreset;
-                              return (
-                                <button
-                                  key={preset}
-                                  type="button"
-                                  onClick={() => setCatalogThemePreset(preset)}
-                                  className={`rounded-lg border p-2 text-left transition ${selected ? "ring-2 ring-primary" : "hover:border-primary/40"} ${tokens.cardBackground} ${tokens.border}`}
-                                >
-                                  <div className={`text-xs font-semibold ${tokens.title}`}>{definition.label}</div>
-                                  <div className={`mt-1 text-[11px] ${tokens.subtitle}`}>{publicRouteSegment === "menu" ? "Vista menú" : "Vista catálogo"}</div>
-                                  <div className="mt-2 flex items-center gap-1.5">
-                                    <span className={`h-2.5 w-2.5 rounded-full ${tokens.badge}`} />
-                                    <span className={`h-2.5 w-2.5 rounded-full ${tokens.accent}`} />
-                                    <span className={`h-2.5 w-2.5 rounded-full ${tokens.pageBackground} border ${tokens.border}`} />
-                                  </div>
-                                </button>
-                              );
-                            })}
-                          </div>
                         </div>
 
                         <Separator />
@@ -968,24 +859,22 @@ function SettingsPageInner() {
             </TabsContent>
 
             {/* CONECTAR TAB */}
-            <TabsContent value="conectar" key="conectar">
+            <TabsContent value="conectar">
               <motion.div
                 variants={tabContentVariants}
-                initial="hidden"
+                initial={false}
                 animate="visible"
-                exit="exit"
               >
                 <WhatsAppConnectTab />
               </motion.div>
             </TabsContent>
 
             {/* WHATSAPP TAB */}
-            <TabsContent value="whatsapp" key="whatsapp">
+            <TabsContent value="whatsapp">
               <motion.div
                 variants={tabContentVariants}
-                initial="hidden"
+                initial={false}
                 animate="visible"
-                exit="exit"
               >
                 <Card>
                   <CardHeader>
@@ -1178,17 +1067,15 @@ function SettingsPageInner() {
             </TabsContent>
 
             {/* AGENTE TAB */}
-            <TabsContent value="agente" key="agente">
+            <TabsContent value="agente">
               <motion.div
                 variants={tabContentVariants}
-                initial="hidden"
+                initial={false}
                 animate="visible"
-                exit="exit"
               >
                 <AgentTab />
               </motion.div>
             </TabsContent>
-          </AnimatePresence>
         </Tabs>
       </motion.div>
     </motion.div>
@@ -1196,11 +1083,7 @@ function SettingsPageInner() {
 }
 
 export default function SettingsPage() {
-  return (
-    <Suspense>
-      <SettingsPageInner />
-    </Suspense>
-  );
+  return <SettingsPageInner />;
 }
 
 function ProfileField({

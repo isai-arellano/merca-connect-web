@@ -734,7 +734,7 @@ export default function OrdersPage() {
             </h1>
             <Badge
               variant="secondary"
-              className="bg-accent/20 text-primary border-accent/40"
+              className="bg-accent/20 text-brand-forest border-accent/40"
             >
               {totalOrders}
             </Badge>

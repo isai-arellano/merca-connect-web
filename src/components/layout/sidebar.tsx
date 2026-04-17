@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import useSWR from "swr";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -21,13 +20,12 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { endpoints } from "@/lib/api";
-import { fetcher } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { getIndustryConfig } from "@/config/industries";
-import { type BusinessSettings } from "@/types/api";
+import { useIndustries } from "@/hooks/useIndustries";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { createContext, useContext, useState } from "react";
+import { useOnboardingState } from "@/hooks/useOnboardingState";
 
 // ─── Context ─────────────────────────────────────────────────────────────────
 const SidebarContext = createContext<{ collapsed: boolean; toggle: () => void }>({
@@ -77,7 +75,14 @@ function NavLink({
           : "text-foreground/65 hover:text-foreground hover:bg-primary cursor-pointer"
       )}
     >
-      <Icon className="h-4 w-4 shrink-0" />
+      <Icon
+        className={cn(
+          "h-4 w-4 shrink-0",
+          locked && "opacity-40",
+          !locked && isActive && "text-white",
+          !locked && !isActive && "text-brand-forest/85"
+        )}
+      />
       {!collapsed && <span className="flex-1 truncate">{label}</span>}
       {!collapsed && locked && <Lock className="h-3 w-3 opacity-40 shrink-0" />}
     </div>
@@ -123,14 +128,10 @@ export function SidebarContent({
   const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
   const isAdmin = session?.role === "admin";
 
-  const { data: settingsData } = useSWR<BusinessSettings>(
-    session && sessionBusinessPhoneId ? endpoints.business.settings : null,
-    fetcher
-  );
-
-  const settings: BusinessSettings = settingsData ?? {};
+  const { settings, state: onboardingState } = useOnboardingState();
+  const { industriesMap } = useIndustries();
   const businessType: string = settings.type || "abarrotera";
-  const industryConfig = getIndustryConfig(businessType);
+  const industryConfig = getIndustryConfig(businessType, industriesMap);
   const catalogLabel = industryConfig.view === "menu" ? "Menú" : "Catálogo";
 
   const hasSlug = Boolean(settings.slug);
@@ -164,7 +165,7 @@ export function SidebarContent({
               icon={Package}
               isActive={isActive("/dashboard/products")}
               locked={!hasIndustry}
-              lockReason="Selecciona tu tipo de negocio en Configuración para habilitar catálogo/menú"
+              lockReason="Selecciona tu tipo de negocio en el Tablero para habilitar catálogo/menú"
               {...lp}
             />
             <NavLink href="/dashboard/orders" label="Pedidos" icon={ShoppingBag} isActive={isActive("/dashboard/orders")} locked={!hasWhatsApp} lockReason="Disponible cuando conectes tu WhatsApp Business" {...lp} />
@@ -179,10 +180,17 @@ export function SidebarContent({
             </p>
           )}
           <div className="space-y-0.5">
-            <NavLink href="/dashboard/templates" label="Templates" icon={FileText} isActive={isActive("/dashboard/templates")} locked={!hasWhatsApp} lockReason="Disponible cuando conectes tu WhatsApp Business" {...lp} />
             <NavLink href="/dashboard/analytics" label="Analytics" icon={BarChart3} isActive={isActive("/dashboard/analytics")} locked={!hasBasicSetup} lockReason="Completa la configuración básica primero" {...lp} />
             <NavLink href="/dashboard/knowledge" label="Conocimiento IA" icon={BookOpen} isActive={isActive("/dashboard/knowledge")} locked={!hasBasicSetup} lockReason="Completa la configuración básica primero" {...lp} />
-            <NavLink href="/dashboard/settings" label="Configuración" icon={Settings} isActive={isActive("/dashboard/settings")} {...lp} />
+            <NavLink
+              href="/dashboard/settings"
+              label="Configuración"
+              icon={Settings}
+              isActive={isActive("/dashboard/settings")}
+              locked={!onboardingState.allComplete}
+              lockReason="Completa primero el asistente en el Tablero (los 4 pasos)."
+              {...lp}
+            />
           </div>
         </div>
 
@@ -194,6 +202,15 @@ export function SidebarContent({
               </p>
             )}
             <div className="space-y-0.5">
+              <NavLink
+                href="/dashboard/templates"
+                label="Templates (Meta)"
+                icon={FileText}
+                isActive={isActive("/dashboard/templates")}
+                locked={!hasWhatsApp}
+                lockReason="Conecta tu WhatsApp Business en Configuración"
+                {...lp}
+              />
               <NavLink href="/dashboard/admin" label="Admin" icon={ShieldAlert} isActive={isActive("/dashboard/admin")} {...lp} />
             </div>
           </div>
@@ -214,7 +231,6 @@ export function SidebarContent({
         ) : (
           <div className="space-y-0.5">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Merca Connect</p>
-            <p className="text-[10px] text-muted-foreground/80">v0.1.0-alpha</p>
           </div>
         )}
       </div>
@@ -256,7 +272,7 @@ export function Sidebar() {
           onClick={toggle}
           className={cn(
             "h-7 w-7 rounded-lg flex items-center justify-center",
-            "text-muted-foreground hover:text-[#1A3E35] hover:bg-primary transition-colors shrink-0"
+            "text-muted-foreground hover:text-brand-forest hover:bg-brand-mint transition-colors shrink-0"
           )}
           aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
         >

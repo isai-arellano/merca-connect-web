@@ -224,7 +224,7 @@ export default function AnalyticsPage() {
           <Card className="h-full hover:border-primary/20 transition-all duration-200">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ShoppingBag className="h-5 w-5 text-primary" />
+                <ShoppingBag className="h-5 w-5 text-brand-forest" />
                 Pedidos por Estado
               </CardTitle>
               <CardDescription>
@@ -287,7 +287,7 @@ export default function AnalyticsPage() {
           <Card className="h-full hover:border-primary/20 transition-all duration-200">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-primary" />
+                <Clock className="h-5 w-5 text-brand-forest" />
                 Tiempo de Respuesta
               </CardTitle>
               <CardDescription>
@@ -406,7 +406,7 @@ function WeeklyMessageChart({
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-primary" />
+              <TrendingUp className="h-5 w-5 text-brand-forest" />
               Mensajes a lo Largo del Tiempo
             </CardTitle>
             <CardDescription className="mt-1">

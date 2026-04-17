@@ -122,7 +122,7 @@ export function NotificationsBell() {
                     <div className="px-4 py-2 border-t border-border">
                         <button
                             onClick={() => { setOpen(false); router.push("/dashboard/inbox"); }}
-                            className="text-xs text-primary hover:underline w-full text-center"
+                            className="text-xs text-brand-forest font-medium hover:underline w-full text-center"
                         >
                             Ver todas en el Inbox
                         </button>
