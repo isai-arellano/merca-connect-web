@@ -100,10 +100,6 @@ export function BusinessSetupSheet({ open, onOpenChange, settings, onSaved }: Bu
       toast({ title: "Nombre obligatorio", variant: "destructive" });
       return;
     }
-    if (!slugValue) {
-      toast({ title: "URL del catálogo obligatoria", variant: "destructive" });
-      return;
-    }
     if (!hasAtLeastOneOpenDay || hasIncompleteHours(weekSchedule)) {
       toast({
         title: "Horario incompleto",
@@ -112,15 +108,11 @@ export function BusinessSetupSheet({ open, onOpenChange, settings, onSaved }: Bu
       });
       return;
     }
-    if (paymentMethods.length === 0) {
-      toast({ title: "Método de pago", description: "Selecciona al menos uno.", variant: "destructive" });
-      return;
-    }
     if (slugValue && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slugValue)) {
       setSlugError("Solo letras minúsculas, números y guiones.");
       return;
     }
-    if (slugValue.length < 3 || slugValue.length > 100) {
+    if (slugValue && (slugValue.length < 3 || slugValue.length > 100)) {
       setSlugError("El slug debe tener entre 3 y 100 caracteres.");
       return;
     }
@@ -128,24 +120,23 @@ export function BusinessSetupSheet({ open, onOpenChange, settings, onSaved }: Bu
     setSaving(true);
     setSlugError(null);
     try {
+      const cfg = { ...(settings.config || {}) };
       await apiClient.patch(endpoints.business.settings, {
         ...businessForm,
         name: trimmedName,
         type: businessForm.type.trim(),
         phone: buildPhoneForApi(contactPhoneNumber),
-        slug: slugValue || null,
+        slug: slugValue ? slugValue : null,
         hours: weekSchedule,
         config: {
+          ...cfg,
           payment_methods: paymentMethods,
           delivery_zone: deliveryZone.trim() || null,
-          catalog_theme: {
-            preset: "default",
-          },
         },
         allow_orders_outside_hours: allowOrdersOutsideHours,
         out_of_hours_message: outOfHoursMessage.trim() || null,
       });
-      toast({ title: "Datos guardados", description: "Tu negocio quedó configurado." });
+      toast({ title: "Datos guardados", description: "Nombre y horario guardados." });
       onSaved();
       onOpenChange(false);
     } catch (error: unknown) {
@@ -167,9 +158,9 @@ export function BusinessSetupSheet({ open, onOpenChange, settings, onSaved }: Bu
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Configura tu negocio</SheetTitle>
+          <SheetTitle>Nombre y horario</SheetTitle>
           <SheetDescription>
-            Datos básicos, horario, URL pública y métodos de pago. Tema visual: Default (contraste oscuro con acentos verdes).
+            Obligatorio: nombre y al menos un día con horario. URL pública, pago y demás son opcionales; también puedes completarlos en Configuración.
           </SheetDescription>
         </SheetHeader>
         <div className="grid gap-4 py-4">
@@ -182,9 +173,10 @@ export function BusinessSetupSheet({ open, onOpenChange, settings, onSaved }: Bu
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ob-slug">URL pública (slug)</Label>
+            <Label htmlFor="ob-slug">URL pública (opcional)</Label>
             <Input
               id="ob-slug"
+              placeholder="mi-tienda"
               value={businessForm.slug}
               onChange={(e) => {
                 setSlugError(null);
@@ -195,6 +187,7 @@ export function BusinessSetupSheet({ open, onOpenChange, settings, onSaved }: Bu
               }}
             />
             {slugError && <p className="text-xs text-destructive">{slugError}</p>}
+            <p className="text-xs text-muted-foreground">Puedes definirla después en Catálogo / Menú.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="ob-phone">Teléfono de contacto</Label>
@@ -231,7 +224,7 @@ export function BusinessSetupSheet({ open, onOpenChange, settings, onSaved }: Bu
             <HoursEditor value={weekSchedule} onChange={setWeekSchedule} />
           </div>
           <div className="space-y-2">
-            <Label>Métodos de pago</Label>
+            <Label>Métodos de pago (opcional)</Label>
             <div className="grid grid-cols-2 gap-2">
               {PAYMENT_OPTIONS.map((method) => (
                 <div key={method} className="flex items-center gap-2">

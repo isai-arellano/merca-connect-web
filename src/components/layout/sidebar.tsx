@@ -134,11 +134,10 @@ export function SidebarContent({
   const industryConfig = getIndustryConfig(businessType, industriesMap);
   const catalogLabel = industryConfig.view === "menu" ? "Menú" : "Catálogo";
 
-  const hasSlug = Boolean(settings.slug);
-  const hasName = Boolean(settings.name);
   const hasIndustry = Boolean(settings.type);
   const hasWhatsApp = Boolean(sessionBusinessPhoneId);
-  const hasBasicSetup = hasName && hasSlug;
+  const canAccessSettings =
+    onboardingState.hasIndustry && onboardingState.hasBusinessProfile;
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -180,15 +179,31 @@ export function SidebarContent({
             </p>
           )}
           <div className="space-y-0.5">
-            <NavLink href="/dashboard/analytics" label="Analytics" icon={BarChart3} isActive={isActive("/dashboard/analytics")} locked={!hasBasicSetup} lockReason="Completa la configuración básica primero" {...lp} />
-            <NavLink href="/dashboard/knowledge" label="Conocimiento IA" icon={BookOpen} isActive={isActive("/dashboard/knowledge")} locked={!hasBasicSetup} lockReason="Completa la configuración básica primero" {...lp} />
+            <NavLink
+              href="/dashboard/analytics"
+              label="Analytics"
+              icon={BarChart3}
+              isActive={isActive("/dashboard/analytics")}
+              locked={!hasWhatsApp}
+              lockReason="Conecta WhatsApp Business para ver analíticas"
+              {...lp}
+            />
+            <NavLink
+              href="/dashboard/knowledge"
+              label="Conocimiento IA"
+              icon={BookOpen}
+              isActive={isActive("/dashboard/knowledge")}
+              locked={!hasWhatsApp}
+              lockReason="Conecta WhatsApp Business para gestionar conocimiento del agente"
+              {...lp}
+            />
             <NavLink
               href="/dashboard/settings"
               label="Configuración"
               icon={Settings}
               isActive={isActive("/dashboard/settings")}
-              locked={!onboardingState.allComplete}
-              lockReason="Completa primero el asistente en el Tablero (los 4 pasos)."
+              locked={!canAccessSettings}
+              lockReason="Completa tipo de negocio, nombre y horario en el Tablero"
               {...lp}
             />
           </div>

@@ -140,6 +140,12 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
     const [categoryError, setCategoryError] = useState<string | null>(null);
     const newCategoryInputRef = useRef<HTMLInputElement>(null);
 
+    const [newUnitMode, setNewUnitMode] = useState(false);
+    const [newUnitName, setNewUnitName] = useState("");
+    const [newUnitSymbol, setNewUnitSymbol] = useState("");
+    const [isCreatingUnit, setIsCreatingUnit] = useState(false);
+    const [unitError, setUnitError] = useState<string | null>(null);
+
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -170,6 +176,9 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
     );
     const selectedCategory = categoryOptions.find((c) => c.id === formState.categoryId) ?? null;
 
+    const seedProductId = product?.id;
+    const loadedProductId = productResponse?.id;
+
     useEffect(() => {
         if (!open) {
             if (imagePreview?.startsWith("blob:")) {
@@ -180,13 +189,16 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
             setNewCategoryMode(false);
             setNewCategoryName("");
             setCategoryError(null);
+            setNewUnitMode(false);
+            setNewUnitName("");
+            setNewUnitSymbol("");
+            setUnitError(null);
             setImageFile(null);
             setImagePreview(null);
             return;
         }
-        setFormState(getInitialFormState(currentProduct));
-        // No incluir imagePreview: al elegir otra imagen no se debe resetear el formulario.
-    }, [open, product, currentProduct]);
+        setFormState(getInitialFormState(productResponse ?? product));
+    }, [open, seedProductId, loadedProductId]);
 
     useEffect(() => {
         return () => {
@@ -282,14 +294,26 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
 
     async function handleCreateCategory() {
         const name = newCategoryName.trim();
-        if (!name || !categoriesEndpoint) return;
+        if (!name || !categoriesEndpoint || !businessPhoneId) return;
 
         setCategoryError(null);
         setIsCreatingCategory(true);
         try {
-            const created = await apiClient.post<ApiCategoryOption>(endpoints.categories.create, { name });
-            await mutate(categoriesEndpoint);
-            updateField("categoryId", created.id);
+            const created = await apiClient.post<ApiCategoryOption>(endpoints.categories.create(businessPhoneId), { name });
+            const newId = String(created.id);
+            const newName = created.name ?? name;
+            await mutate(
+                categoriesEndpoint,
+                async (current) => {
+                    const prevList = current?.data ?? [];
+                    if (prevList.some((c: CategoryOption) => c.id === newId)) {
+                        return current ?? { data: prevList };
+                    }
+                    return { data: [...prevList, { id: newId, name: newName }] };
+                },
+                { revalidate: true },
+            );
+            updateField("categoryId", newId);
             setNewCategoryMode(false);
             setNewCategoryName("");
         } catch (err: unknown) {
@@ -297,6 +321,38 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
             setCategoryError(msg.includes("409") ? "Ya existe una categoría con ese nombre" : "No se pudo crear la categoría");
         } finally {
             setIsCreatingCategory(false);
+        }
+    }
+
+    async function handleCreateUnit() {
+        const name = newUnitName.trim();
+        const symbol = newUnitSymbol.trim();
+        if (!name || !symbol) return;
+        setUnitError(null);
+        setIsCreatingUnit(true);
+        try {
+            const created = await apiClient.post<UnitOption>(endpoints.units.create, { name, symbol });
+            await mutate(
+                endpoints.units.list,
+                async (current) => {
+                    const prevList = current?.data ?? [];
+                    const sym = created.symbol;
+                    if (prevList.some((u: UnitOption) => u.symbol === sym)) {
+                        return current ?? { data: prevList };
+                    }
+                    return { data: [...prevList, created] };
+                },
+                { revalidate: true },
+            );
+            updateField("unit", created.symbol);
+            setNewUnitMode(false);
+            setNewUnitName("");
+            setNewUnitSymbol("");
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "";
+            setUnitError(msg.includes("409") ? "Ya existe una unidad con ese símbolo o nombre" : "No se pudo crear la unidad");
+        } finally {
+            setIsCreatingUnit(false);
         }
     }
 
@@ -605,21 +661,70 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
                         </div>
 
                         {/* Unidad */}
-                        <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right">Unidad</Label>
-                            <Select value={formState.unit} onValueChange={(v) => updateField("unit", v)}>
-                                <SelectTrigger className="col-span-3">
-                                    <SelectValue placeholder="Sin unidad" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value={EMPTY_VALUE}>Sin unidad</SelectItem>
-                                    {relevantUnits.map((u) => (
-                                        <SelectItem key={u.id} value={u.symbol}>
-                                            {u.name} ({u.symbol})
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                        <div className="grid grid-cols-4 items-start gap-4">
+                            <Label className="text-right pt-2">Unidad</Label>
+                            <div className="col-span-3 space-y-2">
+                                {!newUnitMode ? (
+                                    <div className="flex gap-2">
+                                        <Select value={formState.unit} onValueChange={(v) => { updateField("unit", v); setUnitError(null); }}>
+                                            <SelectTrigger className="flex-1">
+                                                <SelectValue placeholder="Sin unidad" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={EMPTY_VALUE}>Sin unidad</SelectItem>
+                                                {relevantUnits.map((u) => (
+                                                    <SelectItem key={u.id} value={u.symbol}>
+                                                        {u.name} ({u.symbol})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="icon"
+                                            title="Nueva unidad"
+                                            onClick={() => { setNewUnitMode(true); setUnitError(null); }}
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="flex gap-2 flex-wrap">
+                                            <Input
+                                                placeholder="Nombre (ej. caja)"
+                                                value={newUnitName}
+                                                onChange={(e) => { setNewUnitName(e.target.value); setUnitError(null); }}
+                                                className="flex-1 min-w-[120px]"
+                                            />
+                                            <Input
+                                                placeholder="Símbolo (ej. cja)"
+                                                value={newUnitSymbol}
+                                                onChange={(e) => { setNewUnitSymbol(e.target.value); setUnitError(null); }}
+                                                className="w-24"
+                                            />
+                                            <Button
+                                                type="button"
+                                                size="icon"
+                                                disabled={isCreatingUnit || !newUnitName.trim() || !newUnitSymbol.trim()}
+                                                onClick={handleCreateUnit}
+                                            >
+                                                {isCreatingUnit ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => { setNewUnitMode(false); setNewUnitName(""); setNewUnitSymbol(""); setUnitError(null); }}
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                                {unitError && <p className="text-xs text-destructive">{unitError}</p>}
+                            </div>
                         </div>
 
                         {/* SKU — condicional */}
@@ -801,7 +906,7 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
                     </div>
 
                     <DialogFooter>
-                        <Button type="submit" disabled={isSubmitting || isLoadingProduct || newCategoryMode}>
+                        <Button type="submit" disabled={isSubmitting || isLoadingProduct || newCategoryMode || newUnitMode}>
                             {isSubmitting
                                 ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Guardando...</>
                                 : isEditing ? "Guardar Cambios" : `Guardar ${config.productLabel}`
