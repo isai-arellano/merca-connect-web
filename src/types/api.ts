@@ -27,6 +27,14 @@ export interface BusinessConfig {
     [key: string]: unknown;
 }
 
+export interface PaymentTemplate {
+    id: string;
+    name: string;
+    method?: string | null;
+    content: string;
+    is_active: boolean;
+}
+
 export interface BusinessSettings {
     name?: string;
     slug?: string;
@@ -124,6 +132,7 @@ export interface ConversationCustomer {
 export interface ConversationSummary {
     id: string;
     status: string;
+    handoff_source?: "agent" | "operator" | null;
     agent_enabled?: boolean;
     updated_at?: string;
     customer?: ConversationCustomer;

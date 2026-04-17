@@ -32,12 +32,17 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                         <button
                             key={conv.id}
                             onClick={() => onSelect(conv.id)}
-                            className={`group flex flex-col items-start gap-2 rounded-xl border p-3 text-left text-sm transition-colors hover:bg-muted/40 ${
+                            className={`group relative flex flex-col items-start gap-2 rounded-xl border p-3 text-left text-sm transition-colors hover:bg-muted/40 ${
                                 selectedId === conv.id
                                     ? "bg-muted/50 border-border/70"
+                                    : conv.status === "handoff" && conv.handoff_source === "agent"
+                                    ? "border-red-300/60 bg-red-50/40"
                                     : "border-transparent hover:border-border/60"
                             }`}
                         >
+                            {conv.status === "handoff" && conv.handoff_source === "agent" && (
+                                <span className="absolute top-2.5 right-2.5 h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                            )}
                             <div className="flex w-full flex-col gap-1">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2 min-w-0">

@@ -33,6 +33,7 @@ import { getSessionBusinessPhoneId } from "@/lib/business";
 import { AgentTab } from "@/components/settings/AgentTab";
 import { WhatsAppConnectTab } from "@/components/settings/WhatsAppConnectTab";
 import { HoursEditor, hasIncompleteHours, type WeekSchedule, EMPTY_WEEK_SCHEDULE } from "@/components/settings/HoursEditor";
+import { PaymentTemplatesSection } from "@/components/settings/PaymentTemplatesSection";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -715,6 +716,11 @@ function SettingsPageInner() {
                             </p>
                           )}
                         </div>
+
+                        <Separator />
+
+                        {/* Plantillas de pago */}
+                        <PaymentTemplatesSection />
 
                         {/* Zona de entrega */}
                         <div className="space-y-2">

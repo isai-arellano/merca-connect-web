@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
-import { type ConversationDetail, type ApiList, type MessageTemplate, type ConversationMessage } from "@/types/api";
+import { type ConversationDetail, type ApiList, type MessageTemplate, type ConversationMessage, type PaymentTemplate } from "@/types/api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -155,8 +155,9 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     const [templatePopoverOpen, setTemplatePopoverOpen] = useState(false);
     const [sendingTemplate, setSendingTemplate] = useState<string | null>(null);
     const [sentTemplate, setSentTemplate] = useState<string | null>(null);
-    const [isSendingPaymentCard, setIsSendingPaymentCard] = useState(false);
-    const [sentPaymentCard, setSentPaymentCard] = useState(false);
+    const [paymentPopoverOpen, setPaymentPopoverOpen] = useState(false);
+    const [sendingPaymentId, setSendingPaymentId] = useState<string | null>(null);
+    const [sentPaymentId, setSentPaymentId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -168,6 +169,11 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
 
     const { data: templatesResponse, isLoading: templatesLoading } = useSWR<ApiList<MessageTemplate> | MessageTemplate[]>(
         templatePopoverOpen ? endpoints.templates.list : null,
+        fetcher
+    );
+
+    const { data: paymentTemplates, isLoading: paymentTemplatesLoading } = useSWR<PaymentTemplate[]>(
+        paymentPopoverOpen ? endpoints.paymentTemplates.list : null,
         fetcher
     );
 
@@ -241,21 +247,20 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
         }
     };
 
-    const handleSendPaymentCard = async () => {
-        setIsSendingPaymentCard(true);
+    const handleSendPaymentTemplate = async (template: PaymentTemplate) => {
+        setSendingPaymentId(template.id);
         try {
-            const res = await apiClient.get<{ text: string }>(endpoints.conversations.paymentCard(conversationId));
-            const text = res?.text;
-            if (text) {
-                await apiClient.post(endpoints.conversations.reply(conversationId), { text });
-                await mutate();
-                setSentPaymentCard(true);
-                setTimeout(() => setSentPaymentCard(false), 2000);
-            }
+            await apiClient.post(endpoints.conversations.reply(conversationId), { text: template.content });
+            await mutate();
+            setSentPaymentId(template.id);
+            setTimeout(() => {
+                setSentPaymentId(null);
+                setPaymentPopoverOpen(false);
+            }, 1200);
         } catch {
             // noop
         } finally {
-            setIsSendingPaymentCard(false);
+            setSendingPaymentId(null);
         }
     };
 
@@ -316,36 +321,37 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-2.5 shrink-0">
+                <div className="flex items-center gap-3 shrink-0">
                     {detailData.agent_enabled && (
-                        <button
-                            onClick={handleToggleHandoff}
-                            disabled={isTogglingHandoff}
-                            title={isHandoff ? "Devolver al agente IA" : "Tomar conversación"}
-                            className={`relative flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
-                                isHandoff
-                                    ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 focus-visible:ring-blue-400"
-                                    : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 focus-visible:ring-emerald-400"
-                            } disabled:opacity-60 disabled:cursor-not-allowed`}
-                        >
-                            {/* Track del switch */}
-                            <span className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors duration-200 ${
-                                isHandoff ? "bg-blue-500" : "bg-emerald-500"
-                            }`}>
-                                <span className={`inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-200 ${
-                                    isHandoff ? "translate-x-3.5" : "translate-x-0.5"
-                                }`} />
+                        <div className="flex items-center gap-2">
+                            <span className={`text-xs font-medium transition-colors duration-200 ${isHandoff ? "text-muted-foreground" : "text-emerald-700"}`}>
+                                {isTogglingHandoff ? <Loader2 className="h-3 w-3 animate-spin" /> : "IA"}
                             </span>
-                            {/* Icono + label */}
-                            {isTogglingHandoff ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : isHandoff ? (
-                                <UserCheck className="h-3.5 w-3.5" />
-                            ) : (
-                                <Bot className="h-3.5 w-3.5" />
-                            )}
-                            <span>{isHandoff ? "Tú" : "IA"}</span>
-                        </button>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={isHandoff}
+                                disabled={isTogglingHandoff}
+                                onClick={handleToggleHandoff}
+                                title={isHandoff ? "Devolver al agente IA" : "Tomar conversación"}
+                                className={`
+                                    relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full
+                                    border-2 border-transparent transition-colors duration-200 ease-in-out
+                                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+                                    disabled:cursor-not-allowed disabled:opacity-50
+                                    ${isHandoff ? "bg-blue-500" : "bg-muted-foreground/30"}
+                                `}
+                            >
+                                <span className={`
+                                    pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg
+                                    ring-0 transition-transform duration-200 ease-in-out
+                                    ${isHandoff ? "translate-x-5" : "translate-x-0"}
+                                `} />
+                            </button>
+                            <span className={`text-xs font-medium transition-colors duration-200 ${isHandoff ? "text-blue-700" : "text-muted-foreground"}`}>
+                                Tú
+                            </span>
+                        </div>
                     )}
                     {/* Badge de estado */}
                     <span className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full font-medium transition-colors duration-200 ${
@@ -422,20 +428,25 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                                 <FileText className="h-4 w-4" />
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent align="start" side="top" className="w-80 p-0">
-                            <div className="px-4 py-3 border-b border-border">
-                                <h4 className="font-semibold text-sm text-[#1A3E35]">Plantillas de mensaje</h4>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                    Solo las plantillas aprobadas pueden enviarse.
+                        <PopoverContent align="start" side="top" className="w-80 p-0 rounded-2xl shadow-xl border border-border/50 overflow-hidden">
+                            <div className="px-4 py-3 bg-gradient-to-b from-[#f6fdf6] to-white border-b border-border/40">
+                                <div className="flex items-center gap-2">
+                                    <div className="h-6 w-6 rounded-lg bg-[#1A3E35]/10 flex items-center justify-center">
+                                        <FileText className="h-3.5 w-3.5 text-[#1A3E35]" />
+                                    </div>
+                                    <h4 className="font-semibold text-sm text-[#1A3E35]">Plantillas de mensaje</h4>
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1.5 ml-8">
+                                    Solo las aprobadas por Meta pueden enviarse.
                                 </p>
                             </div>
-                            <ScrollArea className="max-h-64">
+                            <ScrollArea className="max-h-60">
                                 {templatesLoading ? (
                                     <div className="flex items-center justify-center py-8">
                                         <Loader2 className="h-5 w-5 animate-spin text-[#1A3E35]" />
                                     </div>
                                 ) : Array.isArray(templates) && templates.length > 0 ? (
-                                    <div className="py-1">
+                                    <div className="p-2 flex flex-col gap-1">
                                         {templates.map((template) => {
                                             const isApproved = template.status?.toUpperCase() === "APPROVED";
                                             const status = (template.status ? statusConfig[template.status] : undefined) || statusConfig["PENDING"];
@@ -447,10 +458,10 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                                                     key={template.id || template.name}
                                                     disabled={!isApproved || isSendingThis}
                                                     onClick={() => handleSendTemplate(template.name, template.language ?? "es_MX")}
-                                                    className={`w-full text-left px-4 py-2.5 flex items-center gap-3 transition-colors ${
+                                                    className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-3 transition-all duration-150 ${
                                                         isApproved
                                                             ? "hover:bg-[#EEFAEE] cursor-pointer"
-                                                            : "opacity-50 cursor-not-allowed"
+                                                            : "opacity-40 cursor-not-allowed"
                                                     }`}
                                                 >
                                                     <div className="flex-1 min-w-0">
@@ -480,33 +491,102 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                                         })}
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col items-center justify-center py-8 px-4">
-                                        <FileText className="h-6 w-6 text-muted-foreground mb-2" />
-                                        <p className="text-sm text-muted-foreground text-center">No hay plantillas disponibles.</p>
+                                    <div className="flex flex-col items-center justify-center py-10 px-4">
+                                        <div className="h-10 w-10 rounded-2xl bg-muted flex items-center justify-center mb-3">
+                                            <FileText className="h-5 w-5 text-muted-foreground" />
+                                        </div>
+                                        <p className="text-sm font-medium text-foreground">Sin plantillas</p>
+                                        <p className="text-xs text-muted-foreground text-center mt-1">Crea una en la sección Templates.</p>
                                     </div>
                                 )}
                             </ScrollArea>
                         </PopoverContent>
                     </Popover>
 
-                    {/* Payment card button — solo en handoff */}
+                    {/* Payment templates button — solo en handoff */}
                     {isHandoff && (
-                        <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={handleSendPaymentCard}
-                            disabled={isSendingPaymentCard}
-                            title="Enviar info de pago"
-                            className="shrink-0 h-9 w-9 rounded-full text-muted-foreground hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
-                        >
-                            {isSendingPaymentCard ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : sentPaymentCard ? (
-                                <Check className="h-4 w-4 text-emerald-500" />
-                            ) : (
-                                <CreditCard className="h-4 w-4" />
-                            )}
-                        </Button>
+                        <Popover open={paymentPopoverOpen} onOpenChange={setPaymentPopoverOpen}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    title="Enviar plantilla de pago"
+                                    className="shrink-0 h-9 w-9 rounded-full text-muted-foreground hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                                >
+                                    <CreditCard className="h-4 w-4" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent align="start" side="top" className="w-80 p-0 rounded-2xl shadow-xl border border-border/50 overflow-hidden">
+                                <div className="px-4 py-3 bg-gradient-to-b from-emerald-50/80 to-white border-b border-border/40">
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-6 w-6 rounded-lg bg-emerald-500/15 flex items-center justify-center">
+                                            <CreditCard className="h-3.5 w-3.5 text-emerald-700" />
+                                        </div>
+                                        <h4 className="font-semibold text-sm text-[#1A3E35]">Plantillas de pago</h4>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1.5 ml-8">
+                                        Selecciona una para enviarla al cliente.
+                                    </p>
+                                </div>
+                                <ScrollArea className="max-h-60">
+                                    {paymentTemplatesLoading ? (
+                                        <div className="flex items-center justify-center py-8">
+                                            <Loader2 className="h-5 w-5 animate-spin text-[#1A3E35]" />
+                                        </div>
+                                    ) : paymentTemplates && paymentTemplates.length > 0 ? (
+                                        <div className="p-2 flex flex-col gap-1">
+                                            {paymentTemplates.filter((t) => t.is_active).map((template) => {
+                                                const isSendingThis = sendingPaymentId === template.id;
+                                                const isSentThis = sentPaymentId === template.id;
+                                                return (
+                                                    <button
+                                                        key={template.id}
+                                                        disabled={isSendingThis}
+                                                        onClick={() => handleSendPaymentTemplate(template)}
+                                                        className="w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-3 hover:bg-emerald-50 transition-all duration-150 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                                                    >
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-sm font-medium truncate text-foreground">
+                                                                    {template.name}
+                                                                </span>
+                                                                {template.method && (
+                                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium shrink-0">
+                                                                        {template.method}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-xs text-muted-foreground line-clamp-2 whitespace-pre-line mt-0.5">
+                                                                {template.content}
+                                                            </span>
+                                                        </div>
+                                                        <div className="shrink-0">
+                                                            {isSendingThis ? (
+                                                                <Loader2 className="h-4 w-4 animate-spin text-[#1A3E35]" />
+                                                            ) : isSentThis ? (
+                                                                <Check className="h-4 w-4 text-emerald-500" />
+                                                            ) : (
+                                                                <Send className="h-3.5 w-3.5 text-muted-foreground" />
+                                                            )}
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center py-10 px-4">
+                                            <div className="h-10 w-10 rounded-2xl bg-emerald-50 flex items-center justify-center mb-3">
+                                                <CreditCard className="h-5 w-5 text-emerald-400" />
+                                            </div>
+                                            <p className="text-sm font-medium text-foreground">Sin plantillas</p>
+                                            <p className="text-xs text-muted-foreground text-center mt-1">
+                                                Agrégalas en Configuración → Negocio.
+                                            </p>
+                                        </div>
+                                    )}
+                                </ScrollArea>
+                            </PopoverContent>
+                        </Popover>
                     )}
 
                     {/* Text input */}
