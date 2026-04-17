@@ -27,6 +27,14 @@ export interface BusinessConfig {
     [key: string]: unknown;
 }
 
+export interface PaymentTemplate {
+    id: string;
+    name: string;
+    method?: string | null;
+    content: string;
+    is_active: boolean;
+}
+
 export interface BusinessSettings {
     name?: string;
     slug?: string;
