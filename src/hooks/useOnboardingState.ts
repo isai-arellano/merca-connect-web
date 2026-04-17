@@ -24,7 +24,7 @@ export function useOnboardingState(): {
 
   const { data: settingsData, isLoading: settingsLoading } = useSWR<
     BusinessSettings | { data: BusinessSettings }
-  >(session && sessionBusinessPhoneId ? endpoints.business.settings : null, fetcher);
+  >(session ? endpoints.business.settings : null, fetcher);
 
   const { data: statsRaw, isLoading: statsLoading } = useSWR<DashboardStats>(
     session && sessionBusinessPhoneId ? endpoints.dashboard.stats : null,
