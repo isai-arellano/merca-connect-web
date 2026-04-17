@@ -2,7 +2,7 @@
 
 import { Sidebar, SidebarProvider, useSidebar } from "@/components/layout/sidebar";
 import { Navbar } from "@/components/layout/navbar";
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useSession, signOut } from "next-auth/react";
 
 function TokenExpiryGuard({ children }: { children: React.ReactNode }) {
@@ -17,17 +17,22 @@ function TokenExpiryGuard({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
 }
 
+function useMinWidthMd(): boolean {
+    return useSyncExternalStore(
+        (onStoreChange) => {
+            const mq = window.matchMedia("(min-width: 768px)");
+            mq.addEventListener("change", onStoreChange);
+            return () => mq.removeEventListener("change", onStoreChange);
+        },
+        () => window.matchMedia("(min-width: 768px)").matches,
+        () => false
+    );
+}
+
 function DashboardInner({ children }: { children: React.ReactNode }) {
     const { collapsed } = useSidebar();
     // En móvil (< 768px) el sidebar está oculto, no desplazamos nada
-    const [isMd, setIsMd] = useState(false);
-    useEffect(() => {
-        const mq = window.matchMedia("(min-width: 768px)");
-        setIsMd(mq.matches);
-        const handler = (e: MediaQueryListEvent) => setIsMd(e.matches);
-        mq.addEventListener("change", handler);
-        return () => mq.removeEventListener("change", handler);
-    }, []);
+    const isMd = useMinWidthMd();
 
     const offset = isMd ? (collapsed ? 104 : 292) : 0;
 

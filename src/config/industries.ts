@@ -1,13 +1,14 @@
-export type IndustryType =
-    | "abarrotera"
-    | "restaurante"
-    | "cafeteria"
-    | "ferreteria"
-    | "tienda_ropa"
-    | "servicios"
-    | "farmacia";
+/**
+ * Industrias: la fuente de verdad es la API (`GET /api/v1/catalog/industries` o `GET /api/v1/industries`).
+ * `FALLBACK_INDUSTRIES` evita pantalla vacía si la API no responde (misma forma que el seed).
+ */
 
 export type CatalogView = "catalogo" | "menu";
+
+export type PublicCatalogRoute = "catalogo" | "menu";
+
+/** Slug de industria (coincide con `businesses.type` en API). */
+export type IndustrySlug = string;
 
 export interface IndustryConfig {
     view: CatalogView;
@@ -29,16 +30,54 @@ export interface IndustryConfig {
     };
 }
 
-export type PublicCatalogRoute = "catalogo" | "menu";
+/** Respuesta JSON de la API (snake_case). */
+export interface IndustryApiRow {
+    slug: string;
+    label: string;
+    view: CatalogView;
+    product_label: string;
+    product_fields: IndustryConfig["productFields"];
+    relevant_units: string[];
+    features: IndustryConfig["features"];
+    sort_order: number;
+    is_active: boolean;
+}
 
-export const INDUSTRIES: Record<IndustryType, IndustryConfig> = {
+export function industryApiRowToConfig(row: IndustryApiRow): IndustryConfig {
+    return {
+        view: row.view,
+        label: row.label,
+        productLabel: row.product_label,
+        productFields: row.product_fields,
+        relevantUnits: row.relevant_units,
+        features: row.features,
+    };
+}
+
+export function buildIndustryMapFromApi(rows: IndustryApiRow[]): Record<string, IndustryConfig> {
+    const m: Record<string, IndustryConfig> = {};
+    for (const row of rows) {
+        if (row.is_active) {
+            m[row.slug] = industryApiRowToConfig(row);
+        }
+    }
+    return m;
+}
+
+/** Semilla alineada con `alembic/versions/m1n2o3p4q5r6_add_industries_table.py` */
+export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
     abarrotera: {
         view: "catalogo",
         label: "Abarrotera",
         productLabel: "Producto",
         productFields: {
-            showStock: true, showBarcode: true, showIngredients: false,
-            showActiveSubstance: false, showPreparationTime: false, showDimensions: false, showSKU: true,
+            showStock: true,
+            showBarcode: true,
+            showIngredients: false,
+            showActiveSubstance: false,
+            showPreparationTime: false,
+            showDimensions: false,
+            showSKU: true,
         },
         relevantUnits: ["pza", "und", "kg", "g", "L"],
         features: { hasTables: false, hasPrescriptions: false },
@@ -48,8 +87,13 @@ export const INDUSTRIES: Record<IndustryType, IndustryConfig> = {
         label: "Restaurante",
         productLabel: "Platillo",
         productFields: {
-            showStock: false, showBarcode: false, showIngredients: true,
-            showActiveSubstance: false, showPreparationTime: true, showDimensions: false, showSKU: false,
+            showStock: false,
+            showBarcode: false,
+            showIngredients: true,
+            showActiveSubstance: false,
+            showPreparationTime: true,
+            showDimensions: false,
+            showSKU: false,
         },
         relevantUnits: ["por", "und"],
         features: { hasTables: true, hasPrescriptions: false },
@@ -59,8 +103,13 @@ export const INDUSTRIES: Record<IndustryType, IndustryConfig> = {
         label: "Cafetería",
         productLabel: "Producto",
         productFields: {
-            showStock: false, showBarcode: false, showIngredients: true,
-            showActiveSubstance: false, showPreparationTime: true, showDimensions: false, showSKU: false,
+            showStock: false,
+            showBarcode: false,
+            showIngredients: true,
+            showActiveSubstance: false,
+            showPreparationTime: true,
+            showDimensions: false,
+            showSKU: false,
         },
         relevantUnits: ["por", "und", "L"],
         features: { hasTables: true, hasPrescriptions: false },
@@ -70,8 +119,13 @@ export const INDUSTRIES: Record<IndustryType, IndustryConfig> = {
         label: "Ferretería",
         productLabel: "Producto",
         productFields: {
-            showStock: true, showBarcode: true, showIngredients: false,
-            showActiveSubstance: false, showPreparationTime: false, showDimensions: true, showSKU: true,
+            showStock: true,
+            showBarcode: true,
+            showIngredients: false,
+            showActiveSubstance: false,
+            showPreparationTime: false,
+            showDimensions: true,
+            showSKU: true,
         },
         relevantUnits: ["pza", "und", "m", "cm", "kg"],
         features: { hasTables: false, hasPrescriptions: false },
@@ -81,10 +135,31 @@ export const INDUSTRIES: Record<IndustryType, IndustryConfig> = {
         label: "Tienda de Ropa",
         productLabel: "Prenda",
         productFields: {
-            showStock: true, showBarcode: true, showIngredients: false,
-            showActiveSubstance: false, showPreparationTime: false, showDimensions: false, showSKU: true,
+            showStock: true,
+            showBarcode: true,
+            showIngredients: false,
+            showActiveSubstance: false,
+            showPreparationTime: false,
+            showDimensions: false,
+            showSKU: true,
         },
         relevantUnits: ["pza", "und"],
+        features: { hasTables: false, hasPrescriptions: false },
+    },
+    tienda_electronica: {
+        view: "catalogo",
+        label: "Tienda en línea (electrónicos)",
+        productLabel: "Producto",
+        productFields: {
+            showStock: true,
+            showBarcode: true,
+            showIngredients: false,
+            showActiveSubstance: false,
+            showPreparationTime: false,
+            showDimensions: true,
+            showSKU: true,
+        },
+        relevantUnits: ["pza", "und", "kg"],
         features: { hasTables: false, hasPrescriptions: false },
     },
     servicios: {
@@ -92,8 +167,13 @@ export const INDUSTRIES: Record<IndustryType, IndustryConfig> = {
         label: "Servicios",
         productLabel: "Servicio",
         productFields: {
-            showStock: false, showBarcode: false, showIngredients: false,
-            showActiveSubstance: false, showPreparationTime: false, showDimensions: false, showSKU: false,
+            showStock: false,
+            showBarcode: false,
+            showIngredients: false,
+            showActiveSubstance: false,
+            showPreparationTime: false,
+            showDimensions: false,
+            showSKU: false,
         },
         relevantUnits: ["hr", "ses", "día", "sem"],
         features: { hasTables: false, hasPrescriptions: false },
@@ -103,19 +183,37 @@ export const INDUSTRIES: Record<IndustryType, IndustryConfig> = {
         label: "Farmacia",
         productLabel: "Medicamento",
         productFields: {
-            showStock: true, showBarcode: true, showIngredients: false,
-            showActiveSubstance: true, showPreparationTime: false, showDimensions: false, showSKU: true,
+            showStock: true,
+            showBarcode: true,
+            showIngredients: false,
+            showActiveSubstance: true,
+            showPreparationTime: false,
+            showDimensions: false,
+            showSKU: true,
         },
         relevantUnits: ["pza", "und", "g", "L"],
         features: { hasTables: false, hasPrescriptions: true },
     },
 };
 
-export function getIndustryConfig(type: string | undefined | null): IndustryConfig {
-    return INDUSTRIES[(type as IndustryType) ?? "abarrotera"] ?? INDUSTRIES.abarrotera;
+export function getIndustryConfig(
+    type: string | undefined | null,
+    map: Record<string, IndustryConfig> = FALLBACK_INDUSTRIES,
+): IndustryConfig {
+    const slug = (type ?? "abarrotera").trim() || "abarrotera";
+    return map[slug] ?? FALLBACK_INDUSTRIES[slug] ?? FALLBACK_INDUSTRIES.abarrotera;
 }
 
-export function getPublicCatalogRoute(type: string | undefined | null): PublicCatalogRoute {
-    const industry = getIndustryConfig(type);
+export function getPublicCatalogRoute(
+    type: string | undefined | null,
+    map: Record<string, IndustryConfig> = FALLBACK_INDUSTRIES,
+): PublicCatalogRoute {
+    const industry = getIndustryConfig(type, map);
     return industry.view === "menu" ? "menu" : "catalogo";
 }
+
+/** @deprecated Usar `IndustrySlug` o `string` */
+export type IndustryType = IndustrySlug;
+
+/** @deprecated Usar `FALLBACK_INDUSTRIES` o datos de `useIndustries()` */
+export const INDUSTRIES = FALLBACK_INDUSTRIES;

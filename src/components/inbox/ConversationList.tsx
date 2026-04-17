@@ -3,7 +3,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot } from "lucide-react";
+import { Bot, User } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { type ConversationSummary } from "@/types/api";
@@ -59,18 +59,21 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                                         {conv.agent_enabled === true && conv.status === "handoff" && (
                                             <Badge
                                                 variant="outline"
-                                                className="text-[10px] px-1.5 py-0 h-4 border-orange-400/40 text-orange-700 bg-orange-500/10"
+                                                className="text-[10px] px-1.5 py-0 h-4 border-orange-400/40 text-orange-700 bg-orange-500/10 gap-0.5 max-w-[8rem]"
+                                                title="Atención humana"
                                             >
-                                                Humano
+                                                <User className="h-2.5 w-2.5 shrink-0" aria-hidden />
+                                                <span className="truncate">Humano</span>
                                             </Badge>
                                         )}
                                         {conv.agent_enabled === true && conv.status !== "handoff" && (
                                             <Badge
                                                 variant="outline"
-                                                className="text-[10px] px-1.5 py-0 h-4 border-blue-400/40 text-blue-700 bg-blue-500/10 gap-0.5"
+                                                className="text-[10px] px-1.5 py-0 h-4 border-blue-400/40 text-blue-700 bg-blue-500/10 gap-0.5 max-w-[9rem]"
+                                                title="Zafer Agent"
                                             >
-                                                <Bot className="h-2.5 w-2.5" />
-                                                IA
+                                                <Bot className="h-2.5 w-2.5 shrink-0" aria-hidden />
+                                                <span className="truncate">Zafer Agent</span>
                                             </Badge>
                                         )}
                                     </div>

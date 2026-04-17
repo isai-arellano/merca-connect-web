@@ -3,6 +3,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import {
   FileText,
@@ -119,7 +120,8 @@ function getTemplateBody(template: MessageTemplate) {
 }
 
 export default function TemplatesPage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -127,14 +129,30 @@ export default function TemplatesPage() {
   const [creating, setCreating] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<MessageTemplate | null>(null);
 
+  const canLoadTemplates =
+    session?.role === "admin" && sessionBusinessPhoneId;
+
   const { data: response, isLoading, mutate } = useSWR<ApiList<MessageTemplate> | MessageTemplate[]>(
-    session && sessionBusinessPhoneId ? endpoints.templates.list : null,
+    canLoadTemplates ? endpoints.templates.list : null,
     fetcher
   );
 
   const templates: MessageTemplate[] =
     (response as ApiList<MessageTemplate> | null)?.data ??
     (Array.isArray(response) ? response : []);
+
+  if (status === "loading") {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (session?.role !== "admin") {
+    router.replace("/dashboard");
+    return null;
+  }
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -196,7 +214,7 @@ export default function TemplatesPage() {
               onClick={() => setViewMode("grid")}
               className={`p-2 transition-colors ${
                 viewMode === "grid"
-                  ? "bg-primary/10 text-primary"
+                  ? "bg-brand-mint/90 text-brand-forest"
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >
@@ -206,7 +224,7 @@ export default function TemplatesPage() {
               onClick={() => setViewMode("list")}
               className={`p-2 transition-colors ${
                 viewMode === "list"
-                  ? "bg-primary/10 text-primary"
+                  ? "bg-brand-mint/90 text-brand-forest"
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >

@@ -1,15 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Search, Filter, Loader2, ExternalLink, Eye, EyeOff, Tag, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+    Plus,
+    Search,
+    Filter,
+    Loader2,
+    ExternalLink,
+    Eye,
+    EyeOff,
+    Tag,
+    Trash2,
+    Link as LinkIcon,
+    AlertCircle,
+    Save,
+} from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getIndustryConfig } from "@/config/industries";
-import { getPublicCatalogRoute } from "@/config/industries";
+import { getIndustryConfig, getPublicCatalogRoute } from "@/config/industries";
+import {
+    CATALOG_THEME_PRESETS,
+    CATALOG_THEME_PRESET_API_WIRE,
+    type CatalogThemePreset,
+} from "@/config/catalog-themes";
+import { useIndustries } from "@/hooks/useIndustries";
 import { useSession } from "next-auth/react";
 import { ProductDialog, ProductDialogProduct } from "@/components/products/product-dialog";
 import { CategoriesManager } from "@/components/products/categories-manager";
@@ -17,9 +35,11 @@ import { UnitsManager } from "@/components/products/units-manager";
 import { motion, Variants } from "framer-motion";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
-import { apiClient, fetcher } from "@/lib/api-client";
+import { apiClient, fetcher, ApiError, NetworkError } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
-import { type ApiList } from "@/types/api";
+import { type ApiList, type BusinessSettings } from "@/types/api";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 interface Product {
@@ -68,6 +88,17 @@ const PRODUCT_TYPE_LABELS: Record<string, string> = {
     service: "Servicio",
 };
 
+function formatValidationDetail(error: ApiError): string {
+    const body = error.responseBody;
+    if (!body || typeof body !== "object") return "";
+    const detail = (body as Record<string, unknown>).detail;
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail) && detail[0] && typeof detail[0] === "object" && "msg" in (detail[0] as object)) {
+        return String((detail[0] as { msg: string }).msg);
+    }
+    return "";
+}
+
 export default function ProductsPage() {
     const { data: session } = useSession();
     const { toast } = useToast();
@@ -77,15 +108,37 @@ export default function ProductsPage() {
     const [actingProductId, setActingProductId] = useState<string | null>(null);
 
     const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
+    const { industriesMap } = useIndustries();
 
-    const { data: settingsData } = useSWR<{ slug?: string; type?: string }>(session ? endpoints.business.settings : null, fetcher);
+    const {
+        data: settingsRaw,
+        mutate: mutateSettings,
+    } = useSWR<BusinessSettings | { data: BusinessSettings }>(session ? endpoints.business.settings : null, fetcher);
+    const settingsData: BusinessSettings =
+        (settingsRaw as { data: BusinessSettings } | null)?.data ?? (settingsRaw as BusinessSettings | null) ?? {};
+
+    const [catalogSlug, setCatalogSlug] = useState("");
+    const [themePreset, setThemePreset] = useState<CatalogThemePreset>("default");
+    const [catalogMetaSaving, setCatalogMetaSaving] = useState(false);
+    const [catalogSlugApiError, setCatalogSlugApiError] = useState<string | null>(null);
+    const [catalogSlugValidationError, setCatalogSlugValidationError] = useState<string | null>(null);
+
+    useEffect(() => {
+        setCatalogSlug(settingsData.slug ?? "");
+        setThemePreset("default");
+    }, [settingsData.slug, settingsData.config?.catalog_theme?.preset]);
     const productsEndpoint = sessionBusinessPhoneId ? endpoints.products.list(sessionBusinessPhoneId, true) : null;
     const { data: response, isLoading, mutate: mutateProducts } = useSWR<ApiList<Product>>(session && productsEndpoint ? productsEndpoint : null, fetcher);
 
-    const businessSlug: string | null = settingsData?.slug ?? null;
     const businessType: string = settingsData?.type ?? "";
+    const previewSlug: string | null = (() => {
+        const typed = catalogSlug.trim();
+        if (typed) return typed;
+        const saved = settingsData.slug?.trim();
+        return saved || null;
+    })();
     const hasIndustry = Boolean(settingsData?.type);
-    const config = getIndustryConfig(businessType);
+    const config = getIndustryConfig(businessType, industriesMap);
 
     const products: Product[] = response?.data ?? [];
     const activeProducts = products.filter((product) => product.is_active !== false);
@@ -106,7 +159,7 @@ export default function ProductsPage() {
         : disabledProducts;
 
     const moduleTitle = config.view === "menu" ? "Menú" : "Catálogo";
-    const publicRouteSegment = getPublicCatalogRoute(settingsData?.type);
+    const publicRouteSegment = getPublicCatalogRoute(settingsData?.type, industriesMap);
 
     function openCreate() { setSelectedProduct(undefined); setDialogOpen(true); }
     function openEdit(product: Product) { setSelectedProduct(product as ProductDialogProduct); setDialogOpen(true); }
@@ -154,6 +207,60 @@ export default function ProductsPage() {
         }
     }
 
+    async function handleSaveCatalogPublic() {
+        const trimmed = catalogSlug.trim();
+        setCatalogSlugValidationError(null);
+        setCatalogSlugApiError(null);
+        if (!trimmed) {
+            setCatalogSlugValidationError("La URL pública es obligatoria.");
+            return;
+        }
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmed)) {
+            setCatalogSlugValidationError("Solo letras minúsculas, números y guiones (ej. mi-tienda).");
+            return;
+        }
+        if (trimmed.length < 3 || trimmed.length > 100) {
+            setCatalogSlugValidationError("Entre 3 y 100 caracteres.");
+            return;
+        }
+        setCatalogMetaSaving(true);
+        try {
+            await apiClient.patch(endpoints.business.settings, {
+                slug: trimmed,
+                config: {
+                    catalog_theme: {
+                        preset:
+                            themePreset === "default"
+                                ? CATALOG_THEME_PRESET_API_WIRE
+                                : themePreset,
+                    },
+                },
+            });
+            await mutateSettings();
+            toast({
+                title: "Guardado",
+                description: "URL y tema del catálogo público actualizados.",
+            });
+        } catch (error: unknown) {
+            if (error instanceof ApiError && error.status === 409) {
+                setCatalogSlugApiError("Este slug ya está en uso por otro negocio.");
+            } else if (error instanceof NetworkError) {
+                toast({ title: "Error de red", description: error.message, variant: "destructive" });
+            } else if (error instanceof ApiError) {
+                const detail = formatValidationDetail(error);
+                toast({
+                    title: "Error al guardar",
+                    description: detail || error.message,
+                    variant: "destructive",
+                });
+            } else {
+                toast({ title: "Error al guardar", variant: "destructive" });
+            }
+        } finally {
+            setCatalogMetaSaving(false);
+        }
+    }
+
     if (!hasIndustry) {
         return (
             <motion.div className="max-w-3xl mx-auto" variants={containerVariants} initial="hidden" animate="show">
@@ -188,15 +295,15 @@ export default function ProductsPage() {
                     </p>
                 </div>
                 <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-2">
-                    {businessSlug ? (
+                    {previewSlug ? (
                         <Button variant="outline" asChild className="w-full sm:w-auto justify-center">
-                            <a href={`/${publicRouteSegment}/${businessSlug}`} target="_blank" rel="noopener noreferrer">
+                            <a href={`/${publicRouteSegment}/${previewSlug}`} target="_blank" rel="noopener noreferrer">
                                 <ExternalLink className="mr-2 h-4 w-4" /> Ver {moduleTitle.toLowerCase()} público
                             </a>
                         </Button>
                     ) : (
-                        <Button variant="outline" disabled title="Configura un slug en Ajustes" className="w-full sm:w-auto justify-center">
-                            <ExternalLink className="mr-2 h-4 w-4" /> {moduleTitle} público (sin slug)
+                        <Button variant="outline" disabled title="Define la URL en «Catálogo público» abajo" className="w-full sm:w-auto justify-center">
+                            <ExternalLink className="mr-2 h-4 w-4" /> {moduleTitle} público (sin URL)
                         </Button>
                     )}
                     <Button
@@ -206,6 +313,127 @@ export default function ProductsPage() {
                         <Plus className="mr-2 h-4 w-4" /> Nuevo {config.productLabel}
                     </Button>
                 </div>
+            </motion.div>
+
+            <motion.div variants={itemVariants}>
+                <Card className="rounded-2xl border-border/60 shadow-sm">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-base">Catálogo público</CardTitle>
+                        <CardDescription>
+                            URL y apariencia de tu {moduleTitle.toLowerCase()} visible para clientes.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                        <div className="space-y-3">
+                            <div>
+                                <Label htmlFor="catalog-public-slug" className="flex items-center gap-2 text-foreground">
+                                    <LinkIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                                    URL del catálogo público
+                                </Label>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Identificador único. Solo letras minúsculas, números y guiones.
+                                </p>
+                            </div>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                <span className="text-sm text-brand-forest/80 font-medium shrink-0">
+                                    /{publicRouteSegment}/
+                                </span>
+                                <Input
+                                    id="catalog-public-slug"
+                                    value={catalogSlug}
+                                    onChange={(e) => {
+                                        setCatalogSlugApiError(null);
+                                        setCatalogSlugValidationError(null);
+                                        setCatalogSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
+                                    }}
+                                    placeholder="mi-tienda"
+                                    className={
+                                        catalogSlugValidationError || catalogSlugApiError
+                                            ? "border-destructive focus-visible:ring-destructive max-w-md"
+                                            : "max-w-md"
+                                    }
+                                />
+                            </div>
+                            {catalogSlugValidationError && (
+                                <p className="text-xs text-destructive flex items-center gap-1.5">
+                                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                                    {catalogSlugValidationError}
+                                </p>
+                            )}
+                            {catalogSlugApiError && (
+                                <p className="text-xs text-destructive flex items-center gap-1.5">
+                                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                                    {catalogSlugApiError}
+                                </p>
+                            )}
+                            {previewSlug && !catalogSlugValidationError && !catalogSlugApiError && (
+                                <a
+                                    href={`/${publicRouteSegment}/${previewSlug}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-forest hover:underline"
+                                >
+                                    <ExternalLink className="h-3 w-3 shrink-0" />
+                                    /{publicRouteSegment}/{previewSlug}
+                                </a>
+                            )}
+                        </div>
+
+                        <div className="space-y-3">
+                            <Label className="text-foreground">Tema público</Label>
+                            <div className="flex items-start gap-3 rounded-xl border border-border/70 p-3 bg-muted/20">
+                                <input
+                                    type="radio"
+                                    id="catalog-theme-default"
+                                    name="catalog-theme"
+                                    className="mt-1 h-4 w-4 accent-brand-forest"
+                                    checked={themePreset === "default"}
+                                    onChange={() => setThemePreset("default")}
+                                    aria-label="Tema Default"
+                                />
+                                <div className="min-w-0 flex-1 space-y-2">
+                                    <label htmlFor="catalog-theme-default" className="text-sm font-medium cursor-pointer">
+                                        Default
+                                    </label>
+                                    <p className="text-xs text-muted-foreground">
+                                        {CATALOG_THEME_PRESETS.default.description}
+                                    </p>
+                                    <div
+                                        className={`rounded-lg border p-3 max-w-sm ${CATALOG_THEME_PRESETS.default.tokens[publicRouteSegment].cardBackground} ${CATALOG_THEME_PRESETS.default.tokens[publicRouteSegment].border}`}
+                                    >
+                                        <div className={`text-xs font-semibold ${CATALOG_THEME_PRESETS.default.tokens[publicRouteSegment].title}`}>
+                                            Vista previa
+                                        </div>
+                                        <div className={`mt-1 text-[11px] ${CATALOG_THEME_PRESETS.default.tokens[publicRouteSegment].subtitle}`}>
+                                            {publicRouteSegment === "menu" ? "Menú público" : "Catálogo público"}
+                                        </div>
+                                        <div className="mt-2 flex items-center gap-1.5">
+                                            <span className={`h-2.5 w-2.5 rounded-full ${CATALOG_THEME_PRESETS.default.tokens[publicRouteSegment].badge}`} />
+                                            <span className={`h-2.5 w-2.5 rounded-full ${CATALOG_THEME_PRESETS.default.tokens[publicRouteSegment].accent}`} />
+                                            <span
+                                                className={`h-2.5 w-2.5 rounded-full ${CATALOG_THEME_PRESETS.default.tokens[publicRouteSegment].pageBackground} border ${CATALOG_THEME_PRESETS.default.tokens[publicRouteSegment].border}`}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <Button
+                            type="button"
+                            onClick={handleSaveCatalogPublic}
+                            disabled={catalogMetaSaving}
+                            className="bg-brand-forest text-white hover:bg-brand-forest/90"
+                        >
+                            {catalogMetaSaving ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <Save className="mr-2 h-4 w-4" />
+                            )}
+                            Guardar URL y tema
+                        </Button>
+                    </CardContent>
+                </Card>
             </motion.div>
 
             <motion.div variants={itemVariants}>

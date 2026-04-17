@@ -54,6 +54,7 @@ a {
     --radius: 0.5rem;
     --sidebar-width: 256px;
     --sidebar-collapsed-width: 72px;
+    /* Brand hex (see tailwind theme.extend.colors.brand) — forest #1A3E35, mint #EEFAEE, spring #74E79C */
   }
 
   .dark {
