@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import {
   Package, ShoppingBag, Users, Activity, Loader2, MessageSquare, MessageCircle,
-  ArrowRight, Smartphone,
+  ArrowRight, Smartphone, AlertTriangle,
 } from "lucide-react";
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import useSWR from "swr";
@@ -15,7 +15,7 @@ import { getSessionBusinessPhoneId } from "@/lib/business";
 import { getIndustryConfig } from "@/config/industries";
 import { useIndustries } from "@/hooks/useIndustries";
 import Link from "next/link";
-import { type ApiList, type AnalyticsOverview, type BusinessSettings, type DashboardStats } from "@/types/api";
+import { type ApiList, type AnalyticsOverview, type BusinessSettings, type DashboardStats, type PlanUsage } from "@/types/api";
 import { computeOnboardingState } from "@/lib/onboarding";
 import { DashboardOnboarding } from "@/components/onboarding/DashboardOnboarding";
 
@@ -116,6 +116,12 @@ export default function DashboardPage() {
         { refreshInterval: 30000 }
     );
 
+    const { data: planRaw } = useSWR<PlanUsage | { data: PlanUsage }>(
+        session && sessionBusinessPhoneId ? endpoints.business.planUsage : null,
+        fetcher,
+        { refreshInterval: 60000 }
+    );
+
     const settings: SettingsLike =
         (settingsData as { data: BusinessSettings } | null)?.data ??
         (settingsData as BusinessSettings | null) ??
@@ -145,6 +151,11 @@ export default function DashboardPage() {
     const hasIndustry = onboardingState.hasIndustry;
     const isLoading = statsLoading || settingsLoading;
 
+    const planUsage: PlanUsage | null =
+        (planRaw as { data: PlanUsage } | null)?.data ??
+        (planRaw as PlanUsage | null) ??
+        null;
+
     return (
         <motion.div
             className="space-y-6 max-w-6xl"
@@ -163,6 +174,21 @@ export default function DashboardPage() {
                         : "Completa los pasos a continuación para activar todas las funciones."}
                 </p>
             </motion.div>
+
+            {/* Quota warning banner */}
+            {allOnboarded && planUsage?.near_limit && (
+                <motion.div variants={itemVariants}>
+                    <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        <span>
+                            Has usado el {Math.round((planUsage.conversations_used / planUsage.conversations_limit) * 100)}% de tus conversaciones este mes.{" "}
+                            <Link href="/dashboard/settings?tab=plan" className="underline font-medium">
+                                Ver plan
+                            </Link>
+                        </span>
+                    </div>
+                </motion.div>
+            )}
 
             {/* Onboarding — visible siempre hasta completar */}
             <AnimatePresence>
