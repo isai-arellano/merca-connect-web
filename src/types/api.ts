@@ -217,6 +217,23 @@ export interface Customer {
     created_at?: string;
 }
 
+// ── Plan / Quota ──
+export interface PlanUsage {
+  plan: string;
+  plan_display_name: string;
+  conversations_used: number;
+  conversations_limit: number;
+  extra_conv_price_mxn: number;
+  allow_extra_conversations: boolean;
+  seats_used: number;
+  seats_limit: number;
+  plan_activated_at: string;
+  days_until_reset: number;
+  near_limit: boolean;
+  price_mxn: number;
+  history_days: number;
+}
+
 // ── WhatsApp Profile ──
 export interface WhatsAppProfile {
     verified_name?: string;

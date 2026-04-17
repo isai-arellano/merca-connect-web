@@ -34,6 +34,7 @@ import { type WhatsAppProfile, type BusinessSettings } from "@/types/api";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { AgentTab } from "@/components/settings/AgentTab";
 import { WhatsAppConnectTab } from "@/components/settings/WhatsAppConnectTab";
+import { PlanTab } from "@/components/settings/PlanTab";
 import { HoursEditor, hasIncompleteHours, type WeekSchedule, EMPTY_WEEK_SCHEDULE } from "@/components/settings/HoursEditor";
 import { PaymentTemplatesSection } from "@/components/settings/PaymentTemplatesSection";
 import { useToast } from "@/hooks/use-toast";
@@ -97,7 +98,7 @@ const tabContentVariants: Variants = {
   visible: { opacity: 1, x: 0, transition: { duration: 0.3, ease: "easeOut" } },
 };
 
-const SETTINGS_TAB_VALUES = ["negocio", "conectar", "whatsapp", "agente"] as const;
+const SETTINGS_TAB_VALUES = ["negocio", "conectar", "whatsapp", "agente", "plan"] as const;
 type SettingsTabValue = (typeof SETTINGS_TAB_VALUES)[number];
 
 function isSettingsTabValue(v: string | null): v is SettingsTabValue {
@@ -488,7 +489,7 @@ function SettingsPageInner() {
       {/* Tabs */}
       <motion.div variants={itemVariants}>
         <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="flex flex-wrap h-auto gap-1 p-1 sm:grid sm:grid-cols-4">
+          <TabsList className="flex flex-wrap h-auto gap-1 p-1 sm:grid sm:grid-cols-5">
             <TabsTrigger value="negocio" className="gap-1.5 flex-1 sm:flex-none">
               <Store className="h-4 w-4 shrink-0" />
               <span className="hidden xs:inline sm:inline">Negocio</span>
@@ -504,6 +505,10 @@ function SettingsPageInner() {
             <TabsTrigger value="agente" className="gap-1.5 flex-1 sm:flex-none">
               <Bot className="h-4 w-4 shrink-0" />
               <span className="hidden xs:inline sm:inline">Agente</span>
+            </TabsTrigger>
+            <TabsTrigger value="plan" className="gap-1.5 flex-1 sm:flex-none">
+              <CreditCard className="h-4 w-4 shrink-0" />
+              <span className="hidden xs:inline sm:inline">Plan</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1074,6 +1079,17 @@ function SettingsPageInner() {
                 animate="visible"
               >
                 <AgentTab />
+              </motion.div>
+            </TabsContent>
+
+            {/* PLAN TAB */}
+            <TabsContent value="plan">
+              <motion.div
+                variants={tabContentVariants}
+                initial={false}
+                animate="visible"
+              >
+                <PlanTab />
               </motion.div>
             </TabsContent>
         </Tabs>
