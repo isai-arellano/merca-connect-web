@@ -4,18 +4,37 @@ import { LogOut, Menu, User } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import useSWR from "swr";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
 import { NotificationsBell } from "@/components/layout/notifications-bell";
 import { SidebarContent } from "@/components/layout/sidebar";
+import { fetcher } from "@/lib/api-client";
+import { endpoints } from "@/lib/api";
+import { type PlanUsage } from "@/types/api";
+import { Badge } from "@/components/ui/badge";
 
 export function Navbar() {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
     const { data: session } = useSession();
+
+    const { data: planRaw, isLoading: planLoading } = useSWR<PlanUsage | { data: PlanUsage }>(
+        session ? endpoints.business.planUsage : null,
+        fetcher
+    );
+    const planUsage: PlanUsage | null =
+        (planRaw as { data: PlanUsage } | null)?.data ?? (planRaw as PlanUsage | null) ?? null;
 
     // Deferir hasta después de hidratar (evita mismatch SSR y permite next-auth en cliente)
     useEffect(() => {
@@ -57,7 +76,32 @@ export function Navbar() {
                                     {session?.user?.name?.charAt(0)?.toUpperCase() ?? "U"}
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuLabel className="font-normal">
+                                    <div className="flex flex-col gap-1.5 py-0.5">
+                                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                            Plan
+                                        </span>
+                                        {planLoading ? (
+                                            <span className="h-5 w-24 rounded bg-muted animate-pulse" aria-hidden />
+                                        ) : planUsage ? (
+                                            <Link
+                                                href="/dashboard/settings?tab=plan"
+                                                className="inline-flex w-fit max-w-full"
+                                            >
+                                                <Badge
+                                                    variant="secondary"
+                                                    className="font-medium text-xs truncate max-w-full hover:bg-secondary/80"
+                                                >
+                                                    {planUsage.plan_display_name}
+                                                </Badge>
+                                            </Link>
+                                        ) : (
+                                            <span className="text-xs text-muted-foreground">—</span>
+                                        )}
+                                    </div>
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem asChild className="cursor-pointer flex items-center gap-2">
                                     <Link href="/dashboard/profile">
                                         <User className="h-4 w-4" />

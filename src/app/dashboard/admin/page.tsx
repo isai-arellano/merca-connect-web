@@ -15,6 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { AdminIndustriesSection } from "@/components/admin/AdminIndustriesSection";
+import { AdminPlanDefinitionsSection } from "@/components/admin/AdminPlanDefinitionsSection";
 
 export default function AdminPage() {
     const { data: session, status } = useSession();
@@ -158,6 +160,10 @@ export default function AdminPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            <AdminIndustriesSection />
+
+            <AdminPlanDefinitionsSection />
         </div>
     );
 }

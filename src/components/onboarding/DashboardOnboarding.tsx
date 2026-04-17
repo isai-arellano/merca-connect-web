@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   Circle,
   ChevronRight,
-  ChevronLeft,
   Loader2,
   Package,
   Smartphone,
@@ -23,12 +22,10 @@ import { endpoints } from "@/lib/api";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import {
   FALLBACK_INDUSTRIES,
-  DIRECT_INDUSTRIES,
-  GROUPED_INDUSTRIES,
+  FLAT_INDUSTRY_SLUGS_ORDER,
   getIndustryConfig,
-  getPublicCatalogRoute,
   industryApiRowToConfig,
-  type IndustryGroup,
+  type IndustryConfig,
 } from "@/config/industries";
 import { useIndustries } from "@/hooks/useIndustries";
 import { type BusinessSettings } from "@/types/api";
@@ -63,35 +60,24 @@ export function DashboardOnboarding({
   const [businessSheetOpen, setBusinessSheetOpen] = useState(false);
   const [productOpen, setProductOpen] = useState(false);
 
-  // Step 1 drill-down state: which group is expanded, and toggle to re-show picker
-  const [selectedGroup, setSelectedGroup] = useState<IndustryGroup | null>(null);
   const [showIndustryPicker, setShowIndustryPicker] = useState(false);
 
   const { industriesMap, orderedRows } = useIndustries();
 
-  // Build the direct-industry list, preferring API data when available
   const directGrid = useMemo(() => {
     if (orderedRows?.length) {
-      // From API rows: exclude slugs that belong to a grouped industry
-      const groupedSlugs = new Set(
-        GROUPED_INDUSTRIES.flatMap((g) => g.subcategories.map((s) => s.slug))
-      );
-      // Also exclude group-level slugs that might be in the API
-      const groupLabels = new Set(GROUPED_INDUSTRIES.map((g) => g.groupLabel.toLowerCase()));
       return orderedRows
-        .filter((r) => !groupedSlugs.has(r.slug) && !groupLabels.has(r.label.toLowerCase()))
+        .filter((r) => r.is_active && r.is_selectable !== false)
         .map((r) => ({ slug: r.slug, cfg: industryApiRowToConfig(r) }));
     }
-    // Fallback: use DIRECT_INDUSTRIES definitions with FALLBACK_INDUSTRIES configs
-    return DIRECT_INDUSTRIES.map(({ slug, label, view }) => ({
-      slug,
-      cfg: FALLBACK_INDUSTRIES[slug] ?? { view, label, productLabel: "Producto", productFields: { showStock: true, showBarcode: false, showIngredients: false, showActiveSubstance: false, showPreparationTime: false, showDimensions: false, showSKU: false }, relevantUnits: [], features: { hasTables: false, hasPrescriptions: false } },
-    }));
+    return FLAT_INDUSTRY_SLUGS_ORDER.map((slug) => {
+      const cfg = FALLBACK_INDUSTRIES[slug];
+      if (!cfg) return null;
+      return { slug, cfg };
+    }).filter((x): x is { slug: string; cfg: IndustryConfig } => x !== null);
   }, [orderedRows]);
 
   const industryConfig = getIndustryConfig(businessType, industriesMap);
-  const publicRoute = getPublicCatalogRoute(businessType, industriesMap);
-  const viewLabel = publicRoute === "menu" ? "Menú público" : "Catálogo público";
 
   const stepsComplete =
     [onboarding.hasIndustry, onboarding.hasBusinessProfile, onboarding.hasCatalogContent, onboarding.hasWhatsApp].filter(
@@ -108,7 +94,6 @@ export function DashboardOnboarding({
     setIndustrySaving(slug);
     try {
       await apiClient.patch(endpoints.business.settings, { type: slug });
-      setSelectedGroup(null);
       setShowIndustryPicker(false);
       await refreshAfterSave();
     } finally {
@@ -169,10 +154,8 @@ export function DashboardOnboarding({
                       </h3>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {onboarding.hasIndustry && !showIndustryPicker
-                          ? `${viewLabel} · ${industryConfig.label}`
-                          : selectedGroup
-                          ? `Tienda en línea — elige el tipo`
-                          : "Elige tu industria. Definimos catálogo o menú según el tipo."}
+                          ? industryConfig.label
+                          : "Elige el giro que mejor describe tu negocio. Podrás ajustar detalles después."}
                       </p>
                     </div>
                     {/* "Cambiar tipo" link — only when step is complete and picker is hidden */}
@@ -181,7 +164,6 @@ export function DashboardOnboarding({
                         type="button"
                         className="text-[11px] text-muted-foreground hover:text-brand-forest underline-offset-2 hover:underline shrink-0 transition-colors"
                         onClick={() => {
-                          setSelectedGroup(null);
                           setShowIndustryPicker(true);
                         }}
                       >
@@ -192,103 +174,30 @@ export function DashboardOnboarding({
 
                   {/* Industry picker — hidden when step is complete and picker toggle is off */}
                   {isPickerVisible && (
-                    <>
-                      {/* Back button when inside a group drill-down */}
-                      {selectedGroup && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {directGrid.map(({ slug, cfg }) => (
                         <button
+                          key={slug}
                           type="button"
-                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-brand-forest transition-colors mb-1"
-                          onClick={() => setSelectedGroup(null)}
+                          disabled={industrySaving !== null}
+                          onClick={() => handleSelectIndustry(slug)}
+                          className={cn(
+                            "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
+                            "border-border/70 hover:border-brand-spring/60 hover:bg-brand-mint/40",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest/30"
+                          )}
                         >
-                          <ChevronLeft className="h-3.5 w-3.5" />
-                          Volver
+                          <span className="font-medium text-brand-forest flex-1 min-w-0">
+                            {cfg.label}
+                          </span>
+                          {industrySaving === slug ? (
+                            <Loader2 className="h-4 w-4 animate-spin shrink-0 text-brand-forest" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-brand-forest/60 shrink-0" />
+                          )}
                         </button>
-                      )}
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {selectedGroup ? (
-                          /* ── Subcategory drill-down ── */
-                          selectedGroup.subcategories.map((sub) => (
-                            <button
-                              key={sub.slug}
-                              type="button"
-                              disabled={industrySaving !== null}
-                              onClick={() => handleSelectIndustry(sub.slug)}
-                              className={cn(
-                                "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
-                                "border-border/70 hover:border-brand-spring/60 hover:bg-brand-mint/40",
-                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest/30"
-                              )}
-                            >
-                              <span className="font-medium text-brand-forest flex-1 min-w-0">
-                                {sub.label}
-                              </span>
-                              {industrySaving === sub.slug ? (
-                                <Loader2 className="h-4 w-4 animate-spin shrink-0 text-brand-forest" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-brand-forest/60 shrink-0" />
-                              )}
-                            </button>
-                          ))
-                        ) : (
-                          /* ── First-level grid: direct industries + group cards ── */
-                          <>
-                            {directGrid.map(({ slug, cfg }) => (
-                              <button
-                                key={slug}
-                                type="button"
-                                disabled={industrySaving !== null}
-                                onClick={() => handleSelectIndustry(slug)}
-                                className={cn(
-                                  "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
-                                  "border-border/70 hover:border-brand-spring/60 hover:bg-brand-mint/40",
-                                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest/30"
-                                )}
-                              >
-                                <span className="font-medium text-brand-forest flex-1 min-w-0">
-                                  {cfg.label}
-                                </span>
-                                <span className="text-[10px] uppercase text-muted-foreground shrink-0">
-                                  {cfg.view === "menu" ? "Menú" : "Catálogo"}
-                                </span>
-                                {industrySaving === slug ? (
-                                  <Loader2 className="h-4 w-4 animate-spin shrink-0 text-brand-forest" />
-                                ) : (
-                                  <ChevronRight className="h-4 w-4 text-brand-forest/60 shrink-0" />
-                                )}
-                              </button>
-                            ))}
-
-                            {GROUPED_INDUSTRIES.map((group) => (
-                              <button
-                                key={group.groupLabel}
-                                type="button"
-                                disabled={industrySaving !== null}
-                                onClick={() => setSelectedGroup(group)}
-                                className={cn(
-                                  "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
-                                  "border-border/70 hover:border-brand-spring/60 hover:bg-brand-mint/40",
-                                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest/30"
-                                )}
-                              >
-                                {group.groupIcon && (
-                                  <span className="text-base shrink-0" aria-hidden>
-                                    {group.groupIcon}
-                                  </span>
-                                )}
-                                <span className="font-medium text-brand-forest flex-1 min-w-0">
-                                  {group.groupLabel}
-                                </span>
-                                <span className="text-[10px] uppercase text-muted-foreground shrink-0">
-                                  {group.subcategories.length} tipos
-                                </span>
-                                <ChevronRight className="h-4 w-4 text-brand-forest/60 shrink-0" />
-                              </button>
-                            ))}
-                          </>
-                        )}
-                      </div>
-                    </>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>

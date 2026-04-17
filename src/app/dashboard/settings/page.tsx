@@ -48,7 +48,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FALLBACK_INDUSTRIES } from "@/config/industries";
+import { FALLBACK_INDUSTRIES, FLAT_INDUSTRY_SLUGS_ORDER } from "@/config/industries";
 import { useIndustries } from "@/hooks/useIndustries";
 
 const COUNTRY_CODE_MX = "+52";
@@ -174,14 +174,16 @@ function SettingsPageInner() {
     [waProfileRes]
   );
 
-  const { industriesMap, orderedRows } = useIndustries();
+  const { orderedRows } = useIndustries();
   const industrySelectOptions = useMemo(() => {
     if (orderedRows?.length) {
-      return orderedRows.map((r) => ({ value: r.slug, label: r.label }));
+      return orderedRows
+        .filter((r) => r.is_active && r.is_selectable !== false)
+        .map((r) => ({ value: r.slug, label: r.label }));
     }
-    return Object.entries(FALLBACK_INDUSTRIES).map(([value, cfg]) => ({
+    return FLAT_INDUSTRY_SLUGS_ORDER.filter((slug) => FALLBACK_INDUSTRIES[slug]).map((value) => ({
       value,
-      label: cfg.label,
+      label: FALLBACK_INDUSTRIES[value].label,
     }));
   }, [orderedRows]);
 
@@ -593,7 +595,7 @@ function SettingsPageInner() {
                             </p>
                           )}
                           <p className="text-xs text-muted-foreground">
-                            Determina cómo se llama y organiza tu catálogo (Catálogo, Menú, etc.)
+                            Define el giro para adaptar formularios de productos y unidades.
                           </p>
                         </div>
 
