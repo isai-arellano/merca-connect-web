@@ -124,6 +124,7 @@ export interface ConversationCustomer {
 export interface ConversationSummary {
     id: string;
     status: string;
+    handoff_source?: "agent" | "operator" | null;
     agent_enabled?: boolean;
     updated_at?: string;
     customer?: ConversationCustomer;
