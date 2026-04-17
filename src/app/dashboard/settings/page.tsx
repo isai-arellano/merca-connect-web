@@ -189,7 +189,7 @@ function SettingsPageInner() {
         setDeliveryZone(cfg.delivery_zone);
       }
       setAllowOrdersOutsideHours(!!cfg.allow_orders_outside_hours);
-      setOutOfHoursMessage(cfg.out_of_hours_message || "");
+      setOutOfHoursMessage(typeof cfg.out_of_hours_message === "string" ? cfg.out_of_hours_message : "");
       setContactPhoneNumber(getPhoneDigits(settings.phone || "").slice(-10));
     }
   }, [settings]);
