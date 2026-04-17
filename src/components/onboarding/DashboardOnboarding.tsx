@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Circle,
   ChevronRight,
+  ChevronLeft,
   Loader2,
   Package,
   Smartphone,
@@ -22,9 +23,12 @@ import { endpoints } from "@/lib/api";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import {
   FALLBACK_INDUSTRIES,
+  DIRECT_INDUSTRIES,
+  GROUPED_INDUSTRIES,
   getIndustryConfig,
   getPublicCatalogRoute,
   industryApiRowToConfig,
+  type IndustryGroup,
 } from "@/config/industries";
 import { useIndustries } from "@/hooks/useIndustries";
 import { type BusinessSettings } from "@/types/api";
@@ -59,15 +63,30 @@ export function DashboardOnboarding({
   const [businessSheetOpen, setBusinessSheetOpen] = useState(false);
   const [productOpen, setProductOpen] = useState(false);
 
+  // Step 1 drill-down state: which group is expanded, and toggle to re-show picker
+  const [selectedGroup, setSelectedGroup] = useState<IndustryGroup | null>(null);
+  const [showIndustryPicker, setShowIndustryPicker] = useState(false);
+
   const { industriesMap, orderedRows } = useIndustries();
-  const industryGrid = useMemo(() => {
+
+  // Build the direct-industry list, preferring API data when available
+  const directGrid = useMemo(() => {
     if (orderedRows?.length) {
-      return orderedRows.map((r) => ({
-        slug: r.slug,
-        cfg: industryApiRowToConfig(r),
-      }));
+      // From API rows: exclude slugs that belong to a grouped industry
+      const groupedSlugs = new Set(
+        GROUPED_INDUSTRIES.flatMap((g) => g.subcategories.map((s) => s.slug))
+      );
+      // Also exclude group-level slugs that might be in the API
+      const groupLabels = new Set(GROUPED_INDUSTRIES.map((g) => g.groupLabel.toLowerCase()));
+      return orderedRows
+        .filter((r) => !groupedSlugs.has(r.slug) && !groupLabels.has(r.label.toLowerCase()))
+        .map((r) => ({ slug: r.slug, cfg: industryApiRowToConfig(r) }));
     }
-    return Object.entries(FALLBACK_INDUSTRIES).map(([slug, cfg]) => ({ slug, cfg }));
+    // Fallback: use DIRECT_INDUSTRIES definitions with FALLBACK_INDUSTRIES configs
+    return DIRECT_INDUSTRIES.map(({ slug, label, view }) => ({
+      slug,
+      cfg: FALLBACK_INDUSTRIES[slug] ?? { view, label, productLabel: "Producto", productFields: { showStock: true, showBarcode: false, showIngredients: false, showActiveSubstance: false, showPreparationTime: false, showDimensions: false, showSKU: false }, relevantUnits: [], features: { hasTables: false, hasPrescriptions: false } },
+    }));
   }, [orderedRows]);
 
   const industryConfig = getIndustryConfig(businessType, industriesMap);
@@ -81,19 +100,24 @@ export function DashboardOnboarding({
   const progress = Math.round((stepsComplete / 4) * 100);
 
   const refreshAfterSave = async () => {
-    await mutate(endpoints.business.settings);
-    await mutate(endpoints.dashboard.stats);
+    // Invalidate all SWR keys to ensure data is fresh regardless of session state
+    await mutate(() => true, undefined, { revalidate: true });
   };
 
   const handleSelectIndustry = async (slug: string) => {
     setIndustrySaving(slug);
     try {
       await apiClient.patch(endpoints.business.settings, { type: slug });
+      setSelectedGroup(null);
+      setShowIndustryPicker(false);
       await refreshAfterSave();
     } finally {
       setIndustrySaving(null);
     }
   };
+
+  // Determine if the industry picker should be visible
+  const isPickerVisible = !onboarding.hasIndustry || showIndustryPicker;
 
   return (
     <>
@@ -126,61 +150,157 @@ export function DashboardOnboarding({
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Step 1 — Industry */}
+            {/* ── Step 1 — Industry ─────────────────────────────────────────── */}
             <section
               className="rounded-xl border border-border/60 p-3 bg-background"
               aria-labelledby="onboarding-step-industry"
             >
               <div className="flex items-start gap-3">
-                {onboarding.hasIndustry ? (
+                {onboarding.hasIndustry && !showIndustryPicker ? (
                   <CheckCircle2 className="h-5 w-5 text-brand-spring shrink-0 mt-0.5" aria-hidden />
                 ) : (
                   <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" aria-hidden />
                 )}
                 <div className="flex-1 min-w-0 space-y-2">
-                  <div>
-                    <h3 id="onboarding-step-industry" className="text-sm font-medium text-foreground">
-                      1. Tipo de negocio
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {onboarding.hasIndustry
-                        ? `${viewLabel} · ${industryConfig.label}`
-                        : "Elige tu industria. Definimos catálogo o menú según el tipo."}
-                    </p>
-                  </div>
-                  {!onboarding.hasIndustry && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {industryGrid.map(({ slug, cfg }) => (
-                          <button
-                            key={slug}
-                            type="button"
-                            disabled={industrySaving !== null}
-                            onClick={() => handleSelectIndustry(slug)}
-                            className={cn(
-                              "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
-                              "border-border/70 hover:border-brand-spring/60 hover:bg-brand-mint/40",
-                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest/30"
-                            )}
-                          >
-                            <span className="font-medium text-brand-forest flex-1 min-w-0">{cfg.label}</span>
-                            <span className="text-[10px] uppercase text-muted-foreground shrink-0">
-                              {cfg.view === "menu" ? "Menú" : "Catálogo"}
-                            </span>
-                            {industrySaving === slug ? (
-                              <Loader2 className="h-4 w-4 animate-spin shrink-0 text-brand-forest" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4 text-brand-forest/60 shrink-0" />
-                            )}
-                          </button>
-                      ))}
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 id="onboarding-step-industry" className="text-sm font-medium text-foreground">
+                        1. Tipo de negocio
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {onboarding.hasIndustry && !showIndustryPicker
+                          ? `${viewLabel} · ${industryConfig.label}`
+                          : selectedGroup
+                          ? `Tienda en línea — elige el tipo`
+                          : "Elige tu industria. Definimos catálogo o menú según el tipo."}
+                      </p>
                     </div>
+                    {/* "Cambiar tipo" link — only when step is complete and picker is hidden */}
+                    {onboarding.hasIndustry && !showIndustryPicker && (
+                      <button
+                        type="button"
+                        className="text-[11px] text-muted-foreground hover:text-brand-forest underline-offset-2 hover:underline shrink-0 transition-colors"
+                        onClick={() => {
+                          setSelectedGroup(null);
+                          setShowIndustryPicker(true);
+                        }}
+                      >
+                        Cambiar
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Industry picker — hidden when step is complete and picker toggle is off */}
+                  {isPickerVisible && (
+                    <>
+                      {/* Back button when inside a group drill-down */}
+                      {selectedGroup && (
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-brand-forest transition-colors mb-1"
+                          onClick={() => setSelectedGroup(null)}
+                        >
+                          <ChevronLeft className="h-3.5 w-3.5" />
+                          Volver
+                        </button>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {selectedGroup ? (
+                          /* ── Subcategory drill-down ── */
+                          selectedGroup.subcategories.map((sub) => (
+                            <button
+                              key={sub.slug}
+                              type="button"
+                              disabled={industrySaving !== null}
+                              onClick={() => handleSelectIndustry(sub.slug)}
+                              className={cn(
+                                "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
+                                "border-border/70 hover:border-brand-spring/60 hover:bg-brand-mint/40",
+                                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest/30"
+                              )}
+                            >
+                              <span className="font-medium text-brand-forest flex-1 min-w-0">
+                                {sub.label}
+                              </span>
+                              {industrySaving === sub.slug ? (
+                                <Loader2 className="h-4 w-4 animate-spin shrink-0 text-brand-forest" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-brand-forest/60 shrink-0" />
+                              )}
+                            </button>
+                          ))
+                        ) : (
+                          /* ── First-level grid: direct industries + group cards ── */
+                          <>
+                            {directGrid.map(({ slug, cfg }) => (
+                              <button
+                                key={slug}
+                                type="button"
+                                disabled={industrySaving !== null}
+                                onClick={() => handleSelectIndustry(slug)}
+                                className={cn(
+                                  "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
+                                  "border-border/70 hover:border-brand-spring/60 hover:bg-brand-mint/40",
+                                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest/30"
+                                )}
+                              >
+                                <span className="font-medium text-brand-forest flex-1 min-w-0">
+                                  {cfg.label}
+                                </span>
+                                <span className="text-[10px] uppercase text-muted-foreground shrink-0">
+                                  {cfg.view === "menu" ? "Menú" : "Catálogo"}
+                                </span>
+                                {industrySaving === slug ? (
+                                  <Loader2 className="h-4 w-4 animate-spin shrink-0 text-brand-forest" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-brand-forest/60 shrink-0" />
+                                )}
+                              </button>
+                            ))}
+
+                            {GROUPED_INDUSTRIES.map((group) => (
+                              <button
+                                key={group.groupLabel}
+                                type="button"
+                                disabled={industrySaving !== null}
+                                onClick={() => setSelectedGroup(group)}
+                                className={cn(
+                                  "flex items-center gap-2 rounded-lg border px-3 py-2.5 text-left text-sm transition-colors",
+                                  "border-border/70 hover:border-brand-spring/60 hover:bg-brand-mint/40",
+                                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-forest/30"
+                                )}
+                              >
+                                {group.groupIcon && (
+                                  <span className="text-base shrink-0" aria-hidden>
+                                    {group.groupIcon}
+                                  </span>
+                                )}
+                                <span className="font-medium text-brand-forest flex-1 min-w-0">
+                                  {group.groupLabel}
+                                </span>
+                                <span className="text-[10px] uppercase text-muted-foreground shrink-0">
+                                  {group.subcategories.length} tipos
+                                </span>
+                                <ChevronRight className="h-4 w-4 text-brand-forest/60 shrink-0" />
+                              </button>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
             </section>
 
-            {/* Step 2 — Business */}
-            <section className="rounded-xl border border-border/60 p-3 bg-background">
+            {/* ── Step 2 — Business data ────────────────────────────────────── */}
+            <section
+              className={cn(
+                "rounded-xl border border-border/60 p-3 bg-background transition-opacity",
+                !onboarding.hasIndustry && "opacity-50"
+              )}
+            >
               <div className="flex items-start gap-3">
                 {onboarding.hasBusinessProfile ? (
                   <CheckCircle2 className="h-5 w-5 text-brand-spring shrink-0 mt-0.5" />
@@ -215,8 +335,13 @@ export function DashboardOnboarding({
               </div>
             </section>
 
-            {/* Step 3 — Product */}
-            <section className="rounded-xl border border-border/60 p-3 bg-background">
+            {/* ── Step 3 — Catalog ─────────────────────────────────────────── */}
+            <section
+              className={cn(
+                "rounded-xl border border-border/60 p-3 bg-background transition-opacity",
+                !onboarding.hasBusinessProfile && "opacity-50"
+              )}
+            >
               <div className="flex items-start gap-3">
                 {onboarding.hasCatalogContent ? (
                   <CheckCircle2 className="h-5 w-5 text-brand-spring shrink-0 mt-0.5" />
@@ -228,18 +353,16 @@ export function DashboardOnboarding({
                     <h3 className="text-sm font-medium text-foreground">3. {catalogLabel}</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {!onboarding.hasBusinessProfile
-                        ? "Primero completa los datos del negocio"
+                        ? "Completa tus datos primero"
                         : `Al menos un ${industryConfig.productLabel.toLowerCase()} visible`}
                     </p>
                   </div>
-                  {!onboarding.hasCatalogContent && (
+                  {!onboarding.hasCatalogContent && onboarding.hasBusinessProfile && (
                     <Button
                       type="button"
                       size="sm"
                       className="shrink-0 bg-brand-forest text-white hover:bg-brand-forest/90"
-                      disabled={!onboarding.hasBusinessProfile}
                       onClick={() => {
-                        if (!onboarding.hasBusinessProfile) return;
                         if (sessionBusinessPhoneId) {
                           setProductOpen(true);
                         } else {
@@ -248,15 +371,20 @@ export function DashboardOnboarding({
                       }}
                     >
                       <Package className="h-3.5 w-3.5 mr-1" />
-                      Agregar
+                      Agregar primer producto
                     </Button>
                   )}
                 </div>
               </div>
             </section>
 
-            {/* Step 4 — WhatsApp */}
-            <section className="rounded-xl border border-border/60 p-3 bg-background">
+            {/* ── Step 4 — WhatsApp ────────────────────────────────────────── */}
+            <section
+              className={cn(
+                "rounded-xl border border-border/60 p-3 bg-background transition-opacity",
+                !onboarding.canStartWhatsApp && "opacity-50"
+              )}
+            >
               <div className="flex items-start gap-3">
                 {onboarding.hasWhatsApp ? (
                   <CheckCircle2 className="h-5 w-5 text-brand-spring shrink-0 mt-0.5" />
@@ -267,7 +395,9 @@ export function DashboardOnboarding({
                   <div>
                     <h3 className="text-sm font-medium text-foreground">4. WhatsApp Business</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Vincula tu número para inbox y pedidos
+                      {!onboarding.canStartWhatsApp
+                        ? "Completa los pasos anteriores para habilitar"
+                        : "Vincula tu número para inbox y pedidos"}
                     </p>
                   </div>
                   <div className="flex flex-col items-stretch sm:items-end gap-1">
@@ -288,15 +418,10 @@ export function DashboardOnboarding({
                         </Link>
                       </Button>
                     ) : (
-                      <>
-                        <Button type="button" size="sm" variant="outline" disabled className="opacity-60">
-                          <Smartphone className="h-3.5 w-3.5 mr-1" />
-                          Conectar
-                        </Button>
-                        <p className="text-[10px] text-muted-foreground text-right max-w-[220px]">
-                          Completa los pasos 1 a 3 para habilitar la conexión.
-                        </p>
-                      </>
+                      <Button type="button" size="sm" variant="outline" disabled className="opacity-60">
+                        <Smartphone className="h-3.5 w-3.5 mr-1" />
+                        Conectar
+                      </Button>
                     )}
                   </div>
                 </div>

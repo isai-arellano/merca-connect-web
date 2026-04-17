@@ -1,10 +1,11 @@
 "use client";
 
-import { LogOut, Menu } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { LogOut, Menu, User } from "lucide-react";
+import { signOut, useSession } from "next-auth/react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 
@@ -14,6 +15,7 @@ import { SidebarContent } from "@/components/layout/sidebar";
 export function Navbar() {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const { data: session } = useSession();
 
     // Deferir hasta después de hidratar (evita mismatch SSR y permite next-auth en cliente)
     useEffect(() => {
@@ -52,10 +54,17 @@ export function Navbar() {
                                     variant="ghost"
                                     className="h-8 w-8 rounded-lg bg-brand-mint text-brand-forest hover:bg-brand-mint/80 p-0 font-semibold text-sm"
                                 >
-                                    A
+                                    {session?.user?.name?.charAt(0)?.toUpperCase() ?? "U"}
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem asChild className="cursor-pointer flex items-center gap-2">
+                                    <Link href="/dashboard/profile">
+                                        <User className="h-4 w-4" />
+                                        Mi perfil
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                     className="text-destructive cursor-pointer flex items-center gap-2"
                                     onClick={() => signOut({ callbackUrl: "/login" })}
