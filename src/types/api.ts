@@ -24,6 +24,7 @@ export interface DaySchedule {
 export interface BusinessConfig {
     payment_methods?: string[];
     delivery_zone?: string | null;
+    catalog_logo_url?: string | null;
     [key: string]: unknown;
 }
 

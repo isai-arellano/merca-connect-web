@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, Filter, Loader2, ExternalLink, Eye, EyeOff, Tag } from "lucide-react";
+import { Plus, Search, Filter, Loader2, ExternalLink, Eye, EyeOff, Tag, Trash2 } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -15,9 +16,10 @@ import { UnitsManager } from "@/components/products/units-manager";
 import { motion, Variants } from "framer-motion";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
-import { fetcher } from "@/lib/api-client";
+import { apiClient, fetcher } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { type ApiList } from "@/types/api";
+import { useToast } from "@/hooks/use-toast";
 
 interface Product {
     id: string;
@@ -42,6 +44,7 @@ interface Product {
     length_cm?: number | null;
     width_cm?: number | null;
     height_cm?: number | null;
+    is_active?: boolean;
 }
 
 function toFiniteNumber(value: string | number | null | undefined): number {
@@ -66,32 +69,104 @@ const PRODUCT_TYPE_LABELS: Record<string, string> = {
 
 export default function ProductsPage() {
     const { data: session } = useSession();
+    const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState("");
     const [dialogOpen, setDialogOpen] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<ProductDialogProduct | undefined>(undefined);
+    const [actingProductId, setActingProductId] = useState<string | null>(null);
 
     const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
 
     const { data: settingsData } = useSWR<{ slug?: string; type?: string }>(session ? endpoints.business.settings : null, fetcher);
-    const productsEndpoint = sessionBusinessPhoneId ? endpoints.products.list(sessionBusinessPhoneId) : null;
-    const { data: response, isLoading } = useSWR<ApiList<Product>>(session && productsEndpoint ? productsEndpoint : null, fetcher);
+    const productsEndpoint = sessionBusinessPhoneId ? endpoints.products.list(sessionBusinessPhoneId, true) : null;
+    const { data: response, isLoading, mutate: mutateProducts } = useSWR<ApiList<Product>>(session && productsEndpoint ? productsEndpoint : null, fetcher);
 
     const businessSlug: string | null = settingsData?.slug ?? null;
-    const businessType: string = settingsData?.type ?? "abarrotera";
+    const businessType: string = settingsData?.type ?? "";
+    const hasIndustry = Boolean(settingsData?.type);
     const config = getIndustryConfig(businessType);
 
     const products: Product[] = response?.data ?? [];
+    const activeProducts = products.filter((product) => product.is_active !== false);
+    const disabledProducts = products.filter((product) => product.is_active === false);
+
     const filteredProducts = searchTerm.trim()
-        ? products.filter((p) =>
+        ? activeProducts.filter((p) =>
             p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (p.category_name ?? "").toLowerCase().includes(searchTerm.toLowerCase())
         )
-        : products;
+        : activeProducts;
+
+    const filteredDisabledProducts = searchTerm.trim()
+        ? disabledProducts.filter((p) =>
+            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (p.category_name ?? "").toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        : disabledProducts;
 
     const moduleTitle = config.view === "menu" ? "Menú" : "Catálogo";
 
     function openCreate() { setSelectedProduct(undefined); setDialogOpen(true); }
     function openEdit(product: Product) { setSelectedProduct(product as ProductDialogProduct); setDialogOpen(true); }
+
+    async function handleDisableProduct(product: Product) {
+        const confirmed = window.confirm(`¿Deseas deshabilitar "${product.name}"? Dejará de mostrarse en ${moduleTitle.toLowerCase()}.`);
+        if (!confirmed) return;
+        setActingProductId(product.id);
+        try {
+            await apiClient.delete(endpoints.products.disable(product.id));
+            await mutateProducts();
+            toast({ title: "Producto deshabilitado", description: "Ya no se mostrará en tu catálogo/menú." });
+        } catch {
+            toast({ title: "No se pudo deshabilitar", description: "Intenta de nuevo en unos segundos.", variant: "destructive" });
+        } finally {
+            setActingProductId(null);
+        }
+    }
+
+    async function handleHardDeleteProduct(product: Product) {
+        const confirmed = window.confirm(`Esta acción eliminará definitivamente "${product.name}" y su imagen. ¿Deseas continuar?`);
+        if (!confirmed) return;
+        setActingProductId(product.id);
+        try {
+            await apiClient.delete(endpoints.products.hardDelete(product.id));
+            await mutateProducts();
+            toast({ title: "Producto eliminado", description: "Se eliminó de forma definitiva." });
+        } catch {
+            toast({ title: "No se pudo eliminar", description: "Intenta nuevamente.", variant: "destructive" });
+        } finally {
+            setActingProductId(null);
+        }
+    }
+
+    async function handleEnableProduct(product: Product) {
+        setActingProductId(product.id);
+        try {
+            await apiClient.patch(endpoints.products.detail(product.id, sessionBusinessPhoneId), { is_active: true });
+            await mutateProducts();
+            toast({ title: "Producto habilitado", description: "Ya vuelve a estar disponible en tu catálogo/menú." });
+        } catch {
+            toast({ title: "No se pudo habilitar", description: "Intenta nuevamente.", variant: "destructive" });
+        } finally {
+            setActingProductId(null);
+        }
+    }
+
+    if (!hasIndustry) {
+        return (
+            <motion.div className="max-w-3xl mx-auto" variants={containerVariants} initial="hidden" animate="show">
+                <motion.div variants={itemVariants} className="rounded-2xl border border-border/60 bg-background p-6 shadow-sm space-y-4">
+                    <h1 className="text-2xl font-bold tracking-tight">Primero configura tu tipo de negocio</h1>
+                    <p className="text-sm text-muted-foreground">
+                        Para habilitar catálogo/menú, categorías y unidades, necesitas seleccionar tu industria en configuración.
+                    </p>
+                    <Button asChild>
+                        <a href="/dashboard/settings">Ir a configuración</a>
+                    </Button>
+                </motion.div>
+            </motion.div>
+        );
+    }
 
     return (
         <motion.div
@@ -135,6 +210,7 @@ export default function ProductsPage() {
                 <Tabs defaultValue="products">
                     <TabsList className="mb-4">
                         <TabsTrigger value="products">{config.productLabel}s</TabsTrigger>
+                        <TabsTrigger value="disabled">Deshabilitados</TabsTrigger>
                         <TabsTrigger value="categories">Categorías</TabsTrigger>
                         <TabsTrigger value="units">Unidades</TabsTrigger>
                     </TabsList>
@@ -197,9 +273,11 @@ export default function ProductsPage() {
                                             <TableRow key={product.id} className="border-border hover:bg-muted/50 transition-colors">
                                                 <TableCell>
                                                     {product.image_url ? (
-                                                        <img
+                                                        <Image
                                                             src={product.image_url}
                                                             alt={product.name}
+                                                            width={36}
+                                                            height={36}
                                                             className="w-9 h-9 rounded-md object-cover border border-border"
                                                         />
                                                     ) : (
@@ -244,13 +322,82 @@ export default function ProductsPage() {
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-right">
+                                                    <div className="flex justify-end gap-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                                                            onClick={() => openEdit(product)}
+                                                        >
+                                                            Editar
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            disabled={actingProductId === product.id}
+                                                            className="h-8 px-2 text-amber-700 hover:text-amber-800"
+                                                            onClick={() => handleDisableProduct(product)}
+                                                        >
+                                                            {actingProductId === product.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Deshabilitar"}
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            disabled={actingProductId === product.id}
+                                                            className="h-8 px-2 text-destructive hover:text-destructive"
+                                                            onClick={() => handleHardDeleteProduct(product)}
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5 mr-1" /> Eliminar
+                                                        </Button>
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                            </div>
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="disabled" className="space-y-4">
+                        <div className="rounded-2xl border border-border/60 bg-background overflow-hidden shadow-sm">
+                            <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader className="bg-muted/50">
+                                    <TableRow className="border-border">
+                                        <TableHead>Nombre</TableHead>
+                                        <TableHead>Categoría</TableHead>
+                                        <TableHead className="text-right">Precio</TableHead>
+                                        <TableHead className="text-right w-[160px]">Acciones</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredDisabledProducts.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="h-20 text-center text-muted-foreground">
+                                                No tienes productos deshabilitados.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        filteredDisabledProducts.map((product) => (
+                                            <TableRow key={product.id} className="border-border">
+                                                <TableCell className="font-medium">{product.name}</TableCell>
+                                                <TableCell className="text-muted-foreground text-sm">
+                                                    {product.category_name || "Sin categoría"}
+                                                </TableCell>
+                                                <TableCell className="text-right font-medium">
+                                                    ${toFiniteNumber(product.price).toFixed(2)}
+                                                </TableCell>
+                                                <TableCell className="text-right">
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
-                                                        className="h-8 px-2 text-muted-foreground hover:text-foreground"
-                                                        onClick={() => openEdit(product)}
+                                                        disabled={actingProductId === product.id}
+                                                        onClick={() => handleEnableProduct(product)}
                                                     >
-                                                        Editar
+                                                        {actingProductId === product.id ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                                                        Habilitar
                                                     </Button>
                                                 </TableCell>
                                             </TableRow>

@@ -23,6 +23,7 @@ interface CatalogSection {
 interface CatalogData {
     business_name: string;
     business_type: string;
+    catalog_logo_url: string | null;
     slug: string | null;
     total_products: number;
     plan_limit: number | null;
@@ -62,9 +63,11 @@ function ProductCard({ product }: { product: CatalogProductItem }) {
     return (
         <div className="flex gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
             {product.image_url ? (
-                <img
+                <Image
                     src={product.image_url}
                     alt={product.name}
+                    width={64}
+                    height={64}
                     className="h-16 w-16 rounded-lg object-cover shrink-0"
                 />
             ) : (
@@ -104,8 +107,18 @@ export default async function CatalogPage(
         <div className="min-h-screen bg-background">
             <div className="mx-auto max-w-2xl px-4 py-8">
                 <div className="mb-8 flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                        <ShoppingBag className="h-6 w-6 text-primary" />
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 overflow-hidden">
+                        {catalog.catalog_logo_url ? (
+                            <Image
+                                src={catalog.catalog_logo_url}
+                                alt={`Logo de ${catalog.business_name}`}
+                                width={48}
+                                height={48}
+                                className="h-12 w-12 object-cover"
+                            />
+                        ) : (
+                            <ShoppingBag className="h-6 w-6 text-primary" />
+                        )}
                     </div>
                     <div>
                         <h1 className="text-2xl font-bold text-foreground">{catalog.business_name}</h1>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence, Variants } from "framer-motion";
@@ -24,6 +25,8 @@ import {
   CreditCard,
   Truck,
   Building2,
+  ImageIcon,
+  Upload,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
@@ -41,7 +44,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -134,14 +136,20 @@ function SettingsPageInner() {
     fetcher
   );
 
-  const settings: BusinessSettings =
-    (settingsRes as { data: BusinessSettings } | null)?.data ??
-    (settingsRes as BusinessSettings | null) ??
-    {};
-  const waProfile: WhatsAppProfile =
-    (waProfileRes as { data: WhatsAppProfile } | null)?.data ??
-    (waProfileRes as WhatsAppProfile | null) ??
-    {};
+  const settings: BusinessSettings = useMemo(
+    () =>
+      (settingsRes as { data: BusinessSettings } | null)?.data ??
+      (settingsRes as BusinessSettings | null) ??
+      {},
+    [settingsRes]
+  );
+  const waProfile: WhatsAppProfile = useMemo(
+    () =>
+      (waProfileRes as { data: WhatsAppProfile } | null)?.data ??
+      (waProfileRes as WhatsAppProfile | null) ??
+      {},
+    [waProfileRes]
+  );
 
   // Business form state
   const [businessForm, setBusinessForm] = useState({
@@ -160,6 +168,9 @@ function SettingsPageInner() {
   const [contactPhoneNumber, setContactPhoneNumber] = useState("");
   const [allowOrdersOutsideHours, setAllowOrdersOutsideHours] = useState(false);
   const [outOfHoursMessage, setOutOfHoursMessage] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   // WhatsApp form state
   const [waForm, setWaForm] = useState({
@@ -357,6 +368,48 @@ function SettingsPageInner() {
       setSaving(false);
     }
   };
+
+  const currentLogoUrl = logoPreview ?? (typeof settings.config?.catalog_logo_url === "string" ? settings.config.catalog_logo_url : null);
+
+  const handleLogoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setLogoFile(file);
+    setLogoPreview(URL.createObjectURL(file));
+  };
+
+  const handleUploadLogo = async () => {
+    if (!logoFile) return;
+    setIsUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", logoFile);
+      await apiClient.uploadForm(endpoints.business.logoUpload, formData);
+      await mutateSettings();
+      setLogoFile(null);
+      setLogoPreview(null);
+      toast({
+        title: "Logo actualizado",
+        description: "El logo se subió y reemplazó correctamente.",
+      });
+    } catch {
+      toast({
+        title: "Error al subir logo",
+        description: "No se pudo actualizar el logo. Intenta nuevamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (logoPreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(logoPreview);
+      }
+    };
+  }, [logoPreview]);
 
   return (
     <motion.div
@@ -680,6 +733,57 @@ function SettingsPageInner() {
 
                         <Separator />
 
+                        <div className="space-y-3">
+                          <Label className="flex items-center gap-2">
+                            <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                            Logo para catálogo/menú
+                          </Label>
+                          <div className="flex items-center gap-3">
+                            {currentLogoUrl ? (
+                              <Image
+                                src={currentLogoUrl}
+                                alt="Logo de negocio"
+                                width={56}
+                                height={56}
+                                className="h-14 w-14 rounded-md border border-border object-cover"
+                              />
+                            ) : (
+                              <div className="h-14 w-14 rounded-md border border-border bg-muted flex items-center justify-center text-muted-foreground">
+                                <ImageIcon className="h-5 w-5" />
+                              </div>
+                            )}
+                            <div className="flex flex-col gap-2">
+                              <Input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleLogoFileChange}
+                                className="max-w-xs"
+                              />
+                              {logoFile && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={handleUploadLogo}
+                                  disabled={isUploadingLogo}
+                                  className="w-fit"
+                                >
+                                  {isUploadingLogo ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <Upload className="h-4 w-4 mr-2" />
+                                  )}
+                                  Subir logo
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Se convierte y publica como imagen optimizada para tu catálogo/menú.
+                          </p>
+                        </div>
+
+                        <Separator />
+
                         {/* Métodos de pago */}
                         <div className="space-y-3">
                           <Label className="flex items-center gap-2">
@@ -923,9 +1027,11 @@ function SettingsPageInner() {
                         <div className="flex items-center gap-4">
                           <div className="h-16 w-16 rounded-full bg-emerald-500/10 border-2 border-emerald-500/20 flex items-center justify-center">
                             {waProfile.profile_picture_url ? (
-                              <img
+                              <Image
                                 src={waProfile.profile_picture_url}
                                 alt="Perfil"
+                                width={64}
+                                height={64}
                                 className="h-16 w-16 rounded-full object-cover"
                               />
                             ) : (
