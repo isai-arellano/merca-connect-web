@@ -3,6 +3,19 @@
 import { Sidebar, SidebarProvider, useSidebar } from "@/components/layout/sidebar";
 import { Navbar } from "@/components/layout/navbar";
 import { useEffect, useState } from "react";
+import { useSession, signOut } from "next-auth/react";
+
+function TokenExpiryGuard({ children }: { children: React.ReactNode }) {
+    const { data: session } = useSession();
+
+    useEffect(() => {
+        if (session?.error === "TokenExpired") {
+            signOut({ callbackUrl: "/login" });
+        }
+    }, [session]);
+
+    return <>{children}</>;
+}
 
 function DashboardInner({ children }: { children: React.ReactNode }) {
     const { collapsed } = useSidebar();
@@ -62,7 +75,9 @@ export default function DashboardLayout({
     return (
         <SidebarProvider>
             <div className="min-h-screen bg-background">
-                <DashboardInner>{children}</DashboardInner>
+                <TokenExpiryGuard>
+                    <DashboardInner>{children}</DashboardInner>
+                </TokenExpiryGuard>
             </div>
         </SidebarProvider>
     );

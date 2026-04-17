@@ -7,6 +7,7 @@ declare module "next-auth" {
     businessPhoneId?: string | null;
     businessName?: string | null;
     role?: string;
+    error?: "TokenExpired";
     user: DefaultSession["user"] & {
       id?: string;
       businessId?: string | null;
@@ -31,5 +32,7 @@ declare module "next-auth/jwt" {
     businessPhoneId?: string | null;
     businessName?: string | null;
     role?: string;
+    expiresAt?: number;
+    error?: "TokenExpired";
   }
 }
