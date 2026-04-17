@@ -41,6 +41,9 @@ export interface IndustryApiRow {
     features: IndustryConfig["features"];
     sort_order: number;
     is_active: boolean;
+    parent_slug?: string | null;
+    /** false = grupo padre (no se guarda en negocio); omitido en despliegues antiguos = elegible */
+    is_selectable?: boolean;
 }
 
 export function industryApiRowToConfig(row: IndustryApiRow): IndustryConfig {
@@ -57,18 +60,30 @@ export function industryApiRowToConfig(row: IndustryApiRow): IndustryConfig {
 export function buildIndustryMapFromApi(rows: IndustryApiRow[]): Record<string, IndustryConfig> {
     const m: Record<string, IndustryConfig> = {};
     for (const row of rows) {
-        if (row.is_active) {
+        if (row.is_active && row.is_selectable !== false) {
             m[row.slug] = industryApiRowToConfig(row);
         }
     }
     return m;
 }
 
-/** Semilla alineada con `alembic/versions/m1n2o3p4q5r6_add_industries_table.py` */
+/** Slugs antiguos → slug canónico para etiquetas y campos de producto. */
+const LEGACY_INDUSTRY_SLUG_ALIASES: Record<string, string> = {
+    tienda_online: "tienda_digital",
+    tienda_electronica: "tienda_digital",
+    tienda_ropa: "tienda_digital",
+};
+
+export function canonicalIndustrySlug(slug: string | undefined | null): string {
+    const s = (slug ?? "abarrotera").trim() || "abarrotera";
+    return LEGACY_INDUSTRY_SLUG_ALIASES[s] ?? s;
+}
+
+/** Semilla alineada con migraciones `industries` (lista plana MVP). */
 export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
     abarrotera: {
         view: "catalogo",
-        label: "Abarrotera",
+        label: "Abarrotes / miscelánea",
         productLabel: "Producto",
         productFields: {
             showStock: true,
@@ -128,6 +143,22 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
             showSKU: true,
         },
         relevantUnits: ["pza", "und", "m", "cm", "kg"],
+        features: { hasTables: false, hasPrescriptions: false },
+    },
+    tienda_digital: {
+        view: "catalogo",
+        label: "Tienda digital",
+        productLabel: "Producto",
+        productFields: {
+            showStock: true,
+            showBarcode: true,
+            showIngredients: false,
+            showActiveSubstance: false,
+            showPreparationTime: false,
+            showDimensions: false,
+            showSKU: true,
+        },
+        relevantUnits: ["pza", "und"],
         features: { hasTables: false, hasPrescriptions: false },
     },
     tienda_ropa: {
@@ -212,11 +243,22 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
     },
 };
 
+/** Orden del onboarding cuando la API no está disponible (lista plana). */
+export const FLAT_INDUSTRY_SLUGS_ORDER: readonly string[] = [
+    "abarrotera",
+    "ferreteria",
+    "farmacia",
+    "restaurante",
+    "cafeteria",
+    "servicios",
+    "tienda_digital",
+];
+
 export function getIndustryConfig(
     type: string | undefined | null,
     map: Record<string, IndustryConfig> = FALLBACK_INDUSTRIES,
 ): IndustryConfig {
-    const slug = (type ?? "abarrotera").trim() || "abarrotera";
+    const slug = canonicalIndustrySlug(type);
     return map[slug] ?? FALLBACK_INDUSTRIES[slug] ?? FALLBACK_INDUSTRIES.abarrotera;
 }
 
@@ -233,52 +275,3 @@ export type IndustryType = IndustrySlug;
 
 /** @deprecated Usar `FALLBACK_INDUSTRIES` o datos de `useIndustries()` */
 export const INDUSTRIES = FALLBACK_INDUSTRIES;
-
-// ─── Subcategory system ───────────────────────────────────────────────────────
-
-export interface IndustrySubcategory {
-    /** slug that gets saved to DB as `businesses.type` */
-    slug: string;
-    /** Display label shown in the subcategory picker */
-    label: string;
-}
-
-export interface IndustryGroup {
-    /** Display label for the group card in the first-level grid */
-    groupLabel: string;
-    /** Optional emoji shown on the group card */
-    groupIcon?: string;
-    /** CatalogView shared by all subcategories in this group */
-    view: CatalogView;
-    subcategories: IndustrySubcategory[];
-}
-
-/**
- * Industries that map directly to a single slug — clicking them immediately
- * calls handleSelectIndustry without a second drill-down step.
- */
-export const DIRECT_INDUSTRIES: { slug: string; label: string; view: CatalogView }[] = [
-    { slug: "abarrotera",  label: "Abarrotera",  view: "catalogo" },
-    { slug: "restaurante", label: "Restaurante", view: "menu" },
-    { slug: "cafeteria",   label: "Cafetería",   view: "menu" },
-    { slug: "ferreteria",  label: "Ferretería",  view: "catalogo" },
-    { slug: "farmacia",    label: "Farmacia",    view: "catalogo" },
-    { slug: "servicios",   label: "Servicios",   view: "catalogo" },
-];
-
-/**
- * Industries that contain subcategories. Clicking the group card shows
- * a second-level picker with the subcategories listed.
- */
-export const GROUPED_INDUSTRIES: IndustryGroup[] = [
-    {
-        groupLabel: "Tienda en línea",
-        groupIcon: "🛒",
-        view: "catalogo",
-        subcategories: [
-            { slug: "tienda_electronica", label: "Electrónicos" },
-            { slug: "tienda_ropa",        label: "Ropa y moda" },
-            { slug: "tienda_online",      label: "General / Otra" },
-        ],
-    },
-];
