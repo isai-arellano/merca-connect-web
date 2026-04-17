@@ -250,10 +250,18 @@ export default function DashboardPage() {
 
     const onboardingSteps: OnboardingStep[] = [
         {
+            id: "industry",
+            title: "Selecciona tu tipo de negocio",
+            description: "Elige tu industria para habilitar catálogo o menú y sus opciones",
+            done: hasIndustry,
+            href: "/dashboard/settings",
+            cta: "Elegir",
+        },
+        {
             id: "business",
             title: "Configura tu negocio",
             description: "Completa datos del negocio, horario, URL de catálogo y métodos de pago",
-            done: hasName && hasSlug && hasIndustry && hasHours && hasPaymentMethods,
+            done: hasName && hasSlug && hasHours && hasPaymentMethods,
             href: "/dashboard/settings",
             cta: "Configurar",
         },
@@ -261,9 +269,9 @@ export default function DashboardPage() {
             id: "catalog",
             title: `Sube tu ${catalogLabel.toLowerCase()}`,
             description: "Agrega al menos un producto para que el agente pueda responder sobre tu oferta",
-            done: hasProducts,
-            href: "/dashboard/products",
-            cta: "Agregar",
+            done: hasIndustry && hasProducts,
+            href: hasIndustry ? "/dashboard/products" : "/dashboard/settings",
+            cta: hasIndustry ? "Agregar" : "Elegir industria",
         },
         {
             id: "whatsapp",
@@ -438,9 +446,11 @@ export default function DashboardPage() {
                             title: hasProducts ? `${stats?.active_products} productos cargados` : `Tu ${catalogLabel}`,
                             desc: hasProducts
                                 ? "Tu catálogo está listo. Conecta WhatsApp para que el agente empiece a vender."
-                                : `Empieza cargando tu ${catalogLabel.toLowerCase()} — puedes hacerlo antes de conectar WhatsApp`,
-                            href: "/dashboard/products",
-                            cta: hasProducts ? "Ver catálogo" : "Agregar productos",
+                                : hasIndustry
+                                ? `Empieza cargando tu ${catalogLabel.toLowerCase()} — puedes hacerlo antes de conectar WhatsApp`
+                                : "Primero selecciona tu tipo de negocio para habilitar tu catálogo o menú.",
+                            href: hasIndustry ? "/dashboard/products" : "/dashboard/settings",
+                            cta: hasIndustry ? (hasProducts ? "Ver catálogo" : "Agregar productos") : "Elegir industria",
                         },
                     ].map(({ icon: Icon, title, desc, href, cta }) => (
                         <Card key={href} className="rounded-2xl border-dashed border-border/60 shadow-sm">
