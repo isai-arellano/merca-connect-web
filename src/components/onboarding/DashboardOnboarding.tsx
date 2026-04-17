@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,15 +10,12 @@ import {
   Circle,
   ChevronRight,
   Loader2,
-  Package,
   Smartphone,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useSWRConfig } from "swr";
-import { useSession } from "next-auth/react";
 import { apiClient } from "@/lib/api-client";
 import { endpoints } from "@/lib/api";
-import { getSessionBusinessPhoneId } from "@/lib/business";
 import {
   FALLBACK_INDUSTRIES,
   FLAT_INDUSTRY_SLUGS_ORDER,
@@ -31,7 +27,6 @@ import { useIndustries } from "@/hooks/useIndustries";
 import { type BusinessSettings } from "@/types/api";
 import { type OnboardingState } from "@/lib/onboarding";
 import { BusinessSetupSheet } from "@/components/onboarding/BusinessSetupSheet";
-import { ProductDialog } from "@/components/products/product-dialog";
 import { cn } from "@/lib/utils";
 
 const itemVariants = {
@@ -53,12 +48,8 @@ export function DashboardOnboarding({
   businessType,
 }: DashboardOnboardingProps) {
   const { mutate } = useSWRConfig();
-  const { data: session } = useSession();
-  const router = useRouter();
-  const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
   const [industrySaving, setIndustrySaving] = useState<string | null>(null);
   const [businessSheetOpen, setBusinessSheetOpen] = useState(false);
-  const [productOpen, setProductOpen] = useState(false);
 
   const [showIndustryPicker, setShowIndustryPicker] = useState(false);
 
@@ -79,14 +70,14 @@ export function DashboardOnboarding({
 
   const industryConfig = getIndustryConfig(businessType, industriesMap);
 
-  const stepsComplete =
-    [onboarding.hasIndustry, onboarding.hasBusinessProfile, onboarding.hasCatalogContent, onboarding.hasWhatsApp].filter(
-      Boolean
-    ).length;
-  const progress = Math.round((stepsComplete / 4) * 100);
+  const stepsComplete = [
+    onboarding.hasIndustry,
+    onboarding.hasBusinessProfile,
+    onboarding.hasWhatsApp,
+  ].filter(Boolean).length;
+  const progress = Math.round((stepsComplete / 3) * 100);
 
   const refreshAfterSave = async () => {
-    // Invalidate all SWR keys to ensure data is fresh regardless of session state
     await mutate(() => true, undefined, { revalidate: true });
   };
 
@@ -101,7 +92,6 @@ export function DashboardOnboarding({
     }
   };
 
-  // Determine if the industry picker should be visible
   const isPickerVisible = !onboarding.hasIndustry || showIndustryPicker;
 
   return (
@@ -115,7 +105,7 @@ export function DashboardOnboarding({
                   Configura tu negocio
                 </CardTitle>
                 <CardDescription className="mt-0.5 text-sm">
-                  {stepsComplete} de 4 pasos completados — todo desde aquí
+                  {stepsComplete} de 3 pasos — industria, datos básicos y WhatsApp
                 </CardDescription>
               </div>
               <Badge
@@ -135,7 +125,7 @@ export function DashboardOnboarding({
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* ── Step 1 — Industry ─────────────────────────────────────────── */}
+            {/* Step 1 — Industry */}
             <section
               className="rounded-xl border border-border/60 p-3 bg-background"
               aria-labelledby="onboarding-step-industry"
@@ -155,10 +145,9 @@ export function DashboardOnboarding({
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {onboarding.hasIndustry && !showIndustryPicker
                           ? industryConfig.label
-                          : "Elige el giro que mejor describe tu negocio. Podrás ajustar detalles después."}
+                          : "Elige el giro que mejor describe tu negocio."}
                       </p>
                     </div>
-                    {/* "Cambiar tipo" link — only when step is complete and picker is hidden */}
                     {onboarding.hasIndustry && !showIndustryPicker && (
                       <button
                         type="button"
@@ -172,7 +161,6 @@ export function DashboardOnboarding({
                     )}
                   </div>
 
-                  {/* Industry picker — hidden when step is complete and picker toggle is off */}
                   {isPickerVisible && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {directGrid.map(({ slug, cfg }) => (
@@ -203,7 +191,7 @@ export function DashboardOnboarding({
               </div>
             </section>
 
-            {/* ── Step 2 — Business data ────────────────────────────────────── */}
+            {/* Step 2 — Name + hours */}
             <section
               className={cn(
                 "rounded-xl border border-border/60 p-3 bg-background transition-opacity",
@@ -218,11 +206,11 @@ export function DashboardOnboarding({
                 )}
                 <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <div>
-                    <h3 className="text-sm font-medium text-foreground">2. Datos del negocio</h3>
+                    <h3 className="text-sm font-medium text-foreground">2. Nombre y horario</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {!onboarding.hasIndustry
                         ? "Primero elige tu tipo de negocio"
-                        : "Nombre, horario, URL pública y métodos de pago"}
+                        : "Nombre del negocio y al menos un día con horario de atención"}
                     </p>
                   </div>
                   {!onboarding.hasBusinessProfile && (
@@ -244,50 +232,7 @@ export function DashboardOnboarding({
               </div>
             </section>
 
-            {/* ── Step 3 — Catalog ─────────────────────────────────────────── */}
-            <section
-              className={cn(
-                "rounded-xl border border-border/60 p-3 bg-background transition-opacity",
-                !onboarding.hasBusinessProfile && "opacity-50"
-              )}
-            >
-              <div className="flex items-start gap-3">
-                {onboarding.hasCatalogContent ? (
-                  <CheckCircle2 className="h-5 w-5 text-brand-spring shrink-0 mt-0.5" />
-                ) : (
-                  <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" />
-                )}
-                <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div>
-                    <h3 className="text-sm font-medium text-foreground">3. {catalogLabel}</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {!onboarding.hasBusinessProfile
-                        ? "Completa tus datos primero"
-                        : `Al menos un ${industryConfig.productLabel.toLowerCase()} visible`}
-                    </p>
-                  </div>
-                  {!onboarding.hasCatalogContent && onboarding.hasBusinessProfile && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="shrink-0 bg-brand-forest text-white hover:bg-brand-forest/90"
-                      onClick={() => {
-                        if (sessionBusinessPhoneId) {
-                          setProductOpen(true);
-                        } else {
-                          router.push("/dashboard/products");
-                        }
-                      }}
-                    >
-                      <Package className="h-3.5 w-3.5 mr-1" />
-                      Agregar primer producto
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* ── Step 4 — WhatsApp ────────────────────────────────────────── */}
+            {/* Step 3 — WhatsApp */}
             <section
               className={cn(
                 "rounded-xl border border-border/60 p-3 bg-background transition-opacity",
@@ -302,10 +247,10 @@ export function DashboardOnboarding({
                 )}
                 <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <div>
-                    <h3 className="text-sm font-medium text-foreground">4. WhatsApp Business</h3>
+                    <h3 className="text-sm font-medium text-foreground">3. WhatsApp Business</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {!onboarding.canStartWhatsApp
-                        ? "Completa los pasos anteriores para habilitar"
+                        ? "Completa nombre y horario para habilitar"
                         : "Vincula tu número para inbox y pedidos"}
                     </p>
                   </div>
@@ -336,6 +281,14 @@ export function DashboardOnboarding({
                 </div>
               </div>
             </section>
+
+            <p className="text-[11px] text-muted-foreground px-1">
+              Tu {catalogLabel.toLowerCase()} público, URL y logo los configuras en{" "}
+              <Link href="/dashboard/products" className="text-brand-forest font-medium hover:underline">
+                {catalogLabel}
+              </Link>{" "}
+              cuando quieras.
+            </p>
           </CardContent>
         </Card>
       </motion.div>
@@ -346,20 +299,6 @@ export function DashboardOnboarding({
         settings={settings}
         onSaved={refreshAfterSave}
       />
-
-      {sessionBusinessPhoneId && onboarding.hasIndustry && (
-        <ProductDialog
-          open={productOpen}
-          onOpenChange={(o) => {
-            setProductOpen(o);
-            if (!o) void refreshAfterSave();
-          }}
-          config={industryConfig}
-          businessPhoneId={sessionBusinessPhoneId}
-          product={undefined}
-        />
-      )}
-      {/* When no businessPhoneId yet, productOpen is never true (we redirect instead) */}
     </>
   );
 }

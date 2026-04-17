@@ -24,8 +24,6 @@ import {
   CreditCard,
   Truck,
   Building2,
-  ImageIcon,
-  Upload,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
@@ -53,9 +51,6 @@ import { useIndustries } from "@/hooks/useIndustries";
 
 const COUNTRY_CODE_MX = "+52";
 const MEXICO_FLAG = "\uD83C\uDDF2\uD83C\uDDFD";
-const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
-const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-
 interface BusinessFormErrors {
   name?: string;
   type?: string;
@@ -203,9 +198,6 @@ function SettingsPageInner() {
   const [contactPhoneNumber, setContactPhoneNumber] = useState("");
   const [allowOrdersOutsideHours, setAllowOrdersOutsideHours] = useState(false);
   const [outOfHoursMessage, setOutOfHoursMessage] = useState("");
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
-  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   // WhatsApp form state
   const [waForm, setWaForm] = useState({
@@ -385,76 +377,6 @@ function SettingsPageInner() {
       setSaving(false);
     }
   };
-
-  const currentLogoUrl = logoPreview ?? (typeof settings.config?.catalog_logo_url === "string" ? settings.config.catalog_logo_url : null);
-
-  const handleLogoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-      toast({
-        title: "Formato no permitido",
-        description: "Usa JPG, PNG o WEBP para el logo.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
-      toast({
-        title: "Archivo demasiado grande",
-        description: "El logo debe ser menor a 5 MB.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (logoPreview?.startsWith("blob:")) {
-      URL.revokeObjectURL(logoPreview);
-    }
-    setLogoFile(file);
-    setLogoPreview(URL.createObjectURL(file));
-  };
-
-  const handleUploadLogo = async () => {
-    if (!logoFile) return;
-    setIsUploadingLogo(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", logoFile);
-      await apiClient.uploadForm(endpoints.business.logoUpload, formData);
-      await mutateSettings();
-      setLogoFile(null);
-      setLogoPreview(null);
-      toast({
-        title: "Logo actualizado",
-        description: "El logo se subió y reemplazó correctamente.",
-      });
-    } catch (error: unknown) {
-      let description = "No se pudo actualizar el logo. Intenta nuevamente.";
-      if (error instanceof NetworkError) {
-        description = error.message;
-      } else if (error instanceof ApiError && error.message) {
-        description = error.message;
-      }
-      toast({
-        title: "Error al subir logo",
-        description,
-        variant: "destructive",
-      });
-    } finally {
-      setIsUploadingLogo(false);
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      if (logoPreview?.startsWith("blob:")) {
-        URL.revokeObjectURL(logoPreview);
-      }
-    };
-  }, [logoPreview]);
 
   return (
     <motion.div
@@ -724,54 +646,13 @@ function SettingsPageInner() {
 
                         <Separator />
 
-                        <div className="space-y-3">
-                          <Label className="flex items-center gap-2">
-                            <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                            Logo para catálogo/menú
-                          </Label>
-                          <div className="flex items-center gap-3">
-                            {currentLogoUrl ? (
-                              <Image
-                                src={currentLogoUrl}
-                                alt="Logo de negocio"
-                                width={56}
-                                height={56}
-                                className="h-14 w-14 rounded-md border border-border object-cover"
-                              />
-                            ) : (
-                              <div className="h-14 w-14 rounded-md border border-border bg-muted flex items-center justify-center text-muted-foreground">
-                                <ImageIcon className="h-5 w-5" />
-                              </div>
-                            )}
-                            <div className="flex flex-col gap-2">
-                              <Input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleLogoFileChange}
-                                className="max-w-xs"
-                              />
-                              {logoFile && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  onClick={handleUploadLogo}
-                                  disabled={isUploadingLogo}
-                                  className="w-fit"
-                                >
-                                  {isUploadingLogo ? (
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  ) : (
-                                    <Upload className="h-4 w-4 mr-2" />
-                                  )}
-                                  Subir logo
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Se convierte y publica como imagen optimizada para tu catálogo/menú.
-                          </p>
-                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          <a href="/dashboard/products" className="text-brand-forest font-medium hover:underline">
+                            Logo y URL pública del catálogo o menú
+                          </a>
+                          {" — "}
+                          configúralos en la sección Catálogo / Menú.
+                        </p>
 
                         <Separator />
 

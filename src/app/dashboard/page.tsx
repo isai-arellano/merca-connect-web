@@ -333,7 +333,7 @@ export default function DashboardPage() {
                                 <p className="text-xs text-muted-foreground mt-1 max-w-[220px] mx-auto">
                                     {onboardingState.canStartWhatsApp
                                         ? "Conecta tu WhatsApp Business para ver conversaciones y pedidos en tiempo real."
-                                        : "Completa el asistente arriba (pasos 1 a 3) para habilitar la conexión de WhatsApp."}
+                                        : "Completa tipo de negocio y nombre con horario (pasos 1 y 2) para habilitar WhatsApp."}
                                 </p>
                             </div>
                             {onboardingState.canStartWhatsApp ? (

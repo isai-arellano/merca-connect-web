@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
     Plus,
     Search,
@@ -14,6 +14,8 @@ import {
     Link as LinkIcon,
     AlertCircle,
     Save,
+    ImageIcon,
+    Upload,
 } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -40,7 +42,11 @@ import { getSessionBusinessPhoneId } from "@/lib/business";
 import { type ApiList, type BusinessSettings } from "@/types/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
+
+const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+const ALLOWED_LOGO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 interface Product {
     id: string;
@@ -119,14 +125,31 @@ export default function ProductsPage() {
 
     const [catalogSlug, setCatalogSlug] = useState("");
     const [themePreset, setThemePreset] = useState<CatalogThemePreset>("default");
+    const [catalogPublic, setCatalogPublic] = useState(true);
     const [catalogMetaSaving, setCatalogMetaSaving] = useState(false);
     const [catalogSlugApiError, setCatalogSlugApiError] = useState<string | null>(null);
     const [catalogSlugValidationError, setCatalogSlugValidationError] = useState<string | null>(null);
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [logoPreview, setLogoPreview] = useState<string | null>(null);
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+    const logoInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         setCatalogSlug(settingsData.slug ?? "");
-        setThemePreset("default");
-    }, [settingsData.slug, settingsData.config?.catalog_theme?.preset]);
+        const preset = settingsData.config?.catalog_theme?.preset;
+        if (preset === "default" || preset === undefined) {
+            setThemePreset("default");
+        } else {
+            setThemePreset(preset as CatalogThemePreset);
+        }
+        setCatalogPublic(settingsData.config?.catalog_public !== false);
+    }, [settingsData.slug, settingsData.config?.catalog_theme?.preset, settingsData.config?.catalog_public]);
+
+    useEffect(() => {
+        return () => {
+            if (logoPreview?.startsWith("blob:")) URL.revokeObjectURL(logoPreview);
+        };
+    }, [logoPreview]);
     const productsEndpoint = sessionBusinessPhoneId ? endpoints.products.list(sessionBusinessPhoneId, true) : null;
     const { data: response, isLoading, mutate: mutateProducts } = useSWR<ApiList<Product>>(session && productsEndpoint ? productsEndpoint : null, fetcher);
 
@@ -207,27 +230,81 @@ export default function ProductsPage() {
         }
     }
 
+    const currentLogoUrl =
+        logoPreview ?? (typeof settingsData.config?.catalog_logo_url === "string" ? settingsData.config.catalog_logo_url : null);
+
+    function handleLogoFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        if (!ALLOWED_LOGO_TYPES.has(file.type)) {
+            toast({
+                title: "Formato no permitido",
+                description: "Usa JPG, PNG o WEBP.",
+                variant: "destructive",
+            });
+            return;
+        }
+        if (file.size > MAX_LOGO_BYTES) {
+            toast({
+                title: "Archivo demasiado grande",
+                description: "El logo debe ser menor a 5 MB.",
+                variant: "destructive",
+            });
+            return;
+        }
+        if (logoPreview?.startsWith("blob:")) URL.revokeObjectURL(logoPreview);
+        setLogoFile(file);
+        setLogoPreview(URL.createObjectURL(file));
+        event.target.value = "";
+    }
+
+    async function handleUploadLogo() {
+        if (!logoFile) return;
+        setIsUploadingLogo(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", logoFile);
+            await apiClient.uploadForm(endpoints.business.logoUpload, formData);
+            await mutateSettings();
+            setLogoFile(null);
+            setLogoPreview(null);
+            toast({ title: "Logo actualizado" });
+        } catch (error: unknown) {
+            let description = "No se pudo subir el logo.";
+            if (error instanceof NetworkError) description = error.message;
+            else if (error instanceof ApiError && error.message) description = error.message;
+            toast({ title: "Error", description, variant: "destructive" });
+        } finally {
+            setIsUploadingLogo(false);
+        }
+    }
+
     async function handleSaveCatalogPublic() {
         const trimmed = catalogSlug.trim();
         setCatalogSlugValidationError(null);
         setCatalogSlugApiError(null);
-        if (!trimmed) {
-            setCatalogSlugValidationError("La URL pública es obligatoria.");
-            return;
+        if (catalogPublic) {
+            if (!trimmed) {
+                setCatalogSlugValidationError("Define una URL (slug) para el catálogo público.");
+                return;
+            }
+            if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmed)) {
+                setCatalogSlugValidationError("Solo letras minúsculas, números y guiones.");
+                return;
+            }
+            if (trimmed.length < 3 || trimmed.length > 100) {
+                setCatalogSlugValidationError("Entre 3 y 100 caracteres.");
+                return;
+            }
         }
-        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmed)) {
-            setCatalogSlugValidationError("Solo letras minúsculas, números y guiones (ej. mi-tienda).");
-            return;
-        }
-        if (trimmed.length < 3 || trimmed.length > 100) {
-            setCatalogSlugValidationError("Entre 3 y 100 caracteres.");
-            return;
-        }
+        const prevCfg = { ...(settingsData.config || {}) };
         setCatalogMetaSaving(true);
         try {
             await apiClient.patch(endpoints.business.settings, {
-                slug: trimmed,
+                slug: catalogPublic ? trimmed : settingsData.slug ?? null,
                 config: {
+                    ...prevCfg,
+                    catalog_public: catalogPublic,
                     catalog_theme: {
                         preset:
                             themePreset === "default"
@@ -239,7 +316,7 @@ export default function ProductsPage() {
             await mutateSettings();
             toast({
                 title: "Guardado",
-                description: "URL y tema del catálogo público actualizados.",
+                description: "Ajustes del catálogo público actualizados.",
             });
         } catch (error: unknown) {
             if (error instanceof ApiError && error.status === 409) {
@@ -270,7 +347,7 @@ export default function ProductsPage() {
                         Para habilitar catálogo/menú, categorías y unidades, necesitas seleccionar tu industria en configuración.
                     </p>
                     <Button asChild>
-                        <a href="/dashboard/settings">Ir a configuración</a>
+                        <a href="/dashboard">Ir al tablero</a>
                     </Button>
                 </motion.div>
             </motion.div>
@@ -285,31 +362,23 @@ export default function ProductsPage() {
             animate="show"
         >
             <motion.div
-                className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+                className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3"
                 variants={itemVariants}
             >
-                <div>
-                    <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">{moduleTitle}</h1>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                        {config.label} · Gestiona tus {config.productLabel.toLowerCase()}s
-                    </p>
-                </div>
-                <div className="flex w-full sm:w-auto flex-col sm:flex-row gap-2">
-                    {previewSlug ? (
-                        <Button variant="outline" asChild className="w-full sm:w-auto justify-center">
+                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">{moduleTitle}</h1>
+                <div className="flex w-full sm:w-auto flex-wrap gap-2">
+                    {catalogPublic && previewSlug ? (
+                        <Button variant="outline" asChild size="sm" className="justify-center">
                             <a href={`/${publicRouteSegment}/${previewSlug}`} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="mr-2 h-4 w-4" /> Ver {moduleTitle.toLowerCase()} público
+                                <ExternalLink className="mr-2 h-4 w-4" /> Ver público
                             </a>
                         </Button>
                     ) : (
-                        <Button variant="outline" disabled title="Define la URL en «Catálogo público» abajo" className="w-full sm:w-auto justify-center">
-                            <ExternalLink className="mr-2 h-4 w-4" /> {moduleTitle} público (sin URL)
+                        <Button variant="outline" size="sm" disabled className="justify-center" title={!catalogPublic ? "Activa el catálogo público abajo" : "Define la URL abajo"}>
+                            <ExternalLink className="mr-2 h-4 w-4" /> Ver público
                         </Button>
                     )}
-                    <Button
-                        className="w-full sm:w-auto bg-primary text-primary-foreground shadow-sm hover:opacity-90 transition-opacity"
-                        onClick={openCreate}
-                    >
+                    <Button size="sm" className="bg-primary text-primary-foreground shadow-sm hover:opacity-90" onClick={openCreate}>
                         <Plus className="mr-2 h-4 w-4" /> Nuevo {config.productLabel}
                     </Button>
                 </div>
@@ -318,26 +387,26 @@ export default function ProductsPage() {
             <motion.div variants={itemVariants}>
                 <Card className="rounded-2xl border-border/60 shadow-sm">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Catálogo público</CardTitle>
-                        <CardDescription>
-                            URL y apariencia de tu {moduleTitle.toLowerCase()} visible para clientes.
+                        <CardTitle className="text-base">{moduleTitle} público</CardTitle>
+                        <CardDescription className="text-xs">
+                            Activa la vista para clientes, URL, tema y logo. Si está desactivado, la página pública no estará disponible.
                         </CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="space-y-3">
+                    <CardContent className="space-y-5">
+                        <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2.5">
                             <div>
-                                <Label htmlFor="catalog-public-slug" className="flex items-center gap-2 text-foreground">
-                                    <LinkIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                                    URL del catálogo público
-                                </Label>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    Identificador único. Solo letras minúsculas, números y guiones.
-                                </p>
+                                <p className="text-sm font-medium">Visible públicamente</p>
+                                <p className="text-xs text-muted-foreground">Controla si el enlace público responde o no.</p>
                             </div>
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                                <span className="text-sm text-brand-forest/80 font-medium shrink-0">
-                                    /{publicRouteSegment}/
-                                </span>
+                            <Switch checked={catalogPublic} onCheckedChange={setCatalogPublic} aria-label="Catálogo público activo" />
+                        </div>
+
+                        <div className={`space-y-2 ${!catalogPublic ? "opacity-50 pointer-events-none" : ""}`}>
+                            <Label htmlFor="catalog-public-slug" className="text-xs font-medium flex items-center gap-1.5">
+                                <LinkIcon className="h-3.5 w-3.5" /> URL ({publicRouteSegment})
+                            </Label>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 max-w-lg">
+                                <span className="text-sm text-muted-foreground shrink-0">/{publicRouteSegment}/</span>
                                 <Input
                                     id="catalog-public-slug"
                                     value={catalogSlug}
@@ -347,90 +416,93 @@ export default function ProductsPage() {
                                         setCatalogSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
                                     }}
                                     placeholder="mi-tienda"
+                                    disabled={!catalogPublic}
                                     className={
                                         catalogSlugValidationError || catalogSlugApiError
-                                            ? "border-destructive focus-visible:ring-destructive max-w-md"
-                                            : "max-w-md"
+                                            ? "border-destructive"
+                                            : ""
                                     }
                                 />
                             </div>
                             {catalogSlugValidationError && (
-                                <p className="text-xs text-destructive flex items-center gap-1.5">
+                                <p className="text-xs text-destructive flex items-center gap-1">
                                     <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                                     {catalogSlugValidationError}
                                 </p>
                             )}
                             {catalogSlugApiError && (
-                                <p className="text-xs text-destructive flex items-center gap-1.5">
+                                <p className="text-xs text-destructive flex items-center gap-1">
                                     <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                                     {catalogSlugApiError}
                                 </p>
                             )}
-                            {previewSlug && !catalogSlugValidationError && !catalogSlugApiError && (
-                                <a
-                                    href={`/${publicRouteSegment}/${previewSlug}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5 text-xs font-medium text-brand-forest hover:underline"
-                                >
-                                    <ExternalLink className="h-3 w-3 shrink-0" />
-                                    /{publicRouteSegment}/{previewSlug}
-                                </a>
-                            )}
                         </div>
 
-                        <div className="space-y-3">
-                            <Label className="text-foreground">Tema público</Label>
-                            <div className="flex items-start gap-3 rounded-xl border border-border/70 p-3 bg-muted/20">
+                        <div className="space-y-2">
+                            <Label className="text-xs font-medium">Tema</Label>
+                            <p className="text-xs text-muted-foreground">{CATALOG_THEME_PRESETS.default.description}</p>
+                            <div className="flex items-center gap-2">
                                 <input
                                     type="radio"
                                     id="catalog-theme-default"
                                     name="catalog-theme"
-                                    className="mt-1 h-4 w-4 accent-brand-forest"
+                                    className="h-4 w-4 accent-brand-forest"
                                     checked={themePreset === "default"}
                                     onChange={() => setThemePreset("default")}
-                                    aria-label="Tema Default"
                                 />
-                                <div className="min-w-0 flex-1 space-y-2">
-                                    <label htmlFor="catalog-theme-default" className="text-sm font-medium cursor-pointer">
-                                        Default
-                                    </label>
-                                    <p className="text-xs text-muted-foreground">
-                                        {CATALOG_THEME_PRESETS.default.description}
-                                    </p>
-                                    <div
-                                        className={`rounded-lg border p-3 max-w-sm ${CATALOG_THEME_PRESETS.default.tokens[publicRouteSegment].cardBackground} ${CATALOG_THEME_PRESETS.default.tokens[publicRouteSegment].border}`}
-                                    >
-                                        <div className={`text-xs font-semibold ${CATALOG_THEME_PRESETS.default.tokens[publicRouteSegment].title}`}>
-                                            Vista previa
-                                        </div>
-                                        <div className={`mt-1 text-[11px] ${CATALOG_THEME_PRESETS.default.tokens[publicRouteSegment].subtitle}`}>
-                                            {publicRouteSegment === "menu" ? "Menú público" : "Catálogo público"}
-                                        </div>
-                                        <div className="mt-2 flex items-center gap-1.5">
-                                            <span className={`h-2.5 w-2.5 rounded-full ${CATALOG_THEME_PRESETS.default.tokens[publicRouteSegment].badge}`} />
-                                            <span className={`h-2.5 w-2.5 rounded-full ${CATALOG_THEME_PRESETS.default.tokens[publicRouteSegment].accent}`} />
-                                            <span
-                                                className={`h-2.5 w-2.5 rounded-full ${CATALOG_THEME_PRESETS.default.tokens[publicRouteSegment].pageBackground} border ${CATALOG_THEME_PRESETS.default.tokens[publicRouteSegment].border}`}
-                                            />
-                                        </div>
+                                <label htmlFor="catalog-theme-default" className="text-sm cursor-pointer">
+                                    Default
+                                </label>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label className="text-xs font-medium flex items-center gap-1.5">
+                                <ImageIcon className="h-3.5 w-3.5" /> Logo
+                            </Label>
+                            <div className="flex flex-wrap items-center gap-3">
+                                {currentLogoUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element -- blob previews
+                                    <img
+                                        src={currentLogoUrl}
+                                        alt="Logo"
+                                        width={48}
+                                        height={48}
+                                        className="h-12 w-12 rounded-md border object-cover"
+                                    />
+                                ) : (
+                                    <div className="h-12 w-12 rounded-md border bg-muted flex items-center justify-center text-muted-foreground">
+                                        <ImageIcon className="h-5 w-5" />
                                     </div>
+                                )}
+                                <div className="flex flex-col gap-1.5">
+                                    <Input
+                                        ref={logoInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="max-w-[220px] text-xs h-8"
+                                        onChange={handleLogoFileChange}
+                                    />
+                                    {logoFile && (
+                                        <Button type="button" size="sm" variant="secondary" disabled={isUploadingLogo} onClick={handleUploadLogo}>
+                                            {isUploadingLogo ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                                            Subir logo
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
+                            <p className="text-[11px] text-muted-foreground">Se optimiza para el catálogo o menú público.</p>
                         </div>
 
                         <Button
                             type="button"
                             onClick={handleSaveCatalogPublic}
                             disabled={catalogMetaSaving}
+                            size="sm"
                             className="bg-brand-forest text-white hover:bg-brand-forest/90"
                         >
-                            {catalogMetaSaving ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                                <Save className="mr-2 h-4 w-4" />
-                            )}
-                            Guardar URL y tema
+                            {catalogMetaSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                            Guardar cambios
                         </Button>
                     </CardContent>
                 </Card>

@@ -16,7 +16,8 @@ export const endpoints = {
     },
     categories: {
         list: (businessPhoneId: string) => withBusinessPhoneId(`${API_URL}/api/v1/categories`, businessPhoneId),
-        create: `${API_URL}/api/v1/categories`,
+        create: (businessPhoneId: string) =>
+            withBusinessPhoneId(`${API_URL}/api/v1/categories`, businessPhoneId),
         delete: (id: string) => `${API_URL}/api/v1/categories/${id}`,
     },
     catalog: {
