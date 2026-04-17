@@ -28,6 +28,9 @@ export const endpoints = {
         industries: `${API_URL}/api/v1/admin/industries`,
         industry: (slug: string) =>
             `${API_URL}/api/v1/admin/industries/${encodeURIComponent(slug)}`,
+        planDefinitions: `${API_URL}/api/v1/admin/plan-definitions`,
+        planDefinition: (planKey: string) =>
+            `${API_URL}/api/v1/admin/plan-definitions/${encodeURIComponent(planKey)}`,
     },
     products: {
         list: (businessPhoneId: string, includeInactive = false) => withBusinessPhoneId(`${API_URL}/api/v1/products${includeInactive ? "?include_inactive=true" : ""}`, businessPhoneId),

@@ -18,6 +18,18 @@ export interface ProvisionResult {
     email: string;
 }
 
+/** Límites de plan (origen: tabla `plan_definitions` en API). */
+export interface PlanDefinitionAdmin {
+    plan_key: string;
+    display_name: string;
+    conv_limit: number;
+    max_seats: number;
+    history_days: number;
+    price_mxn: number;
+    extra_conv_price_mxn: number;
+    catalog_product_limit: number | null;
+}
+
 export interface DaySchedule {
     open?: boolean;
     hours?: string;
