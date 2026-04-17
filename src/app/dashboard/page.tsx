@@ -92,7 +92,7 @@ export default function DashboardPage() {
     const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
 
     const { data: settingsData, isLoading: settingsLoading } = useSWR<BusinessSettings | { data: BusinessSettings } | SettingsLike | { data: SettingsLike }>(
-        session && sessionBusinessPhoneId ? endpoints.business.settings : null,
+        session ? endpoints.business.settings : null,
         fetcher
     );
 

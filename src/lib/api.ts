@@ -12,6 +12,7 @@ function withBusinessPhoneId(path: string, businessPhoneId?: string | null) {
 export const endpoints = {
     auth: {
         login: `${API_URL}/api/v1/auth/login`,
+        changePassword: `${API_URL}/api/v1/auth/change-password`,
     },
     categories: {
         list: (businessPhoneId: string) => withBusinessPhoneId(`${API_URL}/api/v1/categories`, businessPhoneId),
