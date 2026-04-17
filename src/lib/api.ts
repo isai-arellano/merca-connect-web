@@ -75,6 +75,12 @@ export const endpoints = {
         whatsappSignupComplete: `${API_URL}/api/v1/business/whatsapp-signup/complete`,
         whatsappSignupStatus: `${API_URL}/api/v1/business/whatsapp-signup/status`,
     },
+    paymentTemplates: {
+        list: `${API_URL}/api/v1/payment-templates`,
+        create: `${API_URL}/api/v1/payment-templates`,
+        update: (id: string) => `${API_URL}/api/v1/payment-templates/${id}`,
+        delete: (id: string) => `${API_URL}/api/v1/payment-templates/${id}`,
+    },
     agents: {
         config: (businessId: string) => `${API_URL}/api/v1/agents?business_id=${businessId}`,
     },
