@@ -185,7 +185,8 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
             return;
         }
         setFormState(getInitialFormState(currentProduct));
-    }, [open, product, currentProduct, imagePreview]);
+        // No incluir imagePreview: al elegir otra imagen no se debe resetear el formulario.
+    }, [open, product, currentProduct]);
 
     useEffect(() => {
         return () => {
@@ -233,19 +234,31 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
         setImageFile(file);
         const url = URL.createObjectURL(file);
         setImagePreview(url);
+        e.target.value = "";
     }
 
     async function handleUploadImage() {
-        if (!imageFile || !product?.id) return;
+        const productId = currentProduct?.id ?? product?.id;
+        if (!imageFile || !productId) return;
         setIsUploadingImage(true);
         try {
             const formData = new FormData();
             formData.append("file", imageFile);
-            await apiClient.uploadForm(endpoints.products.uploadImage(product.id), formData);
+            const res = await apiClient.uploadForm<{ image_url: string }>(
+                endpoints.products.uploadImage(productId),
+                formData,
+            );
             await mutate(productsEndpoint);
-            if (productDetailEndpoint) await mutate(productDetailEndpoint);
+            if (productDetailEndpoint) {
+                await mutate(
+                    productDetailEndpoint,
+                    (prev) => (prev ? { ...prev, image_url: res.image_url } : prev),
+                    { revalidate: true },
+                );
+            }
             setImageFile(null);
             setImagePreview(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
             toast({
                 title: "Imagen actualizada",
                 description: "La imagen del producto se reemplazó correctamente.",

@@ -24,6 +24,9 @@ export const endpoints = {
     admin: {
         provision: `${API_URL}/api/v1/admin/provision`,
         businesses: `${API_URL}/api/v1/admin/businesses`,
+        industries: `${API_URL}/api/v1/admin/industries`,
+        industry: (slug: string) =>
+            `${API_URL}/api/v1/admin/industries/${encodeURIComponent(slug)}`,
     },
     products: {
         list: (businessPhoneId: string, includeInactive = false) => withBusinessPhoneId(`${API_URL}/api/v1/products${includeInactive ? "?include_inactive=true" : ""}`, businessPhoneId),
@@ -83,6 +86,10 @@ export const endpoints = {
         create: `${API_URL}/api/v1/payment-templates`,
         update: (id: string) => `${API_URL}/api/v1/payment-templates/${id}`,
         delete: (id: string) => `${API_URL}/api/v1/payment-templates/${id}`,
+    },
+    industries: {
+        /** Mismo payload que /api/v1/industries; va bajo catalog para convivir con despliegues/proxies. */
+        list: `${API_URL}/api/v1/catalog/industries`,
     },
     agents: {
         config: (businessId: string) => `${API_URL}/api/v1/agents?business_id=${businessId}`,

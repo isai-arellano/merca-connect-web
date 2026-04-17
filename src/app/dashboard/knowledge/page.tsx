@@ -158,7 +158,7 @@ export default function KnowledgePage() {
             <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 ">
                 <div className="text-left">
                     <h1 className="text-2xl md:text-3xl font-bold tracking-tight  text-justify flex items-center gap-2">
-                        <BookOpen className="h-7 w-7 text-primary" />
+                        <BookOpen className="h-7 w-7 text-brand-forest" />
                         Base de conocimiento
                     </h1>
                     <p className="text-sm text-muted-foreground mt-0.5 text-left">
@@ -174,10 +174,10 @@ export default function KnowledgePage() {
             {/* Info banner */}
             <motion.div variants={itemVariants}>
                 <div className="flex items-start gap-3 p-3 sm:p-4 bg-primary/5 border border-primary/20 rounded-xl text-sm">
-                    <Sparkles className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <Sparkles className="h-4 w-4 text-brand-forest shrink-0 mt-0.5" />
                     <div className="text-muted-foreground text-justify">
                         <span className="font-medium text-foreground">¿Cómo funciona?</span>{" "}
-                        Cuando un cliente pregunte "¿tienen estacionamiento?" o "¿hacen envíos a Zapopan?",
+                        Cuando un cliente pregunte «¿tienen estacionamiento?» o «¿hacen envíos a Zapopan?»,
                         el agente consultará esta sección antes de responder. Agrega preguntas frecuentes,
                         políticas y horarios para mantener respuestas claras y correctas.
                     </div>
@@ -304,7 +304,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
         <Card>
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
                 <div className="p-4 bg-primary/5 rounded-full mb-4">
-                    <BookOpen className="h-8 w-8 text-primary" />
+                    <BookOpen className="h-8 w-8 text-brand-forest" />
                 </div>
                 <p className="font-semibold text-foreground mb-1 text-justify">Todavía no hay documentos</p>
                 <p className="text-sm text-muted-foreground mb-6 max-w-xs">

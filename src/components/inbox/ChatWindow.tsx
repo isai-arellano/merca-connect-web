@@ -8,7 +8,7 @@ import { type ConversationDetail, type ApiList, type MessageTemplate, type Conve
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, Send, FileText, Check, Download, Image as ImageIcon, Bot, UserCheck, Phone, CreditCard } from "lucide-react";
+import { Loader2, Send, FileText, Check, Download, Image as ImageIcon, Bot, User, Phone, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Popover,
@@ -324,8 +324,18 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                 <div className="flex items-center gap-3 shrink-0">
                     {detailData.agent_enabled && (
                         <div className="flex items-center gap-2">
-                            <span className={`text-xs font-medium transition-colors duration-200 ${isHandoff ? "text-muted-foreground" : "text-emerald-700"}`}>
-                                {isTogglingHandoff ? <Loader2 className="h-3 w-3 animate-spin" /> : "IA"}
+                            <span
+                                className={`flex items-center gap-1 max-w-[7.5rem] sm:max-w-none ${isHandoff ? "text-muted-foreground" : "text-emerald-700"}`}
+                                title="Zafer Agent"
+                            >
+                                {isTogglingHandoff ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                                ) : (
+                                    <>
+                                        <Bot className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                                        <span className="text-xs font-medium truncate">Zafer Agent</span>
+                                    </>
+                                )}
                             </span>
                             <button
                                 type="button"
@@ -333,7 +343,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                                 aria-checked={isHandoff}
                                 disabled={isTogglingHandoff}
                                 onClick={handleToggleHandoff}
-                                title={isHandoff ? "Devolver al agente IA" : "Tomar conversación"}
+                                title={isHandoff ? "Devolver a Zafer Agent" : "Tomar conversación (tú)"}
                                 className={`
                                     relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full
                                     border-2 border-transparent transition-colors duration-200 ease-in-out
@@ -348,7 +358,11 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                                     ${isHandoff ? "translate-x-5" : "translate-x-0"}
                                 `} />
                             </button>
-                            <span className={`text-xs font-medium transition-colors duration-200 ${isHandoff ? "text-blue-700" : "text-muted-foreground"}`}>
+                            <span
+                                className={`flex items-center gap-1 text-xs font-medium transition-colors duration-200 ${isHandoff ? "text-blue-700" : "text-muted-foreground"}`}
+                                title="Tú (operador)"
+                            >
+                                <User className="h-3.5 w-3.5 shrink-0" aria-hidden />
                                 Tú
                             </span>
                         </div>
@@ -360,7 +374,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                             : "bg-emerald-100 text-emerald-800"
                     }`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${isHandoff ? "bg-blue-500" : "bg-emerald-500"}`} />
-                        {isHandoff ? "Atención humana" : "Agente IA"}
+                        {isHandoff ? "Atención humana" : "Zafer Agent"}
                     </span>
                 </div>
             </div>

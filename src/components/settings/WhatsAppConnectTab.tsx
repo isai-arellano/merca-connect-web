@@ -350,7 +350,7 @@ function DisconnectedState({
                         key={s.num}
                         className="flex gap-3 p-3 bg-muted/30 rounded-lg border border-border"
                     >
-                        <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0">
+                        <div className="w-6 h-6 rounded-full bg-brand-mint/80 text-brand-forest text-xs font-bold flex items-center justify-center shrink-0">
                             {s.num}
                         </div>
                         <div>

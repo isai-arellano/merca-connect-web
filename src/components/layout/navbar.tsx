@@ -11,15 +11,13 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { NotificationsBell } from "@/components/layout/notifications-bell";
 import { SidebarContent } from "@/components/layout/sidebar";
 
-interface NavbarProps {
-    sidebarWidth?: number;
-}
-
-export function Navbar({ sidebarWidth: _ }: NavbarProps) {
+export function Navbar() {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
 
+    // Deferir hasta después de hidratar (evita mismatch SSR y permite next-auth en cliente)
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional post-hydration gate
         setMounted(true);
     }, []);
 
@@ -32,7 +30,7 @@ export function Navbar({ sidebarWidth: _ }: NavbarProps) {
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="rounded-xl text-muted-foreground hover:text-foreground hover:bg-primary"
+                        className="rounded-xl text-muted-foreground hover:text-brand-forest hover:bg-brand-mint"
                         onClick={() => setMobileOpen(true)}
                     >
                         <Menu className="h-5 w-5" />
@@ -52,7 +50,7 @@ export function Navbar({ sidebarWidth: _ }: NavbarProps) {
                             <DropdownMenuTrigger asChild>
                                 <Button
                                     variant="ghost"
-                                    className="h-8 w-8 rounded-lg bg-primary text-[#1A3E35] hover:bg-primary/80 p-0 font-semibold text-sm"
+                                    className="h-8 w-8 rounded-lg bg-brand-mint text-brand-forest hover:bg-brand-mint/80 p-0 font-semibold text-sm"
                                 >
                                     A
                                 </Button>
@@ -72,7 +70,7 @@ export function Navbar({ sidebarWidth: _ }: NavbarProps) {
                     <div className="flex items-center gap-1.5">
                         <div className="h-9 w-9 rounded-lg border border-border/70" />
                         <div className="w-px h-5 bg-border/60 mx-1" />
-                        <div className="h-8 w-8 rounded-lg bg-primary" />
+                        <div className="h-8 w-8 rounded-lg bg-brand-mint" />
                     </div>
                 )}
             </header>

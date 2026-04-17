@@ -2,10 +2,9 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Package, ShoppingBag, Users, Activity, Loader2, MessageSquare, MessageCircle,
-  CheckCircle2, Circle, ArrowRight, Smartphone, ChevronRight,
+  ArrowRight, Smartphone,
 } from "lucide-react";
 import { motion, Variants, AnimatePresence } from "framer-motion";
 import useSWR from "swr";
@@ -14,8 +13,11 @@ import { useSession } from "next-auth/react";
 import { fetcher } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { getIndustryConfig } from "@/config/industries";
+import { useIndustries } from "@/hooks/useIndustries";
 import Link from "next/link";
-import { type ApiList, type AnalyticsOverview, type DashboardStats } from "@/types/api";
+import { type ApiList, type AnalyticsOverview, type BusinessSettings, type DashboardStats } from "@/types/api";
+import { computeOnboardingState } from "@/lib/onboarding";
+import { DashboardOnboarding } from "@/components/onboarding/DashboardOnboarding";
 
 interface RecentOrder {
     id: string;
@@ -42,125 +44,14 @@ const itemVariants: Variants = {
     show: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 280, damping: 22 } },
 };
 
-// ─── Onboarding checklist ────────────────────────────────────────────────────
-
-interface OnboardingStep {
-    id: string;
-    title: string;
-    description: string;
-    done: boolean;
-    href: string;
-    cta: string;
-}
-
-interface DayScheduleLike {
-    open?: boolean;
-    from_?: string;
-    to?: string;
-}
-
 interface SettingsLike {
     name?: string;
     slug?: string;
     type?: string;
-    hours?: Record<string, DayScheduleLike>;
+    hours?: Record<string, { open?: boolean; from_?: string; to?: string }>;
     config?: {
         payment_methods?: unknown;
     };
-}
-
-function hasValidBusinessHours(hours: SettingsLike["hours"]): boolean {
-    if (!hours || typeof hours !== "object") {
-        return false;
-    }
-    return Object.values(hours).some((day) => {
-        if (!day?.open) {
-            return false;
-        }
-        return Boolean(day.from_?.trim() && day.to?.trim());
-    });
-}
-
-function hasAtLeastOnePaymentMethod(config: SettingsLike["config"]): boolean {
-    return Array.isArray(config?.payment_methods) && config.payment_methods.length > 0;
-}
-
-function OnboardingCard({ steps }: { steps: OnboardingStep[] }) {
-    const completed = steps.filter((s) => s.done).length;
-    const total = steps.length;
-    const progress = Math.round((completed / total) * 100);
-
-    return (
-        <motion.div variants={itemVariants}>
-            <Card className="rounded-2xl shadow-sm border-border/60">
-                <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div>
-                            <CardTitle className="text-base font-semibold text-foreground">
-                                Configura tu negocio
-                            </CardTitle>
-                            <CardDescription className="mt-0.5 text-sm">
-                                {completed} de {total} pasos completados
-                            </CardDescription>
-                        </div>
-                        <Badge
-                            variant="outline"
-                            className="border-primary/20 text-primary font-semibold tabular-nums bg-primary/5"
-                        >
-                            {progress}%
-                        </Badge>
-                    </div>
-                    {/* Progress bar */}
-                    <div className="mt-3 h-1.5 w-full rounded-full bg-border overflow-hidden">
-                        <motion.div
-                            className="h-full rounded-full bg-primary"
-                            initial={{ width: 0 }}
-                            animate={{ width: `${progress}%` }}
-                            transition={{ duration: 0.7, ease: "easeOut" }}
-                        />
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-2">
-                        {steps.map((step) => (
-                            <div
-                                key={step.id}
-                                className={`flex items-center gap-3 p-3 rounded-xl border transition-colors ${
-                                    step.done
-                                        ? "border-border/40 bg-muted/30 opacity-55"
-                                        : "border-border/60 bg-background hover:bg-muted/30"
-                                }`}
-                            >
-                                <div className="shrink-0">
-                                    {step.done ? (
-                                        <CheckCircle2 className="h-4 w-4 text-primary" />
-                                    ) : (
-                                        <Circle className="h-4 w-4 text-muted-foreground/30" />
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className={`text-sm font-medium ${step.done ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                                        {step.title}
-                                    </p>
-                                    {!step.done && (
-                                        <p className="text-xs text-muted-foreground mt-0.5">{step.description}</p>
-                                    )}
-                                </div>
-                                {!step.done && (
-                                    <Link href={step.href}>
-                                        <Button size="sm" variant="outline" className="shrink-0 gap-1 text-xs h-7 rounded-lg border-border/60">
-                                            {step.cta}
-                                            <ChevronRight className="h-3 w-3" />
-                                        </Button>
-                                    </Link>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
-        </motion.div>
-    );
 }
 
 // ─── Metric card ─────────────────────────────────────────────────────────────
@@ -181,8 +72,8 @@ function MetricCard({
             <Card className="rounded-2xl shadow-sm border-border/60 hover:shadow-md transition-shadow duration-200">
                 <CardContent className="p-5">
                     <div className="flex items-start justify-between mb-3">
-                        <div className="p-2 rounded-xl bg-primary/10">
-                            <Icon className="h-4 w-4 text-primary" />
+                        <div className="p-2 rounded-xl bg-brand-mint/80">
+                            <Icon className="h-4 w-4 text-brand-forest" />
                         </div>
                     </div>
                     <div className="text-2xl font-bold text-foreground tracking-tight">{value}</div>
@@ -200,7 +91,7 @@ export default function DashboardPage() {
     const { data: session } = useSession();
     const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
 
-    const { data: settingsData, isLoading: settingsLoading } = useSWR<SettingsLike | { data: SettingsLike }>(
+    const { data: settingsData, isLoading: settingsLoading } = useSWR<BusinessSettings | { data: BusinessSettings } | SettingsLike | { data: SettingsLike }>(
         session && sessionBusinessPhoneId ? endpoints.business.settings : null,
         fetcher
     );
@@ -226,11 +117,12 @@ export default function DashboardPage() {
     );
 
     const settings: SettingsLike =
-        (settingsData as { data: SettingsLike } | null)?.data ??
-        (settingsData as SettingsLike | null) ??
+        (settingsData as { data: BusinessSettings } | null)?.data ??
+        (settingsData as BusinessSettings | null) ??
         {};
+    const { industriesMap } = useIndustries();
     const businessType: string = settings.type || "abarrotera";
-    const industryConfig = getIndustryConfig(businessType);
+    const industryConfig = getIndustryConfig(businessType, industriesMap);
     const catalogLabel = industryConfig.view === "menu" ? "Menú" : "Catálogo";
 
     const recentOrders: RecentOrder[] = ordersData?.data ?? [];
@@ -240,50 +132,17 @@ export default function DashboardPage() {
         {};
     const messageStats = analytics.messages || {};
 
-    const hasName = Boolean(settings.name);
-    const hasSlug = Boolean(settings.slug);
-    const hasIndustry = Boolean(settings.type);
-    const hasHours = hasValidBusinessHours(settings.hours);
-    const hasPaymentMethods = hasAtLeastOnePaymentMethod(settings.config);
     const hasWhatsApp = Boolean(sessionBusinessPhoneId);
     const hasProducts = (stats?.active_products ?? 0) > 0;
 
-    const onboardingSteps: OnboardingStep[] = [
-        {
-            id: "industry",
-            title: "Selecciona tu tipo de negocio",
-            description: "Elige tu industria para habilitar catálogo o menú y sus opciones",
-            done: hasIndustry,
-            href: "/dashboard/settings",
-            cta: "Elegir",
-        },
-        {
-            id: "business",
-            title: "Configura tu negocio",
-            description: "Completa datos del negocio, horario, URL de catálogo y métodos de pago",
-            done: hasName && hasSlug && hasHours && hasPaymentMethods,
-            href: "/dashboard/settings",
-            cta: "Configurar",
-        },
-        {
-            id: "catalog",
-            title: `Sube tu ${catalogLabel.toLowerCase()}`,
-            description: "Agrega al menos un producto para que el agente pueda responder sobre tu oferta",
-            done: hasIndustry && hasProducts,
-            href: hasIndustry ? "/dashboard/products" : "/dashboard/settings",
-            cta: hasIndustry ? "Agregar" : "Elegir industria",
-        },
-        {
-            id: "whatsapp",
-            title: "Conecta tu WhatsApp Business",
-            description: "Vincula tu número para recibir mensajes y activar el inbox",
-            done: hasWhatsApp,
-            href: "/dashboard/settings?tab=conectar",
-            cta: "Conectar",
-        },
-    ];
+    const onboardingState = computeOnboardingState({
+        settings,
+        activeProducts: stats?.active_products ?? 0,
+        hasWhatsAppSession: hasWhatsApp,
+    });
 
-    const allOnboarded = onboardingSteps.every((s) => s.done);
+    const allOnboarded = onboardingState.allComplete;
+    const hasIndustry = onboardingState.hasIndustry;
     const isLoading = statsLoading || settingsLoading;
 
     return (
@@ -308,7 +167,12 @@ export default function DashboardPage() {
             {/* Onboarding — visible siempre hasta completar */}
             <AnimatePresence>
                 {!allOnboarded && (
-                    <OnboardingCard steps={onboardingSteps} />
+                    <DashboardOnboarding
+                        settings={settings as BusinessSettings}
+                        onboarding={onboardingState}
+                        catalogLabel={catalogLabel}
+                        businessType={businessType}
+                    />
                 )}
             </AnimatePresence>
 
@@ -433,44 +297,68 @@ export default function DashboardPage() {
             ) : (
                 /* Estado vacío sin WhatsApp */
                 <motion.div variants={itemVariants} className="grid gap-4 sm:grid-cols-2">
-                    {[
-                        {
-                            icon: Smartphone,
-                            title: "Inbox y Pedidos",
-                            desc: "Conecta tu WhatsApp Business para ver conversaciones y pedidos en tiempo real",
-                            href: "/dashboard/settings",
-                            cta: "Conectar WhatsApp",
-                        },
-                        {
-                            icon: Package,
-                            title: hasProducts ? `${stats?.active_products} productos cargados` : `Tu ${catalogLabel}`,
-                            desc: hasProducts
-                                ? "Tu catálogo está listo. Conecta WhatsApp para que el agente empiece a vender."
-                                : hasIndustry
-                                ? `Empieza cargando tu ${catalogLabel.toLowerCase()} — puedes hacerlo antes de conectar WhatsApp`
-                                : "Primero selecciona tu tipo de negocio para habilitar tu catálogo o menú.",
-                            href: hasIndustry ? "/dashboard/products" : "/dashboard/settings",
-                            cta: hasIndustry ? (hasProducts ? "Ver catálogo" : "Agregar productos") : "Elegir industria",
-                        },
-                    ].map(({ icon: Icon, title, desc, href, cta }) => (
-                        <Card key={href} className="rounded-2xl border-dashed border-border/60 shadow-sm">
-                            <CardContent className="flex flex-col items-center justify-center py-10 text-center gap-3">
-                                <div className="p-3 rounded-2xl bg-muted/50">
-                                    <Icon className="h-5 w-5 text-muted-foreground" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-semibold text-foreground">{title}</p>
-                                    <p className="text-xs text-muted-foreground mt-1 max-w-[200px] mx-auto">{desc}</p>
-                                </div>
-                                <Link href={href}>
-                                    <Button size="sm" variant="outline" className="gap-2 text-xs rounded-xl border-border/60">
-                                        {cta}
+                    <Card className="rounded-2xl border-dashed border-border/60 shadow-sm">
+                        <CardContent className="flex flex-col items-center justify-center py-10 text-center gap-3">
+                            <div className="p-3 rounded-2xl bg-brand-mint/80">
+                                <Smartphone className="h-5 w-5 text-brand-forest" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-foreground">Inbox y Pedidos</p>
+                                <p className="text-xs text-muted-foreground mt-1 max-w-[220px] mx-auto">
+                                    {onboardingState.canStartWhatsApp
+                                        ? "Conecta tu WhatsApp Business para ver conversaciones y pedidos en tiempo real."
+                                        : "Completa el asistente arriba (pasos 1 a 3) para habilitar la conexión de WhatsApp."}
+                                </p>
+                            </div>
+                            {onboardingState.canStartWhatsApp ? (
+                                <Button size="sm" variant="outline" className="gap-2 text-xs rounded-xl border-brand-forest/30 text-brand-forest" asChild>
+                                    <Link href="/dashboard/settings?tab=conectar">
+                                        Conectar WhatsApp
                                         <ArrowRight className="h-3.5 w-3.5" />
-                                    </Button>
-                                </Link>
-                            </CardContent>
-                        </Card>
-                    ))}
+                                    </Link>
+                                </Button>
+                            ) : (
+                                <Button size="sm" variant="outline" disabled className="gap-2 text-xs rounded-xl opacity-60">
+                                    Conectar WhatsApp
+                                    <ArrowRight className="h-3.5 w-3.5" />
+                                </Button>
+                            )}
+                        </CardContent>
+                    </Card>
+                    <Card className="rounded-2xl border-dashed border-border/60 shadow-sm">
+                        <CardContent className="flex flex-col items-center justify-center py-10 text-center gap-3">
+                            <div className="p-3 rounded-2xl bg-brand-mint/80">
+                                <Package className="h-5 w-5 text-brand-forest" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-foreground">
+                                    {hasProducts ? `${stats?.active_products} productos cargados` : `Tu ${catalogLabel}`}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1 max-w-[220px] mx-auto">
+                                    {hasProducts
+                                        ? "Tu catálogo está listo. Conecta WhatsApp para que el agente empiece a vender."
+                                        : hasIndustry
+                                          ? `Empieza cargando tu ${catalogLabel.toLowerCase()} desde el tablero.`
+                                          : "Primero elige tu tipo de negocio en el asistente de arriba."}
+                                </p>
+                            </div>
+                            {hasIndustry ? (
+                                <Button size="sm" variant="outline" className="gap-2 text-xs rounded-xl border-brand-forest/30 text-brand-forest" asChild>
+                                    <Link href="/dashboard/products">
+                                        {hasProducts ? "Ver catálogo" : "Agregar productos"}
+                                        <ArrowRight className="h-3.5 w-3.5" />
+                                    </Link>
+                                </Button>
+                            ) : (
+                                <Button size="sm" variant="outline" className="gap-2 text-xs rounded-xl border-brand-forest/30 text-brand-forest" asChild>
+                                    <Link href="/dashboard">
+                                        Ir al tablero
+                                        <ArrowRight className="h-3.5 w-3.5" />
+                                    </Link>
+                                </Button>
+                            )}
+                        </CardContent>
+                    </Card>
                 </motion.div>
             )}
         </motion.div>
