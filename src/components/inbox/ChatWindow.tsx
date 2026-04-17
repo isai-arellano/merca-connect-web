@@ -8,7 +8,7 @@ import { type ConversationDetail, type ApiList, type MessageTemplate, type Conve
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, Send, FileText, Check, Download, Image as ImageIcon, Bot, UserCheck, Phone } from "lucide-react";
+import { Loader2, Send, FileText, Check, Download, Image as ImageIcon, Bot, UserCheck, Phone, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Popover,
@@ -155,6 +155,8 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     const [templatePopoverOpen, setTemplatePopoverOpen] = useState(false);
     const [sendingTemplate, setSendingTemplate] = useState<string | null>(null);
     const [sentTemplate, setSentTemplate] = useState<string | null>(null);
+    const [isSendingPaymentCard, setIsSendingPaymentCard] = useState(false);
+    const [sentPaymentCard, setSentPaymentCard] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -239,6 +241,24 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
         }
     };
 
+    const handleSendPaymentCard = async () => {
+        setIsSendingPaymentCard(true);
+        try {
+            const res = await apiClient.get<{ text: string }>(endpoints.conversations.paymentCard(conversationId));
+            const text = res?.text;
+            if (text) {
+                await apiClient.post(endpoints.conversations.reply(conversationId), { text });
+                await mutate();
+                setSentPaymentCard(true);
+                setTimeout(() => setSentPaymentCard(false), 2000);
+            }
+        } catch {
+            // noop
+        } finally {
+            setIsSendingPaymentCard(false);
+        }
+    };
+
     const handleSendTemplate = async (templateName: string, language: string) => {
         if (!customerPhone) return;
         setSendingTemplate(templateName);
@@ -296,34 +316,45 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2.5 shrink-0">
                     {detailData.agent_enabled && (
-                        <Button
-                            size="sm"
-                            variant={isHandoff ? "default" : "outline"}
+                        <button
                             onClick={handleToggleHandoff}
                             disabled={isTogglingHandoff}
-                            className={`h-8 text-xs gap-1.5 ${isHandoff
-                                ? "bg-[#1A3E35] hover:bg-[#1A3E35]/90 text-white"
-                                : "text-amber-700 border-amber-300 hover:bg-amber-50"
-                            }`}
+                            title={isHandoff ? "Devolver al agente IA" : "Tomar conversación"}
+                            className={`relative flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-all duration-200 select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 ${
+                                isHandoff
+                                    ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 focus-visible:ring-blue-400"
+                                    : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 focus-visible:ring-emerald-400"
+                            } disabled:opacity-60 disabled:cursor-not-allowed`}
                         >
+                            {/* Track del switch */}
+                            <span className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors duration-200 ${
+                                isHandoff ? "bg-blue-500" : "bg-emerald-500"
+                            }`}>
+                                <span className={`inline-block h-3 w-3 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+                                    isHandoff ? "translate-x-3.5" : "translate-x-0.5"
+                                }`} />
+                            </span>
+                            {/* Icono + label */}
                             {isTogglingHandoff ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
                             ) : isHandoff ? (
-                                <Bot className="h-3.5 w-3.5" />
-                            ) : (
                                 <UserCheck className="h-3.5 w-3.5" />
+                            ) : (
+                                <Bot className="h-3.5 w-3.5" />
                             )}
-                            {isHandoff ? "Devolver al agente" : "Tomar conversación"}
-                        </Button>
+                            <span>{isHandoff ? "Tú" : "IA"}</span>
+                        </button>
                     )}
-                    <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${
+                    {/* Badge de estado */}
+                    <span className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full font-medium transition-colors duration-200 ${
                         isHandoff
-                            ? "bg-amber-100 text-amber-800"
+                            ? "bg-blue-100 text-blue-800"
                             : "bg-emerald-100 text-emerald-800"
                     }`}>
-                        {isHandoff ? "Atención humana" : detailData.status === "ai_active" ? "Agente IA" : detailData.status}
+                        <span className={`h-1.5 w-1.5 rounded-full ${isHandoff ? "bg-blue-500" : "bg-emerald-500"}`} />
+                        {isHandoff ? "Atención humana" : "Agente IA"}
                     </span>
                 </div>
             </div>
@@ -457,6 +488,26 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                             </ScrollArea>
                         </PopoverContent>
                     </Popover>
+
+                    {/* Payment card button — solo en handoff */}
+                    {isHandoff && (
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={handleSendPaymentCard}
+                            disabled={isSendingPaymentCard}
+                            title="Enviar info de pago"
+                            className="shrink-0 h-9 w-9 rounded-full text-muted-foreground hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                        >
+                            {isSendingPaymentCard ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : sentPaymentCard ? (
+                                <Check className="h-4 w-4 text-emerald-500" />
+                            ) : (
+                                <CreditCard className="h-4 w-4" />
+                            )}
+                        </Button>
+                    )}
 
                     {/* Text input */}
                     <div className="flex-1 flex items-end bg-[#F0F2F5] rounded-2xl px-4 py-2 min-h-[40px]">

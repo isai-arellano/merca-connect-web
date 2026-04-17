@@ -53,6 +53,7 @@ export const endpoints = {
         detail: (id: string) => `${API_URL}/api/v1/conversations/${id}`,
         reply: (id: string) => `${API_URL}/api/v1/conversations/${id}/reply`,
         handoff: (id: string) => `${API_URL}/api/v1/conversations/${id}/handoff`,
+        paymentCard: (id: string) => `${API_URL}/api/v1/conversations/${id}/payment-card`,
         handoffNotifications: `${API_URL}/api/v1/conversations/notifications/handoffs`,
     },
     templates: {
