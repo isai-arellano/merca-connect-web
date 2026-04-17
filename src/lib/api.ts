@@ -80,6 +80,8 @@ export const endpoints = {
         agentToggle: `${API_URL}/api/v1/business/agent-toggle`,
         whatsappSignupComplete: `${API_URL}/api/v1/business/whatsapp-signup/complete`,
         whatsappSignupStatus: `${API_URL}/api/v1/business/whatsapp-signup/status`,
+        planUsage: `${API_URL}/api/v1/business/plan/usage`,
+        planAllowExtra: `${API_URL}/api/v1/business/plan/allow-extra`,
     },
     paymentTemplates: {
         list: `${API_URL}/api/v1/payment-templates`,

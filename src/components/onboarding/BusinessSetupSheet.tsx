@@ -197,17 +197,26 @@ export function BusinessSetupSheet({ open, onOpenChange, settings, onSaved }: Bu
             {slugError && <p className="text-xs text-destructive">{slugError}</p>}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ob-phone">Teléfono (10 dígitos)</Label>
-            <Input
-              id="ob-phone"
-              inputMode="numeric"
-              value={contactPhoneNumber}
-              onChange={(e) => {
-                const sanitized = sanitizePhoneInput(e.target.value);
-                setContactPhoneNumber(sanitized);
-                setBusinessForm((p) => ({ ...p, phone: buildPhoneForApi(sanitized) }));
-              }}
-            />
+            <Label htmlFor="ob-phone">Teléfono de contacto</Label>
+            <div className="flex gap-2">
+              <div className="flex items-center gap-1.5 px-3 rounded-md border border-input bg-muted/50 text-sm text-muted-foreground shrink-0 select-none">
+                <span className="text-base leading-none">🇲🇽</span>
+                <span>+52</span>
+              </div>
+              <Input
+                id="ob-phone"
+                inputMode="numeric"
+                placeholder="10 dígitos"
+                value={contactPhoneNumber}
+                onChange={(e) => {
+                  const sanitized = sanitizePhoneInput(e.target.value);
+                  setContactPhoneNumber(sanitized);
+                  setBusinessForm((p) => ({ ...p, phone: buildPhoneForApi(sanitized) }));
+                }}
+                className="flex-1"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">Solo México por ahora. Ingresa 10 dígitos sin código de país.</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="ob-address">Dirección</Label>

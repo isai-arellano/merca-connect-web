@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +53,7 @@ export function DashboardOnboarding({
 }: DashboardOnboardingProps) {
   const { mutate } = useSWRConfig();
   const { data: session } = useSession();
+  const router = useRouter();
   const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
   const [industrySaving, setIndustrySaving] = useState<string | null>(null);
   const [businessSheetOpen, setBusinessSheetOpen] = useState(false);
@@ -189,7 +191,9 @@ export function DashboardOnboarding({
                   <div>
                     <h3 className="text-sm font-medium text-foreground">2. Datos del negocio</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Nombre, horario, URL pública y métodos de pago
+                      {!onboarding.hasIndustry
+                        ? "Primero elige tu tipo de negocio"
+                        : "Nombre, horario, URL pública y métodos de pago"}
                     </p>
                   </div>
                   {!onboarding.hasBusinessProfile && (
@@ -198,7 +202,10 @@ export function DashboardOnboarding({
                       size="sm"
                       variant="outline"
                       className="shrink-0 border-brand-forest/30 text-brand-forest"
-                      onClick={() => setBusinessSheetOpen(true)}
+                      onClick={() => {
+                        if (onboarding.hasIndustry) setBusinessSheetOpen(true);
+                      }}
+                      disabled={!onboarding.hasIndustry}
                     >
                       Completar
                       <ChevronRight className="h-3.5 w-3.5 ml-1" />
@@ -220,15 +227,25 @@ export function DashboardOnboarding({
                   <div>
                     <h3 className="text-sm font-medium text-foreground">3. {catalogLabel}</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Al menos un {industryConfig.productLabel.toLowerCase()} visible
+                      {!onboarding.hasBusinessProfile
+                        ? "Primero completa los datos del negocio"
+                        : `Al menos un ${industryConfig.productLabel.toLowerCase()} visible`}
                     </p>
                   </div>
-                  {onboarding.hasIndustry && !onboarding.hasCatalogContent && (
+                  {!onboarding.hasCatalogContent && (
                     <Button
                       type="button"
                       size="sm"
                       className="shrink-0 bg-brand-forest text-white hover:bg-brand-forest/90"
-                      onClick={() => setProductOpen(true)}
+                      disabled={!onboarding.hasBusinessProfile}
+                      onClick={() => {
+                        if (!onboarding.hasBusinessProfile) return;
+                        if (sessionBusinessPhoneId) {
+                          setProductOpen(true);
+                        } else {
+                          router.push("/dashboard/products");
+                        }
+                      }}
                     >
                       <Package className="h-3.5 w-3.5 mr-1" />
                       Agregar
@@ -308,6 +325,7 @@ export function DashboardOnboarding({
           product={undefined}
         />
       )}
+      {/* When no businessPhoneId yet, productOpen is never true (we redirect instead) */}
     </>
   );
 }
