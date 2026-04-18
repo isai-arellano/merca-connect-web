@@ -94,3 +94,20 @@ a {
   width: 0;
   height: 0;
 }
+
+/* ── Catálogo público: utilities para tema custom (CSS variables) ── */
+@layer utilities {
+  .cat-page-bg   { background-color: var(--cat-page-bg); }
+  .cat-header-bg { background-color: var(--cat-header-bg); }
+  .cat-card-bg   { background-color: var(--cat-card-bg); }
+  .cat-filter-bg { background-color: var(--cat-filter-bg); }
+  .cat-cart-bg   { background-color: var(--cat-cart-bg); }
+  .cat-border    { border-color: var(--cat-border); }
+  .cat-title     { color: var(--cat-title); }
+  .cat-subtitle  { color: var(--cat-subtitle); }
+  .cat-accent    { color: var(--cat-accent); }
+  .cat-badge     { background-color: var(--cat-badge-bg); color: var(--cat-badge-text); border-color: var(--cat-border); }
+  .cat-button-bg { background-color: var(--cat-button-bg); }
+  .cat-button-text { color: var(--cat-button-text); }
+  .cat-section-border { border-color: var(--cat-section-border); }
+}
