@@ -44,6 +44,7 @@ export interface BusinessConfig {
     catalog_public?: boolean;
     catalog_theme?: {
         preset: CatalogThemePreset;
+        custom?: { primary: string; secondary: string };
     };
     [key: string]: unknown;
 }
