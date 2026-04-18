@@ -17,6 +17,7 @@ export interface OnboardingSettingsLike {
     hours?: Record<string, DayScheduleLike>;
     config?: {
         payment_methods?: unknown;
+        signup_completed?: boolean;
     };
 }
 
@@ -62,9 +63,10 @@ export function computeOnboardingState(input: OnboardingComputationInput): Onboa
     const hasHours = hasValidBusinessHours(settings.hours);
     const hasBusinessProfile = hasName && hasHours;
     const hasCatalogContent = hasIndustry && activeProducts > 0;
-    const hasWhatsApp = hasWhatsAppSession;
-    const canStartWhatsApp = hasIndustry && hasBusinessProfile;
-    const allComplete = hasIndustry && hasBusinessProfile && hasWhatsApp;
+    // Fuente de verdad: signup_completed en DB (via settings), no el JWT de sesión
+    const hasWhatsApp = Boolean(settings.config?.signup_completed) || hasWhatsAppSession;
+    const canStartWhatsApp = hasIndustry && hasName;
+    const allComplete = hasIndustry && hasName && hasWhatsApp;
 
     return {
         hasIndustry,
