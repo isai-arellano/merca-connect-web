@@ -26,8 +26,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getIndustryConfig, getPublicCatalogRoute } from "@/config/industries";
 import {
     CATALOG_THEME_PRESETS,
-    CATALOG_THEME_PRESET_API_WIRE,
     type CatalogThemePreset,
+    type CatalogThemeCustom,
 } from "@/config/catalog-themes";
 import { useIndustries } from "@/hooks/useIndustries";
 import { useSession } from "next-auth/react";
@@ -125,6 +125,7 @@ export default function ProductsPage() {
 
     const [catalogSlug, setCatalogSlug] = useState("");
     const [themePreset, setThemePreset] = useState<CatalogThemePreset>("default");
+    const [themeCustom, setThemeCustom] = useState<CatalogThemeCustom>({ primary: "#1A3E35", secondary: "#74E79C" });
     const [catalogPublic, setCatalogPublic] = useState(true);
     const [catalogMetaSaving, setCatalogMetaSaving] = useState(false);
     const [catalogSlugApiError, setCatalogSlugApiError] = useState<string | null>(null);
@@ -136,14 +137,18 @@ export default function ProductsPage() {
 
     useEffect(() => {
         setCatalogSlug(settingsData.slug ?? "");
-        const preset = settingsData.config?.catalog_theme?.preset;
-        if (preset === "default" || preset === undefined) {
-            setThemePreset("default");
-        } else {
+        const rawTheme = settingsData.config?.catalog_theme;
+        const preset = rawTheme?.preset;
+        if (preset === "peach" || preset === "ocean" || preset === "custom") {
             setThemePreset(preset as CatalogThemePreset);
+        } else {
+            setThemePreset("default");
+        }
+        if (rawTheme?.custom?.primary && rawTheme?.custom?.secondary) {
+            setThemeCustom({ primary: rawTheme.custom.primary, secondary: rawTheme.custom.secondary });
         }
         setCatalogPublic(settingsData.config?.catalog_public !== false);
-    }, [settingsData.slug, settingsData.config?.catalog_theme?.preset, settingsData.config?.catalog_public]);
+    }, [settingsData.slug, settingsData.config?.catalog_theme, settingsData.config?.catalog_public]);
 
     useEffect(() => {
         return () => {
@@ -306,10 +311,8 @@ export default function ProductsPage() {
                     ...prevCfg,
                     catalog_public: catalogPublic,
                     catalog_theme: {
-                        preset:
-                            themePreset === "default"
-                                ? CATALOG_THEME_PRESET_API_WIRE
-                                : themePreset,
+                        preset: themePreset,
+                        ...(themePreset === "custom" && { custom: themeCustom }),
                     },
                 },
             });
@@ -438,22 +441,83 @@ export default function ProductsPage() {
                             )}
                         </div>
 
-                        <div className="space-y-2">
-                            <Label className="text-xs font-medium">Tema</Label>
-                            <p className="text-xs text-muted-foreground">{CATALOG_THEME_PRESETS.default.description}</p>
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="radio"
-                                    id="catalog-theme-default"
-                                    name="catalog-theme"
-                                    className="h-4 w-4 accent-brand-forest"
-                                    checked={themePreset === "default"}
-                                    onChange={() => setThemePreset("default")}
-                                />
-                                <label htmlFor="catalog-theme-default" className="text-sm cursor-pointer">
-                                    Default
-                                </label>
+                        <div className="space-y-3">
+                            <Label className="text-xs font-medium">Tema del catálogo</Label>
+                            <p className="text-xs text-muted-foreground">Elige la paleta visual que verán tus clientes.</p>
+                            {/* Picker de temas preset */}
+                            <div className="grid grid-cols-3 gap-2">
+                                {(["default", "peach", "ocean"] as const).map((key) => {
+                                    const def = CATALOG_THEME_PRESETS[key];
+                                    const [c1, c2, c3] = def.previewColors;
+                                    const selected = themePreset === key;
+                                    return (
+                                        <button
+                                            key={key}
+                                            type="button"
+                                            onClick={() => setThemePreset(key)}
+                                            className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-2.5 text-center transition-all ${
+                                                selected
+                                                    ? "border-brand-forest ring-1 ring-brand-forest/40"
+                                                    : "border-muted hover:border-brand-forest/40"
+                                            }`}
+                                        >
+                                            {/* Preview de colores */}
+                                            <div className="flex gap-1">
+                                                {[c1, c2, c3].map((c, i) => (
+                                                    <span
+                                                        key={i}
+                                                        className="h-4 w-4 rounded-full ring-1 ring-black/10"
+                                                        style={{ backgroundColor: c }}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <span className="text-[11px] font-semibold leading-none">{def.label}</span>
+                                        </button>
+                                    );
+                                })}
                             </div>
+                            {/* Opción Custom */}
+                            <button
+                                type="button"
+                                onClick={() => setThemePreset("custom")}
+                                className={`flex w-full items-center gap-3 rounded-xl border-2 px-3 py-2.5 transition-all ${
+                                    themePreset === "custom"
+                                        ? "border-brand-forest ring-1 ring-brand-forest/40"
+                                        : "border-muted hover:border-brand-forest/40"
+                                }`}
+                            >
+                                <div className="flex gap-1">
+                                    <span className="h-4 w-4 rounded-full ring-1 ring-black/10" style={{ backgroundColor: themeCustom.primary }} />
+                                    <span className="h-4 w-4 rounded-full ring-1 ring-black/10" style={{ backgroundColor: themeCustom.secondary }} />
+                                </div>
+                                <span className="text-[11px] font-semibold">Personalizado</span>
+                            </button>
+                            {/* Color pickers si es custom */}
+                            {themePreset === "custom" && (
+                                <div className="flex flex-wrap gap-4 rounded-xl border bg-muted/40 p-3">
+                                    <label className="flex flex-col gap-1 text-xs font-medium">
+                                        Color principal
+                                        <input
+                                            type="color"
+                                            value={themeCustom.primary}
+                                            onChange={(e) => setThemeCustom((t) => ({ ...t, primary: e.target.value }))}
+                                            className="h-8 w-16 cursor-pointer rounded border"
+                                        />
+                                    </label>
+                                    <label className="flex flex-col gap-1 text-xs font-medium">
+                                        Color secundario
+                                        <input
+                                            type="color"
+                                            value={themeCustom.secondary}
+                                            onChange={(e) => setThemeCustom((t) => ({ ...t, secondary: e.target.value }))}
+                                            className="h-8 w-16 cursor-pointer rounded border"
+                                        />
+                                    </label>
+                                    <p className="w-full text-[11px] text-muted-foreground">
+                                        El sistema genera automáticamente los colores de texto, fondo y botones con el mejor contraste.
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         <div className="space-y-2">
