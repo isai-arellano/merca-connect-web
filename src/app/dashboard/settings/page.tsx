@@ -260,7 +260,7 @@ function SettingsPageInner() {
   // Business form state
   const [businessForm, setBusinessForm] = useState({
     name: "",
-    type: "abarrotera",
+    type: "",
     address: "",
     phone: "",
     description: "",
@@ -286,7 +286,7 @@ function SettingsPageInner() {
     if (settings && Object.keys(settings).length > 0) {
       setBusinessForm({
         name: settings.name || "",
-        type: settings.type || "abarrotera",
+        type: settings.type || "",
         address: settings.address || "",
         phone: settings.phone || "",
         description: settings.description || "",
