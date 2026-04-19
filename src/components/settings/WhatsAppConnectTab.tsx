@@ -407,11 +407,6 @@ function DisconnectedState({
                     </Button>
                 )}
             </div>
-
-            <p className="text-xs text-muted-foreground">
-                Este proceso usa el flujo oficial de Meta (Embedded Signup).
-                No necesitas configurar webhooks manualmente ni acceder a la consola de Meta for Developers.
-            </p>
         </div>
     );
 }
