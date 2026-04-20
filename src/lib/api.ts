@@ -1,5 +1,14 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
+/**
+ * URL base del API para fetch en el servidor (páginas públicas de catálogo/menú).
+ * En Docker u otros despliegues, el servidor Next puede necesitar un host distinto al del navegador.
+ * Prioridad: API_URL (solo servidor) → NEXT_PUBLIC_API_URL → localhost.
+ */
+export function getServerApiBaseUrl(): string {
+    return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+}
+
 function withBusinessPhoneId(path: string, businessPhoneId?: string | null) {
     if (!businessPhoneId) {
         return path;

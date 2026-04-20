@@ -1,12 +1,12 @@
 import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
-import { API_URL } from "@/lib/api";
+import { getServerApiBaseUrl } from "@/lib/api";
 import { PublicCatalogView, type PublicCatalogData } from "@/components/public/public-catalog-view";
 
 async function getCatalog(slug: string): Promise<PublicCatalogData | null> {
   try {
     const res = await fetch(
-      `${API_URL}/api/v1/catalog/${encodeURIComponent(slug)}`,
+      `${getServerApiBaseUrl()}/api/v1/catalog/${encodeURIComponent(slug)}`,
       { cache: "no-store" },
     );
     if (!res.ok) return null;

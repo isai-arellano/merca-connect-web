@@ -462,7 +462,15 @@ export default function ProductsPage() {
                             <Switch checked={catalogPublic} onCheckedChange={setCatalogPublic} aria-label="Catálogo público activo" />
                         </div>
 
-                        <div className={`space-y-2 ${!catalogPublic ? "opacity-50 pointer-events-none" : ""}`}>
+                        {!catalogPublic && (
+                            <p className="text-sm text-muted-foreground rounded-lg border border-dashed border-border/60 bg-muted/30 px-3 py-3">
+                                Activa esta opción para configurar la URL, el tema, el logo y la portada del {moduleTitle.toLowerCase()} público. Mientras esté desactivado, el enlace no mostrará tu negocio.
+                            </p>
+                        )}
+
+                        {catalogPublic && (
+                        <div className="space-y-5">
+                        <div className="space-y-2">
                             <Label htmlFor="catalog-public-slug" className="text-xs font-medium flex items-center gap-1.5">
                                 <LinkIcon className="h-3.5 w-3.5" /> URL ({publicRouteSegment})
                             </Label>
@@ -477,7 +485,6 @@ export default function ProductsPage() {
                                         setCatalogSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
                                     }}
                                     placeholder="mi-tienda"
-                                    disabled={!catalogPublic}
                                     className={
                                         catalogSlugValidationError || catalogSlugApiError
                                             ? "border-destructive"
@@ -650,6 +657,8 @@ export default function ProductsPage() {
                             </div>
                             <p className="text-[11px] text-muted-foreground">Imagen ancha que aparece como fondo del header. Se convierte a WebP automáticamente.</p>
                         </div>
+                        </div>
+                        )}
 
                         <Button
                             type="button"
