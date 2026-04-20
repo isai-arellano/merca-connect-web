@@ -46,6 +46,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+const MAX_BANNER_BYTES = 10 * 1024 * 1024;
 const ALLOWED_LOGO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 interface Product {
@@ -63,6 +64,7 @@ interface Product {
     is_visible?: boolean | null;
     is_optional_offer?: boolean | null;
     image_url?: string | null;
+    images?: string[];
     barcode?: string | null;
     ingredients?: string | null;
     preparation_time_min?: number | null;
@@ -126,7 +128,7 @@ export default function ProductsPage() {
     const [catalogSlug, setCatalogSlug] = useState("");
     const [themePreset, setThemePreset] = useState<CatalogThemePreset>("default");
     const [themeCustom, setThemeCustom] = useState<CatalogThemeCustom>({ primary: "#1A3E35", secondary: "#74E79C" });
-    const [catalogPublic, setCatalogPublic] = useState(true);
+    const [catalogPublic, setCatalogPublic] = useState(false);
     const [catalogMetaSaving, setCatalogMetaSaving] = useState(false);
     const [catalogSlugApiError, setCatalogSlugApiError] = useState<string | null>(null);
     const [catalogSlugValidationError, setCatalogSlugValidationError] = useState<string | null>(null);
@@ -134,6 +136,10 @@ export default function ProductsPage() {
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
     const logoInputRef = useRef<HTMLInputElement>(null);
+    const [bannerFile, setBannerFile] = useState<File | null>(null);
+    const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+    const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+    const bannerInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         setCatalogSlug(settingsData.slug ?? "");
@@ -147,7 +153,7 @@ export default function ProductsPage() {
         if (rawTheme?.custom?.primary && rawTheme?.custom?.secondary) {
             setThemeCustom({ primary: rawTheme.custom.primary, secondary: rawTheme.custom.secondary });
         }
-        setCatalogPublic(settingsData.config?.catalog_public !== false);
+        setCatalogPublic(settingsData.config?.catalog_public === true);
     }, [settingsData.slug, settingsData.config?.catalog_theme, settingsData.config?.catalog_public]);
 
     useEffect(() => {
@@ -155,6 +161,12 @@ export default function ProductsPage() {
             if (logoPreview?.startsWith("blob:")) URL.revokeObjectURL(logoPreview);
         };
     }, [logoPreview]);
+
+    useEffect(() => {
+        return () => {
+            if (bannerPreview?.startsWith("blob:")) URL.revokeObjectURL(bannerPreview);
+        };
+    }, [bannerPreview]);
     const productsEndpoint = sessionBusinessPhoneId ? endpoints.products.list(sessionBusinessPhoneId, true) : null;
     const { data: response, isLoading, mutate: mutateProducts } = useSWR<ApiList<Product>>(session && productsEndpoint ? productsEndpoint : null, fetcher);
 
@@ -281,6 +293,52 @@ export default function ProductsPage() {
             toast({ title: "Error", description, variant: "destructive" });
         } finally {
             setIsUploadingLogo(false);
+        }
+    }
+
+    function handleBannerFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        if (!ALLOWED_LOGO_TYPES.has(file.type)) {
+            toast({
+                title: "Formato no permitido",
+                description: "Usa JPG, PNG o WEBP.",
+                variant: "destructive",
+            });
+            return;
+        }
+        if (file.size > MAX_BANNER_BYTES) {
+            toast({
+                title: "Archivo demasiado grande",
+                description: "El banner debe ser menor a 10 MB.",
+                variant: "destructive",
+            });
+            return;
+        }
+        if (bannerPreview?.startsWith("blob:")) URL.revokeObjectURL(bannerPreview);
+        setBannerFile(file);
+        setBannerPreview(URL.createObjectURL(file));
+        event.target.value = "";
+    }
+
+    async function handleUploadBanner() {
+        if (!bannerFile) return;
+        setIsUploadingBanner(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", bannerFile);
+            await apiClient.uploadForm(endpoints.business.bannerUpload, formData);
+            await mutateSettings();
+            setBannerFile(null);
+            setBannerPreview(null);
+            toast({ title: "Portada actualizada" });
+        } catch (error: unknown) {
+            let description = "No se pudo subir la portada.";
+            if (error instanceof NetworkError) description = error.message;
+            else if (error instanceof ApiError && error.message) description = error.message;
+            toast({ title: "Error", description, variant: "destructive" });
+        } finally {
+            setIsUploadingBanner(false);
         }
     }
 
@@ -555,7 +613,42 @@ export default function ProductsPage() {
                                     )}
                                 </div>
                             </div>
-                            <p className="text-[11px] text-muted-foreground">Se optimiza para el catálogo o menú público.</p>
+                            <p className="text-[11px] text-muted-foreground">Se optimiza para el catálogo o menú público. Se convierte a WebP automáticamente.</p>
+                        </div>
+
+                        {/* Banner / portada */}
+                        <div className="space-y-2">
+                            <Label className="text-xs font-medium flex items-center gap-1.5">
+                                <ImageIcon className="h-3.5 w-3.5" /> Imagen de portada
+                                <span className="text-[10px] font-normal text-muted-foreground">(header del catálogo)</span>
+                            </Label>
+                            {/* Preview del banner actual */}
+                            {(bannerPreview ?? settingsData.config?.catalog_banner_url) && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                    src={bannerPreview ?? (settingsData.config?.catalog_banner_url as string)}
+                                    alt="Banner"
+                                    className="w-full max-h-24 rounded-md border object-cover"
+                                />
+                            )}
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className="flex flex-col gap-1.5">
+                                    <Input
+                                        ref={bannerInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="max-w-[220px] text-xs h-8"
+                                        onChange={handleBannerFileChange}
+                                    />
+                                    {bannerFile && (
+                                        <Button type="button" size="sm" variant="secondary" disabled={isUploadingBanner} onClick={handleUploadBanner}>
+                                            {isUploadingBanner ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                                            Subir portada
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">Imagen ancha que aparece como fondo del header. Se convierte a WebP automáticamente.</p>
                         </div>
 
                         <Button

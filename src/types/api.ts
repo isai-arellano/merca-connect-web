@@ -40,6 +40,7 @@ export interface PlanDefinitionAdmin {
     price_mxn: number;
     extra_conv_price_mxn: number;
     catalog_product_limit: number | null;
+    product_image_limit: number;
 }
 
 export interface DaySchedule {
@@ -52,6 +53,8 @@ export interface BusinessConfig {
     delivery_zone?: string | null;
     catalog_logo_url?: string | null;
     catalog_logo_key?: string | null;
+    catalog_banner_url?: string | null;
+    catalog_banner_key?: string | null;
     /** Si es false, el endpoint público /catalog/{slug} responde 404. Ausente = comportamiento previo (público si hay slug). */
     catalog_public?: boolean;
     catalog_theme?: {
@@ -262,6 +265,8 @@ export interface PlanUsage {
   near_limit: boolean;
   price_mxn: number;
   history_days: number;
+  catalog_product_limit: number | null;
+  product_image_limit: number;
 }
 
 // ── WhatsApp Profile ──
