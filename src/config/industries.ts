@@ -50,6 +50,11 @@ export interface IndustryApiRow {
     business_category?: BusinessCategory;
 }
 
+/** Misma regla que Configuración > Tipo de negocio / Industria y GET .../catalog/industries. */
+export function isIndustryEligibleForBusinessType(row: IndustryApiRow): boolean {
+    return row.is_active && row.is_selectable !== false;
+}
+
 export function industryApiRowToConfig(row: IndustryApiRow): IndustryConfig {
     return {
         view: row.view,
@@ -65,7 +70,7 @@ export function industryApiRowToConfig(row: IndustryApiRow): IndustryConfig {
 export function buildIndustryMapFromApi(rows: IndustryApiRow[]): Record<string, IndustryConfig> {
     const m: Record<string, IndustryConfig> = {};
     for (const row of rows) {
-        if (row.is_active && row.is_selectable !== false) {
+        if (isIndustryEligibleForBusinessType(row)) {
             m[row.slug] = industryApiRowToConfig(row);
         }
     }

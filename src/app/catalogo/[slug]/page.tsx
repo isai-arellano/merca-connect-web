@@ -1,26 +1,17 @@
 import { notFound, permanentRedirect } from "next/navigation";
-import { getServerApiBaseUrl } from "@/lib/api";
 import type { Metadata } from "next";
-import { PublicCatalogView, type PublicCatalogData } from "@/components/public/public-catalog-view";
-
-async function getCatalog(slug: string): Promise<PublicCatalogData | null> {
-    try {
-        const res = await fetch(
-            `${getServerApiBaseUrl()}/api/v1/catalog/${encodeURIComponent(slug)}`,
-            { cache: "no-store" },
-        );
-        if (!res.ok) return null;
-        return res.json();
-    } catch {
-        return null;
-    }
-}
+import { PublicCatalogView } from "@/components/public/public-catalog-view";
+import { fetchPublicCatalog } from "@/lib/public-catalog-fetch";
+import { normalizePublicCatalogSlug } from "@/lib/public-catalog-slug";
 
 export async function generateMetadata(
     { params }: { params: Promise<{ slug: string }> }
 ): Promise<Metadata> {
-    const { slug } = await params;
-    const catalog = await getCatalog(slug);
+    const { slug: raw } = await params;
+    if (!normalizePublicCatalogSlug(raw)) {
+        return { title: "Catálogo no encontrado" };
+    }
+    const catalog = await fetchPublicCatalog(raw);
     if (!catalog) return { title: "Catálogo no encontrado" };
     return {
         title: `${catalog.business_name} — Catálogo`,
@@ -31,13 +22,17 @@ export async function generateMetadata(
 export default async function CatalogPage(
     { params }: { params: Promise<{ slug: string }> }
 ) {
-    const { slug } = await params;
-    const catalog = await getCatalog(slug);
+    const { slug: raw } = await params;
+    const slugNorm = normalizePublicCatalogSlug(raw);
+    if (!slugNorm) {
+        notFound();
+    }
+    const catalog = await fetchPublicCatalog(raw);
 
     if (!catalog) notFound();
 
     if (catalog.public_view === "menu") {
-        permanentRedirect(`/menu/${slug}`);
+        permanentRedirect(`/menu/${slugNorm}`);
     }
 
     return <PublicCatalogView catalog={catalog} />;
