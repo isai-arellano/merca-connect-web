@@ -42,7 +42,6 @@ export interface IndustryApiRow {
     product_fields: IndustryConfig["productFields"];
     relevant_units: string[];
     features: IndustryConfig["features"];
-    sort_order: number;
     is_active: boolean;
     parent_slug?: string | null;
     /** false = grupo padre (no se guarda en negocio); omitido en despliegues antiguos = elegible */
