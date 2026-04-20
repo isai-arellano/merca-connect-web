@@ -712,23 +712,10 @@ function SettingsPageInner() {
                               {formErrors.hours}
                             </p>
                           )}
-                          <div className="mt-3">
-                            <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-amber-50/40 px-3 py-2.5">
-                              <Checkbox
-                                id="allow-orders-outside-hours"
-                                checked={allowOrdersOutsideHours}
-                                onCheckedChange={(v) => setAllowOrdersOutsideHours(!!v)}
-                                className="mt-0.5"
-                              />
-                              <div className="space-y-0.5">
-                                <label htmlFor="allow-orders-outside-hours" className="text-sm font-medium cursor-pointer leading-tight">
-                                  Levantar pedidos fuera de horario
-                                </label>
-                                <p className="text-xs text-muted-foreground leading-snug">
-                                  Si está desactivado, el agente se apaga automáticamente fuera del horario configurado. Actívalo para que siga atendiendo aunque el negocio esté cerrado.
-                                </p>
-                              </div>
-                            </div>
+                          <div className="mt-3 rounded-lg border border-border/60 bg-amber-50/40 px-3 py-2.5">
+                            <p className="text-xs text-muted-foreground leading-snug">
+                              Si está desactivado, el agente se apaga automáticamente fuera del horario configurado. Actívalo para que siga atendiendo aunque el negocio esté cerrado.
+                            </p>
                           </div>
                         </div>
 

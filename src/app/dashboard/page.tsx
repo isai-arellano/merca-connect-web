@@ -54,7 +54,7 @@ interface SettingsLike {
     config?: {
         payment_methods?: unknown;
         signup_completed?: boolean;
-        delivery_zone?: string;
+        delivery_zone?: string | null;
     };
 }
 
