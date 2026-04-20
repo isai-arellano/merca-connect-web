@@ -40,6 +40,7 @@ export interface PlanDefinitionAdmin {
     price_mxn: number;
     extra_conv_price_mxn: number;
     catalog_product_limit: number | null;
+    product_image_limit: number;
 }
 
 export interface DaySchedule {
@@ -264,6 +265,8 @@ export interface PlanUsage {
   near_limit: boolean;
   price_mxn: number;
   history_days: number;
+  catalog_product_limit: number | null;
+  product_image_limit: number;
 }
 
 // ── WhatsApp Profile ──

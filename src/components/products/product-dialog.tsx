@@ -14,7 +14,7 @@ import { endpoints } from "@/lib/api";
 import { apiClient, ApiError, fetcher, NetworkError } from "@/lib/api-client";
 import { Loader2, Plus, Trash2, X, Upload, ImageIcon } from "lucide-react";
 import useSWR from "swr";
-import { type ApiList, type CategoryOption as ApiCategoryOption } from "@/types/api";
+import { type ApiList, type CategoryOption as ApiCategoryOption, type PlanUsage } from "@/types/api";
 import { useToast } from "@/hooks/use-toast";
 
 export interface ProductDialogProduct {
@@ -35,6 +35,7 @@ export interface ProductDialogProduct {
     is_visible?: boolean | null;
     is_optional_offer?: boolean | null;
     image_url?: string | null;
+    images?: string[] | null;
     weight_kg?: number | null;
     length_cm?: number | null;
     width_cm?: number | null;
@@ -93,6 +94,16 @@ const EMPTY_VALUE = "__none__";
 const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
+function imageUrlsFromProduct(p: ProductDialogProduct | undefined): string[] {
+    if (!p) return [];
+    const imgs = p.images;
+    if (Array.isArray(imgs) && imgs.length > 0) {
+        return imgs.filter((u): u is string => Boolean(u && String(u).trim()));
+    }
+    if (p.image_url) return [p.image_url];
+    return [];
+}
+
 function getInitialFormState(product?: ProductDialogProduct): FormState {
     return {
         name: product?.name ?? "",
@@ -149,6 +160,7 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
+    const [removingImageIndex, setRemovingImageIndex] = useState<number | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
 
@@ -167,6 +179,14 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
     );
     const { data: unitsResponse } = useSWR<ApiList<UnitOption>>(open ? endpoints.units.list : null, fetcher);
     const { data: productResponse, isLoading: isLoadingProduct } = useSWR<ProductDialogProduct>(productDetailEndpoint, fetcher);
+
+    const { data: planUsageRaw } = useSWR<PlanUsage | { data: PlanUsage }>(
+        open && businessPhoneId ? endpoints.business.planUsage : null,
+        fetcher,
+    );
+    const planUsage: PlanUsage | null =
+        (planUsageRaw as { data: PlanUsage } | null)?.data ?? (planUsageRaw as PlanUsage | null) ?? null;
+    const maxImagesAllowed = Math.min(3, planUsage?.product_image_limit ?? 1);
 
     const currentProduct: ProductDialogProduct | undefined = productResponse ?? product;
     const categoryOptions: CategoryOption[] = categoriesResponse?.data ?? [];
@@ -252,28 +272,33 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
     async function handleUploadImage() {
         const productId = currentProduct?.id ?? product?.id;
         if (!imageFile || !productId) return;
+        const currentUrls = imageUrlsFromProduct(currentProduct);
+        if (currentUrls.length >= maxImagesAllowed) {
+            toast({
+                title: "Límite alcanzado",
+                description: `Tu plan permite hasta ${maxImagesAllowed} imagen(es) por producto.`,
+                variant: "destructive",
+            });
+            return;
+        }
         setIsUploadingImage(true);
         try {
             const formData = new FormData();
             formData.append("file", imageFile);
-            const res = await apiClient.uploadForm<{ image_url: string }>(
+            const res = await apiClient.uploadForm<ProductDialogProduct>(
                 endpoints.products.uploadImage(productId),
                 formData,
             );
             await mutate(productsEndpoint);
             if (productDetailEndpoint) {
-                await mutate(
-                    productDetailEndpoint,
-                    (prev) => (prev ? { ...prev, image_url: res.image_url } : prev),
-                    { revalidate: true },
-                );
+                await mutate(productDetailEndpoint, res, { revalidate: true });
             }
             setImageFile(null);
             setImagePreview(null);
             if (fileInputRef.current) fileInputRef.current.value = "";
             toast({
-                title: "Imagen actualizada",
-                description: "La imagen del producto se reemplazó correctamente.",
+                title: "Imagen agregada",
+                description: "La imagen se guardó en el producto.",
             });
         } catch (error: unknown) {
             let description = "No se pudo subir la imagen del producto. Intenta nuevamente.";
@@ -289,6 +314,29 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
             });
         } finally {
             setIsUploadingImage(false);
+        }
+    }
+
+    async function handleRemoveImage(index: number) {
+        const productId = currentProduct?.id ?? product?.id;
+        if (!productId || !businessPhoneId) return;
+        setRemovingImageIndex(index);
+        try {
+            const updated = await apiClient.delete<ProductDialogProduct>(
+                endpoints.products.deleteImage(productId, index),
+            );
+            await mutate(productsEndpoint);
+            if (productDetailEndpoint) {
+                await mutate(productDetailEndpoint, updated, { revalidate: true });
+            }
+            toast({ title: "Imagen eliminada" });
+        } catch (error: unknown) {
+            let description = "No se pudo eliminar la imagen.";
+            if (error instanceof NetworkError) description = error.message;
+            else if (error instanceof ApiError && error.message) description = error.message;
+            toast({ title: "Error", description, variant: "destructive" });
+        } finally {
+            setRemovingImageIndex(null);
         }
     }
 
@@ -419,7 +467,7 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
         }
     };
 
-    const currentImageUrl = imagePreview ?? currentProduct?.image_url ?? null;
+    const galleryUrls = imageUrlsFromProduct(currentProduct);
     const moduleLabel = config.view === "menu" ? "menú" : "catálogo";
 
     return (
@@ -444,45 +492,78 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
                         {/* Imagen — solo en modo edición */}
                         {isEditing && (
                             <div className="grid grid-cols-4 items-start gap-4">
-                                <Label className="text-right pt-2">Imagen</Label>
+                                <Label className="text-right pt-2">Imágenes</Label>
                                 <div className="col-span-3 space-y-2">
-                                    <div className="flex items-center gap-3">
-                                        {currentImageUrl ? (
-                                            <img
-                                                src={currentImageUrl}
-                                                alt="Vista previa"
-                                                className="w-16 h-16 rounded-md object-cover border border-border"
-                                            />
-                                        ) : (
+                                    <p className="text-xs text-muted-foreground">
+                                        Hasta {maxImagesAllowed} imagen(es) según tu plan (máx. 3). La primera es la principal.
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {galleryUrls.map((url, idx) => (
+                                            <div key={`${url}-${idx}`} className="relative group">
+                                                <img
+                                                    src={url}
+                                                    alt={`Imagen ${idx + 1}`}
+                                                    className="w-16 h-16 rounded-md object-cover border border-border"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    title="Quitar imagen"
+                                                    disabled={removingImageIndex !== null}
+                                                    onClick={() => handleRemoveImage(idx)}
+                                                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs shadow opacity-90 hover:opacity-100 disabled:opacity-50"
+                                                >
+                                                    {removingImageIndex === idx ? (
+                                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                                    ) : (
+                                                        <X className="h-3 w-3" />
+                                                    )}
+                                                </button>
+                                                {idx === 0 && (
+                                                    <span className="absolute bottom-0 left-0 right-0 bg-black/55 text-[9px] text-white text-center py-0.5 rounded-b-md">
+                                                        Principal
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ))}
+                                        {galleryUrls.length === 0 && !imagePreview && (
                                             <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center text-muted-foreground border border-border">
                                                 <ImageIcon className="h-6 w-6" />
                                             </div>
                                         )}
-                                        <div className="flex flex-col gap-1">
+                                        {imagePreview && (
+                                            <img
+                                                src={imagePreview}
+                                                alt="Nueva"
+                                                className="w-16 h-16 rounded-md object-cover border border-dashed border-primary"
+                                            />
+                                        )}
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={galleryUrls.length >= maxImagesAllowed}
+                                            onClick={() => fileInputRef.current?.click()}
+                                        >
+                                            Seleccionar archivo
+                                        </Button>
+                                        {imageFile && (
                                             <Button
                                                 type="button"
-                                                variant="outline"
                                                 size="sm"
-                                                onClick={() => fileInputRef.current?.click()}
+                                                disabled={isUploadingImage || galleryUrls.length >= maxImagesAllowed}
+                                                onClick={handleUploadImage}
+                                                className="bg-primary text-primary-foreground hover:opacity-90"
                                             >
-                                                Seleccionar
+                                                {isUploadingImage ? (
+                                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                                ) : (
+                                                    <Upload className="h-3 w-3 mr-1" />
+                                                )}
+                                                Subir
                                             </Button>
-                                            {imageFile && (
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    disabled={isUploadingImage}
-                                                    onClick={handleUploadImage}
-                                                    className="bg-primary text-primary-foreground hover:opacity-90"
-                                                >
-                                                    {isUploadingImage
-                                                        ? <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                                        : <Upload className="h-3 w-3 mr-1" />
-                                                    }
-                                                    Subir
-                                                </Button>
-                                            )}
-                                        </div>
+                                        )}
                                     </div>
                                     <input
                                         ref={fileInputRef}

@@ -317,7 +317,7 @@ function SettingsPageInner() {
         setDeliveryZone(cfg.delivery_zone);
       }
       setAllowOrdersOutsideHours(!!cfg.allow_orders_outside_hours);
-      setCatalogPublished(cfg.catalog_public !== false);
+      setCatalogPublished(cfg.catalog_public === true);
       setContactPhoneNumber(getPhoneDigits(settings.phone || "").slice(-10));
       setSocialForm({
         website: settings.social?.website || "",

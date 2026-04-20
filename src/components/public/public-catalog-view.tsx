@@ -45,6 +45,8 @@ export interface PublicCatalogProductItem {
   price: number;
   unit: string | null;
   image_url: string | null;
+  /** Galería (máx. 3); si viene vacío, usar solo image_url */
+  images?: string[];
   category_name: string | null;
 }
 
@@ -94,6 +96,12 @@ function formatPrice(price: number): string {
     style: "currency",
     currency: "MXN",
   }).format(price);
+}
+
+function productImageUrls(p: PublicCatalogProductItem): string[] {
+  if (p.images && p.images.length > 0) return p.images.filter(Boolean);
+  if (p.image_url) return [p.image_url];
+  return [];
 }
 
 function cleanPhone(phone: string): string {
@@ -266,6 +274,9 @@ function ProductCard({
   qtyInCart: number;
   onQtyChange: (qty: number) => void;
 }) {
+  const urls = productImageUrls(product);
+  const [imgIdx, setImgIdx] = useState(0);
+
   const isMenu = view === "menu";
 
   if (isMenu) {
@@ -321,9 +332,9 @@ function ProductCard({
         </div>
         {/* Imagen a la derecha */}
         <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl">
-          {product.image_url ? (
+          {urls[0] ? (
             <Image
-              src={product.image_url}
+              src={urls[0]}
               alt={product.name}
               fill
               className="object-cover"
@@ -346,16 +357,37 @@ function ProductCard({
     <div
       className={`group flex flex-col rounded-2xl border overflow-hidden transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${tokens.border} ${tokens.cardBackground}`}
     >
-      {/* Imagen */}
+      {/* Imagen(es) */}
       <div className="relative aspect-square w-full overflow-hidden">
-        {product.image_url ? (
-          <Image
-            src={product.image_url}
-            alt={product.name}
-            fill
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-          />
+        {urls.length > 0 ? (
+          <>
+            <Image
+              src={urls[imgIdx] ?? urls[0]}
+              alt={product.name}
+              fill
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            />
+            {urls.length > 1 && (
+              <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 px-2">
+                {urls.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    aria-label={`Imagen ${i + 1} de ${urls.length}`}
+                    className={`h-2 w-2 rounded-full transition-colors ${
+                      i === imgIdx ? "bg-white shadow" : "bg-white/45 hover:bg-white/70"
+                    }`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setImgIdx(i);
+                    }}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         ) : (
           <div
             className={`flex h-full w-full items-center justify-center ${tokens.filterBg}`}

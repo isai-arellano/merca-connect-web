@@ -46,6 +46,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+const MAX_BANNER_BYTES = 10 * 1024 * 1024;
 const ALLOWED_LOGO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 interface Product {
@@ -63,6 +64,7 @@ interface Product {
     is_visible?: boolean | null;
     is_optional_offer?: boolean | null;
     image_url?: string | null;
+    images?: string[];
     barcode?: string | null;
     ingredients?: string | null;
     preparation_time_min?: number | null;
@@ -126,7 +128,7 @@ export default function ProductsPage() {
     const [catalogSlug, setCatalogSlug] = useState("");
     const [themePreset, setThemePreset] = useState<CatalogThemePreset>("default");
     const [themeCustom, setThemeCustom] = useState<CatalogThemeCustom>({ primary: "#1A3E35", secondary: "#74E79C" });
-    const [catalogPublic, setCatalogPublic] = useState(true);
+    const [catalogPublic, setCatalogPublic] = useState(false);
     const [catalogMetaSaving, setCatalogMetaSaving] = useState(false);
     const [catalogSlugApiError, setCatalogSlugApiError] = useState<string | null>(null);
     const [catalogSlugValidationError, setCatalogSlugValidationError] = useState<string | null>(null);
@@ -151,7 +153,7 @@ export default function ProductsPage() {
         if (rawTheme?.custom?.primary && rawTheme?.custom?.secondary) {
             setThemeCustom({ primary: rawTheme.custom.primary, secondary: rawTheme.custom.secondary });
         }
-        setCatalogPublic(settingsData.config?.catalog_public !== false);
+        setCatalogPublic(settingsData.config?.catalog_public === true);
     }, [settingsData.slug, settingsData.config?.catalog_theme, settingsData.config?.catalog_public]);
 
     useEffect(() => {
@@ -305,7 +307,7 @@ export default function ProductsPage() {
             });
             return;
         }
-        if (file.size > MAX_LOGO_BYTES) {
+        if (file.size > MAX_BANNER_BYTES) {
             toast({
                 title: "Archivo demasiado grande",
                 description: "El banner debe ser menor a 10 MB.",

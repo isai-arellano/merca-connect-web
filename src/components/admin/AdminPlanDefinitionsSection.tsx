@@ -37,6 +37,7 @@ export function AdminPlanDefinitionsSection() {
     price_mxn: 999,
     extra_conv_price_mxn: 3.5,
     catalog_limit_str: "50",
+    product_image_limit: 3,
   });
   const [form, setForm] = useState({
     display_name: "",
@@ -46,6 +47,7 @@ export function AdminPlanDefinitionsSection() {
     price_mxn: 0,
     extra_conv_price_mxn: 0,
     catalog_limit_str: "" as string,
+    product_image_limit: 1,
   });
 
   function openEdit(row: PlanDefinitionAdmin) {
@@ -61,6 +63,7 @@ export function AdminPlanDefinitionsSection() {
         row.catalog_product_limit === null || row.catalog_product_limit === undefined
           ? ""
           : String(row.catalog_product_limit),
+      product_image_limit: row.product_image_limit ?? 1,
     });
     setEditOpen(true);
   }
@@ -88,6 +91,7 @@ export function AdminPlanDefinitionsSection() {
         price_mxn: form.price_mxn,
         extra_conv_price_mxn: form.extra_conv_price_mxn,
         catalog_product_limit,
+        product_image_limit: Math.min(5, Math.max(1, form.product_image_limit)),
       });
       await mutate();
       setEditOpen(false);
@@ -130,6 +134,7 @@ export function AdminPlanDefinitionsSection() {
         price_mxn: createForm.price_mxn,
         extra_conv_price_mxn: createForm.extra_conv_price_mxn,
         catalog_product_limit: cat.value,
+        product_image_limit: Math.min(5, Math.max(1, createForm.product_image_limit)),
       });
       await mutate();
       setCreateOpen(false);
@@ -142,6 +147,7 @@ export function AdminPlanDefinitionsSection() {
         price_mxn: 999,
         extra_conv_price_mxn: 3.5,
         catalog_limit_str: "50",
+        product_image_limit: 3,
       });
       toast({ title: "Plan creado" });
     } catch (e: unknown) {
@@ -197,6 +203,7 @@ export function AdminPlanDefinitionsSection() {
                     <th className="p-2 font-medium">Precio</th>
                     <th className="p-2 font-medium">Extra conv.</th>
                     <th className="p-2 font-medium">Catálogo máx.</th>
+                    <th className="p-2 font-medium">Img / prod.</th>
                     <th className="p-2 w-10" />
                   </tr>
                 </thead>
@@ -210,6 +217,7 @@ export function AdminPlanDefinitionsSection() {
                       <td className="p-2 tabular-nums">${r.price_mxn}</td>
                       <td className="p-2 tabular-nums">${r.extra_conv_price_mxn.toFixed(2)}</td>
                       <td className="p-2 tabular-nums">{r.catalog_product_limit ?? "∞"}</td>
+                      <td className="p-2 tabular-nums">{r.product_image_limit ?? 1}</td>
                       <td className="p-2">
                         <Button
                           type="button"
@@ -312,6 +320,24 @@ export function AdminPlanDefinitionsSection() {
                 Limita cuántos productos activos se muestran en el catálogo web del negocio.
               </p>
             </div>
+            <div className="space-y-1.5">
+              <Label>Imágenes por producto (máx.)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={5}
+                value={form.product_image_limit}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    product_image_limit: parseInt(e.target.value, 10) || 1,
+                  }))
+                }
+              />
+              <p className="text-[10px] text-muted-foreground">
+                En el panel se permiten hasta 3 por producto; el plan puede limitar a 1 en planes básicos.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
@@ -410,6 +436,21 @@ export function AdminPlanDefinitionsSection() {
                 placeholder="Vacío = sin límite"
                 value={createForm.catalog_limit_str}
                 onChange={(e) => setCreateForm((f) => ({ ...f, catalog_limit_str: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Imágenes por producto (máx.)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={5}
+                value={createForm.product_image_limit}
+                onChange={(e) =>
+                  setCreateForm((f) => ({
+                    ...f,
+                    product_image_limit: parseInt(e.target.value, 10) || 1,
+                  }))
+                }
               />
             </div>
           </div>
