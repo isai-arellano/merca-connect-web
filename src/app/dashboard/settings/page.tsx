@@ -26,6 +26,8 @@ import {
   Instagram,
   Facebook,
   AtSign,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
@@ -49,8 +51,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FALLBACK_INDUSTRIES, FLAT_INDUSTRY_SLUGS_ORDER } from "@/config/industries";
+import { FALLBACK_INDUSTRIES, FLAT_INDUSTRY_SLUGS_ORDER, BUSINESS_CATEGORIES } from "@/config/industries";
 import { useIndustries } from "@/hooks/useIndustries";
 
 const COUNTRY_CODE_MX = "+52";
@@ -283,6 +286,8 @@ function SettingsPageInner() {
   const [deliveryZone, setDeliveryZone] = useState("");
   const [contactPhoneNumber, setContactPhoneNumber] = useState("");
   const [allowOrdersOutsideHours, setAllowOrdersOutsideHours] = useState(false);
+  const [catalogPublished, setCatalogPublished] = useState<boolean | null>(null);
+  const [savingCatalogPublished, setSavingCatalogPublished] = useState(false);
 
   // WhatsApp form state
   const [waForm, setWaForm] = useState({
@@ -312,6 +317,7 @@ function SettingsPageInner() {
         setDeliveryZone(cfg.delivery_zone);
       }
       setAllowOrdersOutsideHours(!!cfg.allow_orders_outside_hours);
+      setCatalogPublished(cfg.catalog_public !== false);
       setContactPhoneNumber(getPhoneDigits(settings.phone || "").slice(-10));
       setSocialForm({
         website: settings.social?.website || "",
@@ -376,6 +382,7 @@ function SettingsPageInner() {
           config: {
             payment_methods: paymentMethods,
             delivery_zone: deliveryZone.trim() || null,
+            catalog_public: catalogPublished !== null ? catalogPublished : undefined,
           },
           allow_orders_outside_hours: allowOrdersOutsideHours,
           social: {
@@ -422,6 +429,34 @@ function SettingsPageInner() {
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleToggleCatalogPublished = async (value: boolean) => {
+    setSavingCatalogPublished(true);
+    const prev = catalogPublished;
+    setCatalogPublished(value);
+    try {
+      const prevCfg = settings.config || {};
+      await apiClient.patch(endpoints.business.settings, {
+        config: { ...prevCfg, catalog_public: value },
+      });
+      mutateSettings();
+      toast({
+        title: value ? "Catálogo publicado" : "Catálogo oculto",
+        description: value
+          ? "Tu catálogo ahora es visible para clientes."
+          : "Tu catálogo ya no es accesible públicamente.",
+      });
+    } catch {
+      setCatalogPublished(prev);
+      toast({
+        title: "Error al cambiar visibilidad",
+        description: "No se pudo actualizar. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingCatalogPublished(false);
     }
   };
 
@@ -637,9 +672,16 @@ function SettingsPageInner() {
                               {formErrors.type}
                             </p>
                           )}
-                          <p className="text-xs text-muted-foreground">
-                            Define el giro para adaptar formularios de productos y unidades.
-                          </p>
+                          <div className="flex flex-wrap items-center gap-2 mt-1">
+                            <p className="text-xs text-muted-foreground">
+                              Define el giro para adaptar formularios de productos y unidades.
+                            </p>
+                            {settings.business_category && (
+                              <span className="inline-flex items-center rounded-full border border-border/60 bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                                Categoría: {BUSINESS_CATEGORIES.find(c => c.value === settings.business_category)?.label ?? settings.business_category}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         <div className="space-y-2">
@@ -712,10 +754,18 @@ function SettingsPageInner() {
                               {formErrors.hours}
                             </p>
                           )}
-                          <div className="mt-3 rounded-lg border border-border/60 bg-amber-50/40 px-3 py-2.5">
-                            <p className="text-xs text-muted-foreground leading-snug">
-                              Si está desactivado, el agente se apaga automáticamente fuera del horario configurado. Actívalo para que siga atendiendo aunque el negocio esté cerrado.
-                            </p>
+                          <div className="mt-3 flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                            <div className="space-y-0.5">
+                              <p className="text-sm font-medium">Atender fuera de horario</p>
+                              <p className="text-xs text-muted-foreground leading-snug">
+                                Si está activo, el agente seguirá respondiendo aunque el negocio esté cerrado.
+                              </p>
+                            </div>
+                            <Switch
+                              checked={allowOrdersOutsideHours}
+                              onCheckedChange={setAllowOrdersOutsideHours}
+                              aria-label="Atender fuera de horario"
+                            />
                           </div>
                         </div>
 
@@ -872,6 +922,44 @@ function SettingsPageInner() {
                               />
                             </div>
                           </div>
+                        </div>
+
+                        <Separator />
+
+                        {/* Visibilidad del catálogo público */}
+                        <div className="space-y-3">
+                          <Label className="flex items-center gap-2">
+                            <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                            Catálogo / Menú público
+                          </Label>
+                          <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-3">
+                            <div className="space-y-0.5">
+                              <p className="text-sm font-medium flex items-center gap-2">
+                                {catalogPublished === false ? (
+                                  <><EyeOff className="h-4 w-4 text-muted-foreground" />Oculto</>
+                                ) : (
+                                  <><Eye className="h-4 w-4 text-emerald-500" />Publicado</>
+                                )}
+                              </p>
+                              <p className="text-xs text-muted-foreground leading-snug">
+                                {catalogPublished === false
+                                  ? "Tu catálogo no es accesible públicamente. Los clientes verán un error 404."
+                                  : "Tu catálogo es visible para clientes en la URL pública."}
+                              </p>
+                            </div>
+                            <Switch
+                              checked={catalogPublished !== false}
+                              onCheckedChange={handleToggleCatalogPublished}
+                              disabled={savingCatalogPublished || !settings.slug}
+                              aria-label="Publicar catálogo"
+                            />
+                          </div>
+                          {!settings.slug && (
+                            <p className="text-xs text-amber-600 flex items-center gap-1.5">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              Define la URL del catálogo en la sección de Productos para poder publicarlo.
+                            </p>
+                          )}
                         </div>
 
                         <Separator />

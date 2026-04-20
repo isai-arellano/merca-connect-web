@@ -52,6 +52,8 @@ export interface BusinessConfig {
     delivery_zone?: string | null;
     catalog_logo_url?: string | null;
     catalog_logo_key?: string | null;
+    catalog_banner_url?: string | null;
+    catalog_banner_key?: string | null;
     /** Si es false, el endpoint público /catalog/{slug} responde 404. Ausente = comportamiento previo (público si hay slug). */
     catalog_public?: boolean;
     catalog_theme?: {

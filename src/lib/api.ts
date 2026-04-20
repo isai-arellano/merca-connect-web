@@ -81,6 +81,7 @@ export const endpoints = {
     business: {
         settings: `${API_URL}/api/v1/business/settings`,
         logoUpload: `${API_URL}/api/v1/business/logo`,
+        bannerUpload: `${API_URL}/api/v1/business/banner`,
         whatsappProfile: `${API_URL}/api/v1/business/whatsapp-profile`,
         agentToggle: `${API_URL}/api/v1/business/agent-toggle`,
         whatsappSignupComplete: `${API_URL}/api/v1/business/whatsapp-signup/complete`,
