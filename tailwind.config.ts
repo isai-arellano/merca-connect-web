@@ -65,7 +65,16 @@ export default {
 					mint: '#EEFAEE',
 					spring: '#74E79C',
 				},
-			}
+			},
+			keyframes: {
+				shimmer: {
+					'0%': { backgroundPosition: '-200% 0' },
+					'100%': { backgroundPosition: '200% 0' },
+				},
+			},
+			animation: {
+				shimmer: 'shimmer 2s linear infinite',
+			},
 		}
 	},
 	plugins: [tailwindcssAnimate],

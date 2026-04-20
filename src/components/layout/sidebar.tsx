@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getSessionBusinessPhoneId } from "@/lib/business";
-import { getIndustryConfig } from "@/config/industries";
+import { catalogModuleTitle, getIndustryConfig } from "@/config/industries";
 import { useIndustries } from "@/hooks/useIndustries";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { createContext, useContext, useState } from "react";
@@ -131,7 +131,7 @@ export function SidebarContent({
   const { industriesMap } = useIndustries();
   const businessType: string = settings.type || "abarrotera";
   const industryConfig = getIndustryConfig(businessType, industriesMap);
-  const catalogLabel = industryConfig.view === "menu" ? "Menú" : "Catálogo";
+  const catalogLabel = catalogModuleTitle(industryConfig);
 
   const hasIndustry = Boolean(settings.type);
   const hasWhatsApp = Boolean(sessionBusinessPhoneId);

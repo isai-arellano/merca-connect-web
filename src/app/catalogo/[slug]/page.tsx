@@ -1,39 +1,48 @@
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { PublicCatalogView } from "@/components/public/public-catalog-view";
-import { fetchPublicCatalog } from "@/lib/public-catalog-fetch";
+import { fetchPublicCatalogResult } from "@/lib/public-catalog-fetch";
+import { renderCatalogoPublicRoute } from "@/lib/public-catalog-route";
 import { normalizePublicCatalogSlug } from "@/lib/public-catalog-slug";
 
 export async function generateMetadata(
-    { params }: { params: Promise<{ slug: string }> }
+    { params }: { params: Promise<{ slug: string }> },
 ): Promise<Metadata> {
     const { slug: raw } = await params;
     if (!normalizePublicCatalogSlug(raw)) {
         return { title: "Catálogo no encontrado" };
     }
-    const catalog = await fetchPublicCatalog(raw);
-    if (!catalog) return { title: "Catálogo no encontrado" };
-    return {
-        title: `${catalog.business_name} — Catálogo`,
-        description: `Explora los productos de ${catalog.business_name}.`,
-    };
+    const result = await fetchPublicCatalogResult(raw);
+    if (result.status === "ok") {
+        return {
+            title: `${result.data.business_name} — Catálogo`,
+            description: `Explora los productos de ${result.data.business_name}.`,
+        };
+    }
+    if (result.status === "forbidden") {
+        return { title: "Catálogo no publicado" };
+    }
+    return { title: "Catálogo no encontrado" };
 }
 
-export default async function CatalogPage(
-    { params }: { params: Promise<{ slug: string }> }
-) {
+async function CatalogoSlugContent({
+    params,
+}: {
+    params: Promise<{ slug: string }>;
+}) {
     const { slug: raw } = await params;
     const slugNorm = normalizePublicCatalogSlug(raw);
     if (!slugNorm) {
         notFound();
     }
-    const catalog = await fetchPublicCatalog(raw);
+    const result = await fetchPublicCatalogResult(raw);
+    return renderCatalogoPublicRoute(result, slugNorm);
+}
 
-    if (!catalog) notFound();
-
-    if (catalog.public_view === "menu") {
-        permanentRedirect(`/menu/${slugNorm}`);
-    }
-
-    return <PublicCatalogView catalog={catalog} />;
+/**
+ * Export por defecto sync (`Page`) que delega en un RSC async: evita fallos de
+ * instrumentación (Performance.measure / marca de tiempo negativa) con async como default en Next 16 / React 19.
+ * El fallback visual está en ./loading.tsx.
+ */
+export default function Page(props: { params: Promise<{ slug: string }> }) {
+    return <CatalogoSlugContent params={props.params} />;
 }

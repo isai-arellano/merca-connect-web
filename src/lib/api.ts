@@ -1,3 +1,11 @@
+/**
+ * URL del API en el **navegador** (panel, SWR, etc.). En desarrollo local, usa el API
+ * en tu máquina para evitar CORS y depurar sin depender del entorno remoto:
+ * `NEXT_PUBLIC_API_URL=http://localhost:8001` en `.env.local`.
+ * Si apuntas a dev/prod (`https://dev-api…`) desde `http://localhost:3000`, el servidor
+ * remoto debe incluir `http://localhost:3000` (y `http://127.0.0.1:3000`) en
+ * `CORS_ALLOWED_ORIGINS`; un **500** sin respuesta CORS suele mostrarse en consola como error de CORS.
+ */
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
 /**

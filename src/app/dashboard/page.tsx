@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Package, ShoppingBag, Users, Activity, Loader2, MessageSquare, MessageCircle,
+  Package, ShoppingBag, Users, Activity, MessageSquare, MessageCircle,
   ArrowRight, Smartphone, AlertTriangle,
 } from "lucide-react";
 import { motion, Variants, AnimatePresence } from "framer-motion";
@@ -12,9 +12,10 @@ import { endpoints } from "@/lib/api";
 import { useSession } from "next-auth/react";
 import { fetcher } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
-import { getIndustryConfig } from "@/config/industries";
+import { catalogModuleLower, catalogModuleTitle, getIndustryConfig, pluralProductLabel } from "@/config/industries";
 import { useIndustries } from "@/hooks/useIndustries";
 import Link from "next/link";
+import { DashboardMetricsSkeleton, DashboardOrdersSkeleton } from "@/components/skeletons/dashboard-skeletons";
 import { type ApiList, type AnalyticsOverview, type BusinessSettings, type DashboardStats, type PlanUsage } from "@/types/api";
 import { computeOnboardingState } from "@/lib/onboarding";
 import { DashboardOnboarding } from "@/components/onboarding/DashboardOnboarding";
@@ -133,7 +134,9 @@ export default function DashboardPage() {
     const { industriesMap } = useIndustries();
     const businessType: string = settings.type || "abarrotera";
     const industryConfig = getIndustryConfig(businessType, industriesMap);
-    const catalogLabel = industryConfig.view === "menu" ? "Menú" : "Catálogo";
+    const catalogLabel = catalogModuleTitle(industryConfig);
+    const moduleLower = catalogModuleLower(industryConfig);
+    const itemsPluralLower = pluralProductLabel(industryConfig.productLabel).toLowerCase();
 
     const recentOrders: RecentOrder[] = ordersData?.data ?? [];
     const analytics: AnalyticsOverview =
@@ -203,9 +206,7 @@ export default function DashboardPage() {
 
             {/* Métricas */}
             {isLoading ? (
-                <div className="flex justify-center py-10">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
+                <DashboardMetricsSkeleton />
             ) : (
                 <motion.div variants={itemVariants} className="grid gap-4 grid-cols-2 lg:grid-cols-4">
                     <MetricCard
@@ -223,7 +224,7 @@ export default function DashboardPage() {
                     <MetricCard
                         title={`${catalogLabel} activo`}
                         value={stats?.active_products || 0}
-                        subtitle={hasProducts ? `${industryConfig.productLabel.toLowerCase()}s visibles` : "Sin productos aún"}
+                        subtitle={hasProducts ? `${itemsPluralLower} visibles` : `Sin ${itemsPluralLower} aún`}
                         icon={Package}
                     />
                     <MetricCard
@@ -284,9 +285,7 @@ export default function DashboardPage() {
                         </CardHeader>
                         <CardContent>
                             {ordersLoading ? (
-                                <div className="flex justify-center py-4">
-                                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                </div>
+                                <DashboardOrdersSkeleton rows={5} />
                             ) : (
                                 <div className="space-y-2.5">
                                     {recentOrders.slice(0, 5).map((order) => (
@@ -357,20 +356,20 @@ export default function DashboardPage() {
                             </div>
                             <div>
                                 <p className="text-sm font-semibold text-foreground">
-                                    {hasProducts ? `${stats?.active_products} productos cargados` : `Tu ${catalogLabel}`}
+                                    {hasProducts ? `${stats?.active_products} ${itemsPluralLower} cargados` : `Tu ${catalogLabel}`}
                                 </p>
                                 <p className="text-xs text-muted-foreground mt-1 max-w-[220px] mx-auto">
                                     {hasProducts
-                                        ? "Tu catálogo está listo. Conecta WhatsApp para que el agente empiece a vender."
+                                        ? `Tu ${moduleLower} está listo. Conecta WhatsApp para que el agente empiece a vender.`
                                         : hasIndustry
-                                          ? `Empieza cargando tu ${catalogLabel.toLowerCase()} desde el tablero.`
+                                          ? `Empieza cargando tu ${moduleLower} desde el tablero.`
                                           : "Primero define el tipo de negocio y nombre en Configuración → Negocio."}
                                 </p>
                             </div>
                             {hasIndustry ? (
                                 <Button size="sm" variant="outline" className="gap-2 text-xs rounded-xl border-brand-forest/30 text-brand-forest" asChild>
                                     <Link href="/dashboard/products">
-                                        {hasProducts ? "Ver catálogo" : "Agregar productos"}
+                                        {hasProducts ? `Ver ${moduleLower}` : `Agregar ${itemsPluralLower}`}
                                         <ArrowRight className="h-3.5 w-3.5" />
                                     </Link>
                                 </Button>

@@ -23,7 +23,13 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getIndustryConfig, getPublicCatalogRoute } from "@/config/industries";
+import {
+    catalogModuleLower,
+    catalogModuleTitle,
+    getIndustryConfig,
+    getPublicCatalogRoute,
+    pluralProductLabel,
+} from "@/config/industries";
 import {
     CATALOG_THEME_PRESETS,
     type CatalogThemePreset,
@@ -41,6 +47,7 @@ import { apiClient, fetcher, ApiError, NetworkError } from "@/lib/api-client";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { type ApiList, type BusinessSettings } from "@/types/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ProductsTableSkeleton } from "@/components/skeletons/dashboard-skeletons";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -198,20 +205,27 @@ export default function ProductsPage() {
         )
         : disabledProducts;
 
-    const moduleTitle = config.view === "menu" ? "Menú" : "Catálogo";
+    const moduleTitle = catalogModuleTitle(config);
+    const moduleLower = catalogModuleLower(config);
+    const itemsPlural = pluralProductLabel(config.productLabel);
+    const itemsPluralLower = itemsPlural.toLowerCase();
     const publicRouteSegment = getPublicCatalogRoute(settingsData?.type, industriesMap);
+    const tableColSpan = config.productFields.showStock ? 9 : 8;
 
     function openCreate() { setSelectedProduct(undefined); setDialogOpen(true); }
     function openEdit(product: Product) { setSelectedProduct(product as ProductDialogProduct); setDialogOpen(true); }
 
     async function handleDisableProduct(product: Product) {
-        const confirmed = window.confirm(`¿Deseas deshabilitar "${product.name}"? Dejará de mostrarse en ${moduleTitle.toLowerCase()}.`);
+        const confirmed = window.confirm(`¿Deseas deshabilitar "${product.name}"? Dejará de mostrarse en tu ${moduleLower}.`);
         if (!confirmed) return;
         setActingProductId(product.id);
         try {
             await apiClient.delete(endpoints.products.disable(product.id));
             await mutateProducts();
-            toast({ title: "Producto deshabilitado", description: "Ya no se mostrará en tu catálogo/menú." });
+            toast({
+                title: `${config.productLabel} deshabilitado`,
+                description: `Ya no se mostrará en tu ${moduleLower}.`,
+            });
         } catch {
             toast({ title: "No se pudo deshabilitar", description: "Intenta de nuevo en unos segundos.", variant: "destructive" });
         } finally {
@@ -226,7 +240,7 @@ export default function ProductsPage() {
         try {
             await apiClient.delete(endpoints.products.hardDelete(product.id));
             await mutateProducts();
-            toast({ title: "Producto eliminado", description: "Se eliminó de forma definitiva." });
+            toast({ title: `${config.productLabel} eliminado`, description: "Se eliminó de forma definitiva." });
         } catch {
             toast({ title: "No se pudo eliminar", description: "Intenta nuevamente.", variant: "destructive" });
         } finally {
@@ -239,7 +253,10 @@ export default function ProductsPage() {
         try {
             await apiClient.patch(endpoints.products.detail(product.id, sessionBusinessPhoneId), { is_active: true });
             await mutateProducts();
-            toast({ title: "Producto habilitado", description: "Ya vuelve a estar disponible en tu catálogo/menú." });
+            toast({
+                title: `${config.productLabel} habilitado`,
+                description: `Ya vuelve a estar disponible en tu ${moduleLower}.`,
+            });
         } catch {
             toast({ title: "No se pudo habilitar", description: "Intenta nuevamente.", variant: "destructive" });
         } finally {
@@ -348,7 +365,7 @@ export default function ProductsPage() {
         setCatalogSlugApiError(null);
         if (catalogPublic) {
             if (!trimmed) {
-                setCatalogSlugValidationError("Define una URL (slug) para el catálogo público.");
+                setCatalogSlugValidationError(`Define una URL (slug) para el ${moduleLower} público.`);
                 return;
             }
             if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmed)) {
@@ -377,7 +394,7 @@ export default function ProductsPage() {
             await mutateSettings();
             toast({
                 title: "Guardado",
-                description: "Ajustes del catálogo público actualizados.",
+                description: `Ajustes del ${moduleLower} público actualizados.`,
             });
         } catch (error: unknown) {
             if (error instanceof ApiError && error.status === 409) {
@@ -405,7 +422,7 @@ export default function ProductsPage() {
                 <motion.div variants={itemVariants} className="rounded-2xl border border-border/60 bg-background p-6 shadow-sm space-y-4">
                     <h1 className="text-2xl font-bold tracking-tight">Primero configura tu tipo de negocio</h1>
                     <p className="text-sm text-muted-foreground">
-                        Para habilitar catálogo/menú, categorías y unidades, necesitas seleccionar tu industria en configuración.
+                        Para habilitar {moduleLower}, categorías y unidades, necesitas seleccionar tu industria en configuración.
                     </p>
                     <Button asChild>
                         <a href="/dashboard">Ir al tablero</a>
@@ -435,7 +452,7 @@ export default function ProductsPage() {
                             </a>
                         </Button>
                     ) : (
-                        <Button variant="outline" size="sm" disabled className="justify-center" title={!catalogPublic ? "Activa el catálogo público abajo" : "Define la URL abajo"}>
+                        <Button variant="outline" size="sm" disabled className="justify-center" title={!catalogPublic ? `Activa el ${moduleLower} público abajo` : "Define la URL abajo"}>
                             <ExternalLink className="mr-2 h-4 w-4" /> Ver público
                         </Button>
                     )}
@@ -459,7 +476,7 @@ export default function ProductsPage() {
                                 <p className="text-sm font-medium">Visible públicamente</p>
                                 <p className="text-xs text-muted-foreground">Controla si el enlace público responde o no.</p>
                             </div>
-                            <Switch checked={catalogPublic} onCheckedChange={setCatalogPublic} aria-label="Catálogo público activo" />
+                            <Switch checked={catalogPublic} onCheckedChange={setCatalogPublic} aria-label={`${moduleTitle} público activo`} />
                         </div>
 
                         {!catalogPublic && (
@@ -507,7 +524,7 @@ export default function ProductsPage() {
                         </div>
 
                         <div className="space-y-3">
-                            <Label className="text-xs font-medium">Tema del catálogo</Label>
+                            <Label className="text-xs font-medium">Tema del {moduleLower}</Label>
                             <p className="text-xs text-muted-foreground">Elige la paleta visual que verán tus clientes.</p>
                             {/* Picker de temas preset */}
                             <div className="grid grid-cols-3 gap-2">
@@ -627,7 +644,7 @@ export default function ProductsPage() {
                         <div className="space-y-2">
                             <Label className="text-xs font-medium flex items-center gap-1.5">
                                 <ImageIcon className="h-3.5 w-3.5" /> Imagen de portada
-                                <span className="text-[10px] font-normal text-muted-foreground">(header del catálogo)</span>
+                                <span className="text-[10px] font-normal text-muted-foreground">(header del {moduleLower})</span>
                             </Label>
                             {/* Preview del banner actual */}
                             {(bannerPreview ?? settingsData.config?.catalog_banner_url) && (
@@ -677,7 +694,7 @@ export default function ProductsPage() {
             <motion.div variants={itemVariants}>
                 <Tabs defaultValue="products">
                     <TabsList className="mb-4">
-                        <TabsTrigger value="products">{config.productLabel}s</TabsTrigger>
+                        <TabsTrigger value="products">{itemsPlural}</TabsTrigger>
                         <TabsTrigger value="disabled">Deshabilitados</TabsTrigger>
                         <TabsTrigger value="categories">Categorías</TabsTrigger>
                         <TabsTrigger value="units">Unidades</TabsTrigger>
@@ -689,7 +706,7 @@ export default function ProductsPage() {
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     type="search"
-                                    placeholder={`Buscar ${config.productLabel.toLowerCase()}s...`}
+                                    placeholder={`Buscar ${itemsPluralLower}...`}
                                     className="pl-9 bg-background focus-visible:ring-primary"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -702,6 +719,13 @@ export default function ProductsPage() {
 
                         <div className="rounded-2xl border border-border/60 bg-background overflow-hidden shadow-sm">
                             <div className="overflow-x-auto">
+                            {isLoading ? (
+                                <ProductsTableSkeleton
+                                    rows={6}
+                                    showStockColumn={config.productFields.showStock}
+                                    className="border-0 rounded-none shadow-none"
+                                />
+                            ) : (
                             <Table>
                                 <TableHeader className="bg-muted/50">
                                     <TableRow className="border-border">
@@ -719,20 +743,12 @@ export default function ProductsPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {isLoading ? (
+                                    {filteredProducts.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <Loader2 className="h-4 w-4 animate-spin" /> Cargando...
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : filteredProducts.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                                            <TableCell colSpan={tableColSpan} className="h-24 text-center text-muted-foreground">
                                                 {searchTerm
                                                     ? "Sin resultados para tu búsqueda."
-                                                    : `No hay ${config.productLabel.toLowerCase()}s en tu ${moduleTitle.toLowerCase()}.`
+                                                    : `No hay ${itemsPluralLower} en tu ${moduleLower}.`
                                                 }
                                             </TableCell>
                                         </TableRow>
@@ -824,6 +840,7 @@ export default function ProductsPage() {
                                     )}
                                 </TableBody>
                             </Table>
+                            )}
                             </div>
                         </div>
                     </TabsContent>
@@ -844,7 +861,7 @@ export default function ProductsPage() {
                                     {filteredDisabledProducts.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={4} className="h-20 text-center text-muted-foreground">
-                                                No tienes productos deshabilitados.
+                                                No tienes {itemsPluralLower} deshabilitados.
                                             </TableCell>
                                         </TableRow>
                                     ) : (
@@ -878,7 +895,11 @@ export default function ProductsPage() {
                     </TabsContent>
 
                     <TabsContent value="categories">
-                        <CategoriesManager businessPhoneId={sessionBusinessPhoneId} />
+                        <CategoriesManager
+                            businessPhoneId={sessionBusinessPhoneId}
+                            itemsPluralLower={itemsPluralLower}
+                            moduleLower={moduleLower}
+                        />
                     </TabsContent>
 
                     <TabsContent value="units">
