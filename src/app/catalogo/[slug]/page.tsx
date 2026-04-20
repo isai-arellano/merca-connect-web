@@ -7,7 +7,7 @@ async function getCatalog(slug: string): Promise<PublicCatalogData | null> {
     try {
         const res = await fetch(
             `${API_URL}/api/v1/catalog/${encodeURIComponent(slug)}`,
-            { next: { revalidate: 60 } },
+            { cache: "no-store" },
         );
         if (!res.ok) return null;
         return res.json();

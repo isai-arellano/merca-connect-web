@@ -1,7 +1,8 @@
 /**
  * Single source of truth for onboarding completion (dashboard + sidebar).
- * Flujo en producto: datos mínimos en Configuración → pestaña Negocio (industria + nombre + horarios válidos),
- * luego Conectar WhatsApp. Sin requisito de slug ni métodos de pago para desbloquear Conectar.
+ * Flujo en producto: selección de categoría de negocio → datos mínimos (nombre) →
+ * configuración de entrega/cobertura → Conectar WhatsApp.
+ * Horarios y slug no son obligatorios para desbloquear pasos.
  */
 
 export interface DayScheduleLike {
@@ -14,6 +15,8 @@ export interface OnboardingSettingsLike {
     name?: string;
     slug?: string;
     type?: string;
+    business_category?: string;
+    delivery_mode?: string;
     hours?: Record<string, DayScheduleLike>;
     config?: {
         payment_methods?: unknown;
@@ -45,33 +48,45 @@ export interface OnboardingComputationInput {
 
 export interface OnboardingState {
     hasIndustry: boolean;
-    /** Nombre + horarios válidos (sin slug ni pagos obligatorios). */
+    hasCategory: boolean;
+    /** Solo requiere nombre (horarios ya no son obligatorios). */
     hasBusinessProfile: boolean;
     /** Solo informativo / métricas; ya no bloquea pasos. */
     hasCatalogContent: boolean;
+    /** True si el modo de entrega ya fue configurado (o la categoría no lo requiere). */
+    hasDeliveryConfig: boolean;
     hasWhatsApp: boolean;
-    /** Perfil mínimo listo — habilita la pestaña Conectar WhatsApp. */
+    /** Categoría + nombre + entrega listos — habilita la pestaña Conectar WhatsApp. */
     canStartWhatsApp: boolean;
-    /** Industria + perfil básico + WhatsApp — onboarding terminado. */
+    /** Categoría + nombre + entrega + WhatsApp — onboarding terminado. */
     allComplete: boolean;
 }
 
 export function computeOnboardingState(input: OnboardingComputationInput): OnboardingState {
     const { settings, activeProducts, hasWhatsAppSession } = input;
     const hasIndustry = Boolean(settings.type?.trim());
+    const hasCategory = Boolean(settings.business_category?.trim());
     const hasName = Boolean(settings.name?.trim());
-    const hasHours = hasValidBusinessHours(settings.hours);
-    const hasBusinessProfile = hasName && hasHours;
+    const hasBusinessProfile = hasName;
     const hasCatalogContent = hasIndustry && activeProducts > 0;
     // Fuente de verdad: signup_completed en DB (via settings), no el JWT de sesión
     const hasWhatsApp = Boolean(settings.config?.signup_completed) || hasWhatsAppSession;
-    const canStartWhatsApp = hasIndustry && hasName;
-    const allComplete = hasIndustry && hasName && hasWhatsApp;
+
+    // digital_service no necesita configurar entrega — se considera completado automáticamente
+    const hasDeliveryConfig =
+        settings.business_category === "digital_service"
+            ? true
+            : Boolean(settings.delivery_mode?.trim());
+
+    const canStartWhatsApp = hasName && hasCategory && hasDeliveryConfig;
+    const allComplete = hasCategory && hasName && hasDeliveryConfig && hasWhatsApp;
 
     return {
         hasIndustry,
+        hasCategory,
         hasBusinessProfile,
         hasCatalogContent,
+        hasDeliveryConfig,
         hasWhatsApp,
         canStartWhatsApp,
         allComplete,
