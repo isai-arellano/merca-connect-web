@@ -21,9 +21,13 @@ interface Category {
 
 interface CategoriesManagerProps {
     businessPhoneId: string | null;
+    /** Plural en minúsculas (p. ej. productos, servicios, platillos). */
+    itemsPluralLower: string;
+    /** menú | catálogo */
+    moduleLower: string;
 }
 
-export function CategoriesManager({ businessPhoneId }: CategoriesManagerProps) {
+export function CategoriesManager({ businessPhoneId, itemsPluralLower, moduleLower }: CategoriesManagerProps) {
     const { toast } = useToast();
     const [newName, setNewName] = useState("");
     const [newDesc, setNewDesc] = useState("");
@@ -70,7 +74,7 @@ export function CategoriesManager({ businessPhoneId }: CategoriesManagerProps) {
             toast({
                 title: "No se puede eliminar",
                 description: msg.includes("409")
-                    ? `"${category.name}" tiene productos activos. Muévelos o elimínalos primero.`
+                    ? `"${category.name}" tiene ${itemsPluralLower} activos. Muévelos o elimínalos primero.`
                     : "Error al eliminar la categoría",
                 variant: "destructive",
             });
@@ -84,7 +88,7 @@ export function CategoriesManager({ businessPhoneId }: CategoriesManagerProps) {
             <CardHeader>
                 <CardTitle>Gestión de Categorías</CardTitle>
                 <CardDescription>
-                    Organiza tus productos en categorías para facilitar la navegación en el catálogo.
+                    Organiza tus {itemsPluralLower} en categorías para facilitar la navegación en el {moduleLower}.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

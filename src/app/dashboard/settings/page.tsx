@@ -26,8 +26,6 @@ import {
   Instagram,
   Facebook,
   AtSign,
-  Eye,
-  EyeOff,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
@@ -58,6 +56,10 @@ import {
   FLAT_INDUSTRY_SLUGS_ORDER,
   BUSINESS_CATEGORIES,
   isIndustryEligibleForBusinessType,
+  catalogModuleLower,
+  catalogModuleTitle,
+  getIndustryConfig,
+  pluralProductLabel,
 } from "@/config/industries";
 import { useIndustries } from "@/hooks/useIndustries";
 
@@ -254,7 +256,15 @@ function SettingsPageInner() {
     router.replace(`${pathname}?tab=${value}`, { scroll: false });
   };
 
-  const { orderedRows } = useIndustries();
+  const { orderedRows, industriesMap } = useIndustries();
+
+  const industryConfig = useMemo(
+    () => getIndustryConfig(settings.type, industriesMap),
+    [settings.type, industriesMap],
+  );
+  const moduleTitle = catalogModuleTitle(industryConfig);
+  const moduleLower = catalogModuleLower(industryConfig);
+  const itemsPluralLower = pluralProductLabel(industryConfig.productLabel).toLowerCase();
   const industrySelectOptions = useMemo(() => {
     if (orderedRows?.length) {
       return orderedRows
@@ -291,9 +301,6 @@ function SettingsPageInner() {
   const [deliveryZone, setDeliveryZone] = useState("");
   const [contactPhoneNumber, setContactPhoneNumber] = useState("");
   const [allowOrdersOutsideHours, setAllowOrdersOutsideHours] = useState(false);
-  const [catalogPublished, setCatalogPublished] = useState<boolean | null>(null);
-  const [savingCatalogPublished, setSavingCatalogPublished] = useState(false);
-
   // WhatsApp form state
   const [waForm, setWaForm] = useState({
     about: "",
@@ -322,7 +329,6 @@ function SettingsPageInner() {
         setDeliveryZone(cfg.delivery_zone);
       }
       setAllowOrdersOutsideHours(!!cfg.allow_orders_outside_hours);
-      setCatalogPublished(cfg.catalog_public === true);
       setContactPhoneNumber(getPhoneDigits(settings.phone || "").slice(-10));
       setSocialForm({
         website: settings.social?.website || "",
@@ -387,7 +393,6 @@ function SettingsPageInner() {
           config: {
             payment_methods: paymentMethods,
             delivery_zone: deliveryZone.trim() || null,
-            catalog_public: catalogPublished !== null ? catalogPublished : undefined,
           },
           allow_orders_outside_hours: allowOrdersOutsideHours,
           social: {
@@ -434,34 +439,6 @@ function SettingsPageInner() {
       }
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleToggleCatalogPublished = async (value: boolean) => {
-    setSavingCatalogPublished(true);
-    const prev = catalogPublished;
-    setCatalogPublished(value);
-    try {
-      const prevCfg = settings.config || {};
-      await apiClient.patch(endpoints.business.settings, {
-        config: { ...prevCfg, catalog_public: value },
-      });
-      mutateSettings();
-      toast({
-        title: value ? "Catálogo publicado" : "Catálogo oculto",
-        description: value
-          ? "Tu catálogo ahora es visible para clientes."
-          : "Tu catálogo ya no es accesible públicamente.",
-      });
-    } catch {
-      setCatalogPublished(prev);
-      toast({
-        title: "Error al cambiar visibilidad",
-        description: "No se pudo actualizar. Inténtalo de nuevo.",
-        variant: "destructive",
-      });
-    } finally {
-      setSavingCatalogPublished(false);
     }
   };
 
@@ -679,7 +656,7 @@ function SettingsPageInner() {
                           )}
                           <div className="flex flex-wrap items-center gap-2 mt-1">
                             <p className="text-xs text-muted-foreground">
-                              Define el giro para adaptar formularios de productos y unidades.
+                              Define el giro para adaptar formularios de {itemsPluralLower} y unidades.
                             </p>
                             {settings.business_category && (
                               <span className="inline-flex items-center rounded-full border border-border/60 bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
@@ -860,7 +837,7 @@ function SettingsPageInner() {
                               <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
                             </Label>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              Se mostrarán en el catálogo público de tu negocio.
+                              Se mostrarán en el {moduleLower} público de tu negocio.
                             </p>
                           </div>
                           <div className="grid gap-3 sm:grid-cols-2">
@@ -927,44 +904,6 @@ function SettingsPageInner() {
                               />
                             </div>
                           </div>
-                        </div>
-
-                        <Separator />
-
-                        {/* Visibilidad del catálogo público */}
-                        <div className="space-y-3">
-                          <Label className="flex items-center gap-2">
-                            <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                            Catálogo / Menú público
-                          </Label>
-                          <div className="flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-3">
-                            <div className="space-y-0.5">
-                              <p className="text-sm font-medium flex items-center gap-2">
-                                {catalogPublished === false ? (
-                                  <><EyeOff className="h-4 w-4 text-muted-foreground" />Oculto</>
-                                ) : (
-                                  <><Eye className="h-4 w-4 text-emerald-500" />Publicado</>
-                                )}
-                              </p>
-                              <p className="text-xs text-muted-foreground leading-snug">
-                                {catalogPublished === false
-                                  ? "Tu catálogo no es accesible públicamente. Los clientes verán un error 404."
-                                  : "Tu catálogo es visible para clientes en la URL pública."}
-                              </p>
-                            </div>
-                            <Switch
-                              checked={catalogPublished !== false}
-                              onCheckedChange={handleToggleCatalogPublished}
-                              disabled={savingCatalogPublished || !settings.slug}
-                              aria-label="Publicar catálogo"
-                            />
-                          </div>
-                          {!settings.slug && (
-                            <p className="text-xs text-amber-600 flex items-center gap-1.5">
-                              <AlertCircle className="h-3.5 w-3.5" />
-                              Define la URL del catálogo en la sección de Productos para poder publicarlo.
-                            </p>
-                          )}
                         </div>
 
                         <Separator />

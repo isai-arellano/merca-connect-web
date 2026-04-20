@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, memo } from "react";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { motion, Variants } from "framer-motion";
@@ -17,7 +17,8 @@ import {
 
 import { endpoints } from "@/lib/api";
 import { fetcher } from "@/lib/api-client";
-import { type AnalyticsOverview } from "@/types/api";
+import { formatStatIntegerEsMx } from "@/lib/format-stat";
+import { type AnalyticsOverview, type MessagesByDay } from "@/types/api";
 import { getSessionBusinessPhoneId } from "@/lib/business";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -74,7 +75,7 @@ const statCards = [
     bg: "bg-amber-500/10",
     fallback: 0,
   },
-];
+] as const;
 
 const orderStatuses = [
   { key: "pendiente", label: "Pendientes", color: "bg-amber-500" },
@@ -176,7 +177,9 @@ export default function AnalyticsPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-3xl font-bold text-foreground">
-                      {typeof value === "number" ? value.toLocaleString() : value}
+                      {typeof value === "number"
+                        ? formatStatIntegerEsMx.format(value)
+                        : value}
                     </div>
                     {change !== undefined && (
                       <p className="text-xs mt-1 flex items-center gap-1">
@@ -207,11 +210,9 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* Messages Over Time - Bar Chart */}
+      {/* Messages Over Time - Bar Chart (solo datos del API) */}
       <motion.div variants={itemVariants}>
         <WeeklyMessageChart
-          sentToday={messageStats.sent_today ?? 0}
-          receivedToday={messageStats.received_today ?? 0}
           dailyData={analytics.messages_by_day}
           isLoading={isLoading}
         />
@@ -252,7 +253,7 @@ export default function AnalyticsPage() {
                             {status.label}
                           </span>
                           <span className="text-muted-foreground tabular-nums">
-                            {count}{" "}
+                            {formatStatIntegerEsMx.format(count)}{" "}
                             <span className="text-xs">({percentage}%)</span>
                           </span>
                         </div>
@@ -274,7 +275,7 @@ export default function AnalyticsPage() {
                   <Separator className="my-2" />
                   <div className="flex items-center justify-between text-sm font-semibold">
                     <span>Total</span>
-                    <span>{totalOrders}</span>
+                    <span>{formatStatIntegerEsMx.format(totalOrders)}</span>
                   </div>
                 </>
               )}
@@ -354,51 +355,29 @@ export default function AnalyticsPage() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Weekly Message Bar Chart                                          */
+/*  Weekly Message Bar Chart — solo series del API (7 días)           */
 /* ------------------------------------------------------------------ */
 
-const DAY_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
-
-function generateMockDaily(sentToday: number, receivedToday: number) {
-  // Create plausible daily data where today is the last entry
-  const today = new Date().getDay(); // 0=Sun
-  const todayIdx = today === 0 ? 6 : today - 1; // 0=Mon
-
-  return DAY_LABELS.map((label, i) => {
-    if (i === todayIdx) {
-      return { label, sent: sentToday, received: receivedToday };
-    }
-    // Generate slightly varied data around the today values
-    const base = Math.max(sentToday, receivedToday, 5);
-    const jitter = () => Math.max(0, Math.round(base * (0.4 + Math.random() * 1.2)));
-    return { label, sent: jitter(), received: jitter() };
-  });
-}
-
-function WeeklyMessageChart({
-  sentToday,
-  receivedToday,
+const WeeklyMessageChart = memo(function WeeklyMessageChart({
   dailyData,
   isLoading,
 }: {
-  sentToday: number;
-  receivedToday: number;
-  dailyData?: { label: string; sent: number; received: number }[];
+  dailyData?: MessagesByDay[];
   isLoading: boolean;
 }) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
-  const data = useMemo(() => {
+  const series = useMemo((): MessagesByDay[] | null => {
     if (dailyData && Array.isArray(dailyData) && dailyData.length === 7) {
       return dailyData;
     }
-    return generateMockDaily(sentToday, receivedToday);
-  }, [dailyData, sentToday, receivedToday]);
+    return null;
+  }, [dailyData]);
 
-  const maxValue = useMemo(
-    () => Math.max(...data.map((d) => d.sent + d.received), 1),
-    [data]
-  );
+  const maxValue = useMemo(() => {
+    if (!series) return 1;
+    return Math.max(...series.map((d) => d.sent + d.received), 1);
+  }, [series]);
 
   return (
     <Card className="hover:border-primary/20 transition-all duration-200">
@@ -443,11 +422,19 @@ function WeeklyMessageChart({
               </div>
             ))}
           </div>
+        ) : !series ? (
+          <div className="h-[260px] flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border/80 bg-muted/20 px-4 text-center">
+            <p className="text-sm font-medium text-foreground">
+              Sin datos del período
+            </p>
+            <p className="text-xs text-muted-foreground max-w-md">
+              Aún no hay un registro de 7 días para mostrar. Si acabas de conectar el negocio, los datos aparecerán cuando haya actividad.
+            </p>
+          </div>
         ) : (
           <div className="h-[260px] flex flex-col">
-            {/* Chart area */}
             <div className="flex-1 flex items-end gap-3 px-2">
-              {data.map((day, i) => {
+              {series.map((day, i) => {
                 const total = day.sent + day.received;
                 const barHeight = Math.max((total / maxValue) * 100, 4);
                 const sentPct = total > 0 ? (day.sent / total) * 100 : 50;
@@ -455,13 +442,12 @@ function WeeklyMessageChart({
 
                 return (
                   <div
-                    key={day.label}
+                    key={`day-${i}-${day.label}`}
                     className="flex-1 flex flex-col items-center gap-1 relative"
                     onMouseEnter={() => setHoveredIdx(i)}
                     onMouseLeave={() => setHoveredIdx(null)}
                   >
-                    {/* Tooltip */}
-                    {isHovered && (
+                    {isHovered ? (
                       <motion.div
                         initial={{ opacity: 0, y: 4 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -469,20 +455,18 @@ function WeeklyMessageChart({
                       >
                         <p className="font-semibold text-foreground mb-1">{day.label}</p>
                         <p className="text-[#1A3E35] dark:text-[#74E79C]">
-                          Enviados: {day.sent}
+                          Enviados: {formatStatIntegerEsMx.format(day.sent)}
                         </p>
                         <p className="text-emerald-600 dark:text-emerald-400">
-                          Recibidos: {day.received}
+                          Recibidos: {formatStatIntegerEsMx.format(day.received)}
                         </p>
                       </motion.div>
-                    )}
+                    ) : null}
 
-                    {/* Count label */}
                     <span className="text-[10px] font-medium text-muted-foreground tabular-nums mb-1">
-                      {total}
+                      {formatStatIntegerEsMx.format(total)}
                     </span>
 
-                    {/* Stacked bar */}
                     <motion.div
                       className={`w-full rounded-t-md overflow-hidden cursor-pointer transition-all duration-200 ${
                         isHovered ? "ring-2 ring-[#74E79C]/50 ring-offset-1 ring-offset-background" : ""
@@ -492,7 +476,6 @@ function WeeklyMessageChart({
                       animate={{ height: `${barHeight}%` }}
                       transition={{ duration: 0.6, ease: "easeOut", delay: i * 0.05 }}
                     >
-                      {/* Sent (bottom) */}
                       <div
                         className="w-full bg-[#1A3E35] transition-opacity duration-200"
                         style={{
@@ -500,7 +483,6 @@ function WeeklyMessageChart({
                           opacity: isHovered ? 1 : 0.85,
                         }}
                       />
-                      {/* Received (top) */}
                       <div
                         className="w-full bg-[#74E79C] transition-opacity duration-200"
                         style={{
@@ -514,10 +496,9 @@ function WeeklyMessageChart({
               })}
             </div>
 
-            {/* Day labels */}
             <div className="flex gap-3 px-2 pt-3 border-t border-border mt-2">
-              {data.map((day) => (
-                <div key={day.label} className="flex-1 text-center">
+              {series.map((day, i) => (
+                <div key={`lbl-${i}-${day.label}`} className="flex-1 text-center">
                   <span className="text-xs font-medium text-muted-foreground">
                     {day.label}
                   </span>
@@ -529,4 +510,4 @@ function WeeklyMessageChart({
       </CardContent>
     </Card>
   );
-}
+});

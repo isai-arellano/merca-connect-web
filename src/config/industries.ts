@@ -298,6 +298,26 @@ export function getPublicCatalogRoute(
     return industry.view === "menu" ? "menu" : "catalogo";
 }
 
+/** Título del módulo en panel (sidebar, h1): Menú vs Catálogo. */
+export function catalogModuleTitle(config: IndustryConfig): "Menú" | "Catálogo" {
+    return config.view === "menu" ? "Menú" : "Catálogo";
+}
+
+/** Misma distinción en minúsculas para frases (“tu menú”, “tu catálogo”). */
+export function catalogModuleLower(config: IndustryConfig): "menú" | "catálogo" {
+    return config.view === "menu" ? "menú" : "catálogo";
+}
+
+/**
+ * Plural en español del sustantivo de ítem (productLabel).
+ * Por defecto añade “s” (Producto→Productos, Servicio→Servicios, Platillo→Platillos).
+ */
+export function pluralProductLabel(productLabel: string): string {
+    const t = productLabel.trim();
+    if (!t) return "ítems";
+    return `${t}s`;
+}
+
 /** @deprecated Usar `IndustrySlug` o `string` */
 export type IndustryType = IndustrySlug;
 

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { IndustryConfig } from "@/config/industries";
+import { catalogModuleLower, IndustryConfig, pluralProductLabel } from "@/config/industries";
 import { useSWRConfig } from "swr";
 import { endpoints } from "@/lib/api";
 import { apiClient, ApiError, fetcher, NetworkError } from "@/lib/api-client";
@@ -414,7 +414,8 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
             updateField("categoryId", EMPTY_VALUE);
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : "";
-            setCategoryError(msg.includes("409") ? `No se puede eliminar: "${selectedCategory.name}" tiene productos activos` : "No se pudo eliminar la categoría");
+            const plural = pluralProductLabel(config.productLabel).toLowerCase();
+            setCategoryError(msg.includes("409") ? `No se puede eliminar: "${selectedCategory.name}" tiene ${plural} activos` : "No se pudo eliminar la categoría");
         } finally {
             setIsDeletingCategory(false);
         }
@@ -468,7 +469,7 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
     };
 
     const galleryUrls = imageUrlsFromProduct(currentProduct);
-    const moduleLabel = config.view === "menu" ? "menú" : "catálogo";
+    const moduleLabel = catalogModuleLower(config);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
