@@ -17,13 +17,15 @@ import {
   Phone,
   Clock,
   FileText,
-  ExternalLink,
   AlertCircle,
   Bot,
   Smartphone,
   CreditCard,
   Truck,
   Building2,
+  Instagram,
+  Facebook,
+  AtSign,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
@@ -192,7 +194,7 @@ function SettingsPageInner() {
       router.replace(`${pathname}?tab=negocio`, { scroll: false });
       toast({
         title: "Completa tu negocio primero",
-        description: "Industria, nombre y horario obligatorios en la pestaña Negocio.",
+        description: "Nombre y tipo de negocio obligatorios en la pestaña Negocio.",
         variant: "destructive",
       });
       return;
@@ -224,7 +226,7 @@ function SettingsPageInner() {
     if (value === "conectar" && !canUseConnectTab) {
       toast({
         title: "Pestaña bloqueada",
-        description: "Completa nombre, tipo de negocio y horario en Negocio.",
+        description: "Completa nombre y tipo de negocio en la pestaña Negocio.",
         variant: "destructive",
       });
       return;
@@ -265,6 +267,15 @@ function SettingsPageInner() {
     phone: "",
     description: "",
   });
+
+  // Social links state
+  const [socialForm, setSocialForm] = useState({
+    website: "",
+    instagram: "",
+    facebook: "",
+    tiktok: "",
+    whatsapp: "",
+  });
   const [weekSchedule, setWeekSchedule] = useState<WeekSchedule>(EMPTY_WEEK_SCHEDULE);
 
   const PAYMENT_OPTIONS = ["Efectivo", "Transferencia SPEI", "Tarjeta débito", "Tarjeta crédito"];
@@ -272,7 +283,6 @@ function SettingsPageInner() {
   const [deliveryZone, setDeliveryZone] = useState("");
   const [contactPhoneNumber, setContactPhoneNumber] = useState("");
   const [allowOrdersOutsideHours, setAllowOrdersOutsideHours] = useState(false);
-  const [outOfHoursMessage, setOutOfHoursMessage] = useState("");
 
   // WhatsApp form state
   const [waForm, setWaForm] = useState({
@@ -302,8 +312,14 @@ function SettingsPageInner() {
         setDeliveryZone(cfg.delivery_zone);
       }
       setAllowOrdersOutsideHours(!!cfg.allow_orders_outside_hours);
-      setOutOfHoursMessage(typeof cfg.out_of_hours_message === "string" ? cfg.out_of_hours_message : "");
       setContactPhoneNumber(getPhoneDigits(settings.phone || "").slice(-10));
+      setSocialForm({
+        website: settings.social?.website || "",
+        instagram: settings.social?.instagram || "",
+        facebook: settings.social?.facebook || "",
+        tiktok: settings.social?.tiktok || "",
+        whatsapp: settings.social?.whatsapp || "",
+      });
     }
   }, [settings]);
 
@@ -324,7 +340,7 @@ function SettingsPageInner() {
     const nextErrors: BusinessFormErrors = {};
     const trimmedName = businessForm.name.trim();
     const trimmedType = businessForm.type.trim();
-    const hasAtLeastOneOpenDay = Object.values(weekSchedule).some((day) => day.open);
+    const hasAtLeastOneOpenDay = Object.values(weekSchedule).some((day) => day.open); // para validar horas incompletas si hay días activos
 
     if (!trimmedName) {
       nextErrors.name = "El nombre del negocio es obligatorio.";
@@ -332,9 +348,8 @@ function SettingsPageInner() {
     if (!trimmedType) {
       nextErrors.type = "Selecciona un tipo de negocio.";
     }
-    if (!hasAtLeastOneOpenDay) {
-      nextErrors.hours = "Activa al menos un día en tu horario de atención.";
-    } else if (hasIncompleteHours(weekSchedule)) {
+    // Horarios opcionales — solo validar si hay días activos con horas incompletas
+    if (hasAtLeastOneOpenDay && hasIncompleteHours(weekSchedule)) {
       nextErrors.hours = "Todos los días activos deben tener hora de apertura y cierre.";
     }
     setFormErrors(nextErrors);
@@ -342,16 +357,6 @@ function SettingsPageInner() {
       toast({
         title: "Campos obligatorios pendientes",
         description: "Completa los datos requeridos para guardar la configuración.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validar horarios: si hay días activos sin horas, bloquear
-    if (hasIncompleteHours(weekSchedule)) {
-      toast({
-        title: "Horarios incompletos",
-        description: "Todos los días activos deben tener hora de apertura y cierre.",
         variant: "destructive",
       });
       return;
@@ -373,7 +378,13 @@ function SettingsPageInner() {
             delivery_zone: deliveryZone.trim() || null,
           },
           allow_orders_outside_hours: allowOrdersOutsideHours,
-          out_of_hours_message: outOfHoursMessage.trim() || null,
+          social: {
+            website: socialForm.website.trim() || null,
+            instagram: socialForm.instagram.trim() || null,
+            facebook: socialForm.facebook.trim() || null,
+            tiktok: socialForm.tiktok.trim() || null,
+            whatsapp: socialForm.whatsapp.trim() || null,
+          },
         }
       );
       mutateSettings();
@@ -564,8 +575,7 @@ function SettingsPageInner() {
                       <div className="space-y-5">
                         {!canUseConnectTab && (
                           <p className="rounded-lg border border-amber-200/80 bg-amber-50/60 px-3 py-2 text-sm text-amber-950 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
-                            Completa los campos obligatorios (nombre, tipo de negocio y horario) para
-                            desbloquear la pestaña Conectar WhatsApp.
+                            Completa nombre y tipo de negocio para desbloquear la pestaña Conectar WhatsApp.
                           </p>
                         )}
                         <div className="space-y-2">
@@ -693,9 +703,7 @@ function SettingsPageInner() {
                           <Label className="flex items-center gap-2">
                             <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                             Horario de atención
-                            <span className="text-destructive" aria-hidden>
-                              *
-                            </span>
+                            <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
                           </Label>
                           <HoursEditor value={weekSchedule} onChange={setWeekSchedule} />
                           {formErrors.hours && (
@@ -704,7 +712,7 @@ function SettingsPageInner() {
                               {formErrors.hours}
                             </p>
                           )}
-                          <div className="mt-3 space-y-2">
+                          <div className="mt-3">
                             <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-amber-50/40 px-3 py-2.5">
                               <Checkbox
                                 id="allow-orders-outside-hours"
@@ -717,25 +725,10 @@ function SettingsPageInner() {
                                   Levantar pedidos fuera de horario
                                 </label>
                                 <p className="text-xs text-muted-foreground leading-snug">
-                                  El agente seguirá atendiendo aunque el negocio esté cerrado. Los pedidos quedarán registrados para revisarlos al abrir.
+                                  Si está desactivado, el agente se apaga automáticamente fuera del horario configurado. Actívalo para que siga atendiendo aunque el negocio esté cerrado.
                                 </p>
                               </div>
                             </div>
-                            {!allowOrdersOutsideHours && (
-                              <div className="space-y-1">
-                                <Label htmlFor="out-of-hours-msg" className="text-xs text-muted-foreground">
-                                  Mensaje automático fuera de horario
-                                </Label>
-                                <Textarea
-                                  id="out-of-hours-msg"
-                                  value={outOfHoursMessage}
-                                  onChange={(e) => setOutOfHoursMessage(e.target.value)}
-                                  placeholder="¡Hola! En este momento estamos fuera de horario. Te atenderemos cuando abramos."
-                                  rows={2}
-                                  className="text-sm"
-                                />
-                              </div>
-                            )}
                           </div>
                         </div>
 
@@ -757,16 +750,6 @@ function SettingsPageInner() {
                             rows={3}
                           />
                         </div>
-
-                        <Separator />
-
-                        <p className="text-sm text-muted-foreground">
-                          <a href="/dashboard/products" className="text-brand-forest font-medium hover:underline">
-                            Logo y URL pública del catálogo o menú
-                          </a>
-                          {" — "}
-                          configúralos en la sección Catálogo / Menú.
-                        </p>
 
                         <Separator />
 
@@ -822,6 +805,86 @@ function SettingsPageInner() {
                           <p className="text-xs text-muted-foreground">
                             El agente usará esta información cuando los clientes pregunten sobre envíos.
                           </p>
+                        </div>
+
+                        <Separator />
+
+                        {/* Redes sociales y sitio web */}
+                        <div className="space-y-3">
+                          <div>
+                            <Label className="flex items-center gap-2">
+                              <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                              Redes sociales y sitio web
+                              <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
+                            </Label>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Se mostrarán en el catálogo público de tu negocio.
+                            </p>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="space-y-1.5">
+                              <Label htmlFor="social-website" className="flex items-center gap-1.5 text-sm">
+                                <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                                Sitio web
+                              </Label>
+                              <Input
+                                id="social-website"
+                                value={socialForm.website}
+                                onChange={(e) => setSocialForm((prev) => ({ ...prev, website: e.target.value }))}
+                                placeholder="https://tunegocio.com"
+                                type="url"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="social-instagram" className="flex items-center gap-1.5 text-sm">
+                                <Instagram className="h-3.5 w-3.5 text-muted-foreground" />
+                                Instagram
+                              </Label>
+                              <Input
+                                id="social-instagram"
+                                value={socialForm.instagram}
+                                onChange={(e) => setSocialForm((prev) => ({ ...prev, instagram: e.target.value }))}
+                                placeholder="@tunegocio"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="social-facebook" className="flex items-center gap-1.5 text-sm">
+                                <Facebook className="h-3.5 w-3.5 text-muted-foreground" />
+                                Facebook
+                              </Label>
+                              <Input
+                                id="social-facebook"
+                                value={socialForm.facebook}
+                                onChange={(e) => setSocialForm((prev) => ({ ...prev, facebook: e.target.value }))}
+                                placeholder="@tunegocio o URL"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="social-tiktok" className="flex items-center gap-1.5 text-sm">
+                                <AtSign className="h-3.5 w-3.5 text-muted-foreground" />
+                                TikTok
+                              </Label>
+                              <Input
+                                id="social-tiktok"
+                                value={socialForm.tiktok}
+                                onChange={(e) => setSocialForm((prev) => ({ ...prev, tiktok: e.target.value }))}
+                                placeholder="@tunegocio"
+                              />
+                            </div>
+                            <div className="space-y-1.5 sm:col-span-2">
+                              <Label htmlFor="social-whatsapp" className="flex items-center gap-1.5 text-sm">
+                                <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                                WhatsApp
+                              </Label>
+                              <Input
+                                id="social-whatsapp"
+                                value={socialForm.whatsapp}
+                                onChange={(e) => setSocialForm((prev) => ({ ...prev, whatsapp: e.target.value }))}
+                                placeholder="+52 55 1234 5678"
+                                type="tel"
+                              />
+                            </div>
+                          </div>
                         </div>
 
                         <Separator />

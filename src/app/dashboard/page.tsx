@@ -48,9 +48,13 @@ interface SettingsLike {
     name?: string;
     slug?: string;
     type?: string;
+    business_category?: string;
+    delivery_mode?: string;
     hours?: Record<string, { open?: boolean; from_?: string; to?: string }>;
     config?: {
         payment_methods?: unknown;
+        signup_completed?: boolean;
+        delivery_zone?: string;
     };
 }
 
@@ -171,7 +175,7 @@ export default function DashboardPage() {
                 <p className="text-sm text-muted-foreground mt-0.5">
                     {allOnboarded
                         ? "Aquí tienes un resumen de la actividad de tu negocio."
-                        : "Completa Configuración (Negocio) y conecta WhatsApp para activar todas las funciones."}
+                        : "Elige el tipo de negocio, agrega el nombre y conecta WhatsApp para activar todas las funciones."}
                 </p>
             </motion.div>
 
@@ -193,7 +197,7 @@ export default function DashboardPage() {
             {/* Onboarding — visible siempre hasta completar */}
             <AnimatePresence>
                 {!allOnboarded && (
-                    <DashboardOnboarding onboarding={onboardingState} catalogLabel={catalogLabel} />
+                    <DashboardOnboarding onboarding={onboardingState} settings={settings} catalogLabel={catalogLabel} />
                 )}
             </AnimatePresence>
 
@@ -328,7 +332,7 @@ export default function DashboardPage() {
                                 <p className="text-xs text-muted-foreground mt-1 max-w-[220px] mx-auto">
                                     {onboardingState.canStartWhatsApp
                                         ? "Conecta tu WhatsApp Business para ver conversaciones y pedidos en tiempo real."
-                                        : "Completa tipo de negocio, nombre y horario en Configuración → Negocio para habilitar WhatsApp."}
+                                        : "Elige la categoría de tu negocio y agrega un nombre en Configuración → Negocio para habilitar WhatsApp."}
                                 </p>
                             </div>
                             {onboardingState.canStartWhatsApp ? (
@@ -360,7 +364,7 @@ export default function DashboardPage() {
                                         ? "Tu catálogo está listo. Conecta WhatsApp para que el agente empiece a vender."
                                         : hasIndustry
                                           ? `Empieza cargando tu ${catalogLabel.toLowerCase()} desde el tablero.`
-                                          : "Primero define tipo de negocio, nombre y horario en Configuración → Negocio."}
+                                          : "Primero define el tipo de negocio y nombre en Configuración → Negocio."}
                                 </p>
                             </div>
                             {hasIndustry ? (

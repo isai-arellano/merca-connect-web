@@ -3,6 +3,8 @@
  * `FALLBACK_INDUSTRIES` evita pantalla vacía si la API no responde (misma forma que el seed).
  */
 
+import type { BusinessCategory } from "@/types/api";
+
 export type CatalogView = "catalogo" | "menu";
 
 export type PublicCatalogRoute = "catalogo" | "menu";
@@ -28,6 +30,7 @@ export interface IndustryConfig {
         hasTables: boolean;
         hasPrescriptions: boolean;
     };
+    business_category?: BusinessCategory;
 }
 
 /** Respuesta JSON de la API (snake_case). */
@@ -44,6 +47,7 @@ export interface IndustryApiRow {
     parent_slug?: string | null;
     /** false = grupo padre (no se guarda en negocio); omitido en despliegues antiguos = elegible */
     is_selectable?: boolean;
+    business_category?: BusinessCategory;
 }
 
 export function industryApiRowToConfig(row: IndustryApiRow): IndustryConfig {
@@ -54,6 +58,7 @@ export function industryApiRowToConfig(row: IndustryApiRow): IndustryConfig {
         productFields: row.product_fields,
         relevantUnits: row.relevant_units,
         features: row.features,
+        business_category: row.business_category,
     };
 }
 
@@ -96,6 +101,7 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
         },
         relevantUnits: ["pza", "und", "kg", "g", "L"],
         features: { hasTables: false, hasPrescriptions: false },
+        business_category: "physical_store",
     },
     restaurante: {
         view: "menu",
@@ -112,6 +118,7 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
         },
         relevantUnits: ["por", "und"],
         features: { hasTables: true, hasPrescriptions: false },
+        business_category: "restaurant",
     },
     cafeteria: {
         view: "menu",
@@ -128,6 +135,7 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
         },
         relevantUnits: ["por", "und", "L"],
         features: { hasTables: true, hasPrescriptions: false },
+        business_category: "restaurant",
     },
     ferreteria: {
         view: "catalogo",
@@ -144,6 +152,7 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
         },
         relevantUnits: ["pza", "und", "m", "cm", "kg"],
         features: { hasTables: false, hasPrescriptions: false },
+        business_category: "physical_store",
     },
     tienda_digital: {
         view: "catalogo",
@@ -160,6 +169,7 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
         },
         relevantUnits: ["pza", "und"],
         features: { hasTables: false, hasPrescriptions: false },
+        business_category: "digital_service",
     },
     tienda_ropa: {
         view: "catalogo",
@@ -176,6 +186,7 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
         },
         relevantUnits: ["pza", "und"],
         features: { hasTables: false, hasPrescriptions: false },
+        business_category: "online_store",
     },
     tienda_electronica: {
         view: "catalogo",
@@ -192,6 +203,7 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
         },
         relevantUnits: ["pza", "und", "kg"],
         features: { hasTables: false, hasPrescriptions: false },
+        business_category: "online_store",
     },
     servicios: {
         view: "catalogo",
@@ -208,6 +220,7 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
         },
         relevantUnits: ["hr", "ses", "día", "sem"],
         features: { hasTables: false, hasPrescriptions: false },
+        business_category: "field_service",
     },
     farmacia: {
         view: "catalogo",
@@ -224,6 +237,7 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
         },
         relevantUnits: ["pza", "und", "g", "L"],
         features: { hasTables: false, hasPrescriptions: true },
+        business_category: "physical_store",
     },
     tienda_online: {
         view: "catalogo",
@@ -240,8 +254,18 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
         },
         relevantUnits: ["pza", "und"],
         features: { hasTables: false, hasPrescriptions: false },
+        business_category: "online_store",
     },
 };
+
+export const BUSINESS_CATEGORIES = [
+    { value: "physical_store",   label: "Tienda física",              icon: "Store",          description: "Productos físicos con pickup o entrega local" },
+    { value: "physical_digital", label: "Tienda física y en línea",   icon: "ShoppingBag",    description: "Vendes en local y también haces envíos" },
+    { value: "online_store",     label: "Tienda en línea",            icon: "Package",        description: "Ventas con envío nacional o paquetería" },
+    { value: "restaurant",       label: "Comida",                     icon: "UtensilsCrossed", description: "Menú, pedidos, delivery o pickup" },
+    { value: "field_service",    label: "Servicio a domicilio",       icon: "Wrench",         description: "Instalaciones, visitas técnicas, servicios en sitio" },
+    { value: "digital_service",  label: "Servicio o producto digital", icon: "Monitor",      description: "Sin entrega física: cursos, software, consultoría" },
+] as const satisfies ReadonlyArray<{ value: BusinessCategory; label: string; icon: string; description: string }>;
 
 /** Orden del onboarding cuando la API no está disponible (lista plana). */
 export const FLAT_INDUSTRY_SLUGS_ORDER: readonly string[] = [

@@ -5,6 +5,18 @@ export interface ApiList<T> {
     data: T[];
 }
 
+// ── Business Category / Delivery ──
+export type BusinessCategory = "physical_store" | "physical_digital" | "online_store" | "restaurant" | "field_service" | "digital_service";
+export type DeliveryMode = "delivery" | "pickup" | "delivery_pickup" | "shipping" | "on_site" | "none";
+
+export interface BusinessSocialLinks {
+    website?: string;
+    instagram?: string;
+    facebook?: string;
+    tiktok?: string;
+    whatsapp?: string;
+}
+
 // ── Business / Settings ──
 export interface Business {
     id: string;
@@ -66,6 +78,9 @@ export interface BusinessSettings {
     description?: string;
     hours?: Record<string, DaySchedule>;
     config?: BusinessConfig;
+    business_category?: BusinessCategory;
+    delivery_mode?: DeliveryMode;
+    social?: BusinessSocialLinks;
 }
 
 // ── Dashboard Stats ──
