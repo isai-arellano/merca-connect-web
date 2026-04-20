@@ -14,6 +14,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Open_Sans } from "next/font/google";
+import dynamic from "next/dynamic";
+
+const ZaferDemoAnimation = dynamic(
+  () => import("@/components/landing/ZaferDemoAnimation"),
+  { ssr: false }
+);
 
 const openSans = Open_Sans({
   subsets: ["latin"],
@@ -106,35 +112,38 @@ export default function Home() {
           {/* Subtle grid pattern overlay */}
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(116,231,156,0.2),transparent_45%),radial-gradient(circle_at_85%_82%,rgba(10,22,18,0.5),transparent_50%)]" />
 
-          <div className="max-w-[98%] mx-auto px-8 sm:px-12 py-20 w-full relative z-10">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
+          <div className="max-w-[98%] mx-auto px-6 sm:px-10 lg:px-12 py-20 w-full relative z-10">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-8 lg:gap-12 items-center">
               <motion.div
                 initial="hidden"
                 animate="visible"
                 variants={staggerContainer}
+                className="md:col-span-3"
               >
                 <motion.h1
                   variants={fadeInUp}
                   transition={{ duration: 0.6 }}
-                  className={`${openSans.className} text-[44px] md:text-[64px] lg:text-[80px] font-normal text-[#EEFAEE] leading-[0.95] tracking-tight`}
+                  className={`${openSans.className} text-[44px] sm:text-[52px] md:text-[48px] lg:text-[56px] xl:text-[64px] font-normal text-[#EEFAEE] leading-[0.95] tracking-tight max-w-[12ch]`}
                 >
                   Tu negocio operando solo.
                 </motion.h1>
                 <motion.p
                   variants={fadeInUp}
                   transition={{ duration: 0.6, delay: 0.1 }}
-                  className={`${openSans.className} mt-6 text-base font-normal text-[#EEFAEE]/90 leading-relaxed max-w-xl`}
+                  className={`${openSans.className} mt-5 text-sm sm:text-base font-normal text-[#EEFAEE]/90 leading-relaxed max-w-[34ch]`}
                 >
-                  Prueba nuestro modelo de ventas Zafer, Automatiza el flujo de ventas, organiza pedidos y mantén el control de tus ventas.
+                  Responde clientes y toma pedidos automáticamente 24/7.
                 </motion.p>
                 <motion.div
                   variants={fadeInUp}
                   transition={{ duration: 0.6, delay: 0.2 }}
-                  className="mt-8 flex flex-col sm:flex-row gap-4"
+                  className="mt-7 flex flex-col sm:flex-row md:flex-col lg:flex-row gap-4"
                 >
                   <a
-                    href="#contacto-ventas"
-                    aria-label="Ir a contacto de ventas"
+                    href="https://wa.me/5215610118546?text=Hola%2C%20quiero%20informaci%C3%B3n%20de%20MercaConnect%20para%20ventas."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Contactar con ventas por WhatsApp"
                   >
                     <Button
                       size="lg"
@@ -147,7 +156,15 @@ export default function Home() {
                 </motion.div>
               </motion.div>
 
-              <div className="hidden md:block" aria-hidden="true" />
+              {/* Animación demo Zafer — visible en md+ y en mobile debajo del texto */}
+              <motion.div
+                variants={fadeInUp}
+                transition={{ duration: 0.7, delay: 0.3 }}
+                className="w-full md:col-span-9 md:min-w-0"
+                aria-hidden="true"
+              >
+                <ZaferDemoAnimation />
+              </motion.div>
             </div>
           </div>
         </div>
