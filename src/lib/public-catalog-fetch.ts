@@ -24,6 +24,7 @@ export const fetchPublicCatalog = cache(async (rawSlug: string): Promise<PublicC
             `${getServerApiBaseUrl()}/api/v1/catalog/${encodeURIComponent(slug)}`,
             { cache: "no-store" },
         );
+        // 404 / 403 (slug inexistente vs catálogo no público): no exponer datos en la UI
         if (!res.ok) {
             return null;
         }

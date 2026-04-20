@@ -13,7 +13,6 @@ import {
   FileText,
   BarChart3,
   Settings,
-  BookOpen,
   ShieldAlert,
   Lock,
   ChevronLeft,
@@ -186,15 +185,6 @@ export function SidebarContent({
               isActive={isActive("/dashboard/analytics")}
               locked={!hasWhatsApp}
               lockReason="Conecta WhatsApp Business para ver analíticas"
-              {...lp}
-            />
-            <NavLink
-              href="/dashboard/knowledge"
-              label="Conocimiento IA"
-              icon={BookOpen}
-              isActive={isActive("/dashboard/knowledge")}
-              locked={!hasWhatsApp}
-              lockReason="Conecta WhatsApp Business para gestionar conocimiento del agente"
               {...lp}
             />
             <NavLink

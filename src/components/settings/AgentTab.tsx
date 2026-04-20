@@ -18,6 +18,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { useSession } from "next-auth/react";
+import { KnowledgeSection } from "@/components/settings/KnowledgeSection";
 
 interface BusinessSettings {
   config?: {
@@ -134,41 +135,45 @@ export function AgentTab() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Bot className="h-5 w-5 text-emerald-500" />
-          Agente IA
-        </CardTitle>
-        <CardDescription>
-          Activa el agente de inteligencia artificial para atender conversaciones automáticamente.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {settingsLoading ? (
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-6 w-11 rounded-full" />
-            <Skeleton className="h-4 w-40" />
-          </div>
-        ) : (
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label className="text-base">
-                {agentEnabled ? "Activo" : "Inactivo"}
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                {agentEnabled
-                  ? "El agente IA está respondiendo conversaciones."
-                  : "Las conversaciones se atienden manualmente."}
-              </p>
+    <div className="space-y-8">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bot className="h-5 w-5 text-emerald-500" />
+            Agente IA
+          </CardTitle>
+          <CardDescription>
+            Activa el agente de inteligencia artificial para atender conversaciones automáticamente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {settingsLoading ? (
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-6 w-11 rounded-full" />
+              <Skeleton className="h-4 w-40" />
             </div>
-            <div className="flex items-center gap-2">
-              {toggling && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-              <ToggleSwitch checked={agentEnabled} onToggle={handleToggle} disabled={toggling} />
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-base">
+                  {agentEnabled ? "Activo" : "Inactivo"}
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  {agentEnabled
+                    ? "El agente IA está respondiendo conversaciones."
+                    : "Las conversaciones se atienden manualmente."}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {toggling && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                <ToggleSwitch checked={agentEnabled} onToggle={handleToggle} disabled={toggling} />
+              </div>
             </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+
+      <KnowledgeSection />
+    </div>
   );
 }
