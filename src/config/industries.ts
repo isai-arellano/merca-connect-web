@@ -42,12 +42,16 @@ export interface IndustryApiRow {
     product_fields: IndustryConfig["productFields"];
     relevant_units: string[];
     features: IndustryConfig["features"];
-    sort_order: number;
     is_active: boolean;
     parent_slug?: string | null;
     /** false = grupo padre (no se guarda en negocio); omitido en despliegues antiguos = elegible */
     is_selectable?: boolean;
     business_category?: BusinessCategory;
+}
+
+/** Misma regla que Configuración > Tipo de negocio / Industria y GET .../catalog/industries. */
+export function isIndustryEligibleForBusinessType(row: IndustryApiRow): boolean {
+    return row.is_active && row.is_selectable !== false;
 }
 
 export function industryApiRowToConfig(row: IndustryApiRow): IndustryConfig {
@@ -65,7 +69,7 @@ export function industryApiRowToConfig(row: IndustryApiRow): IndustryConfig {
 export function buildIndustryMapFromApi(rows: IndustryApiRow[]): Record<string, IndustryConfig> {
     const m: Record<string, IndustryConfig> = {};
     for (const row of rows) {
-        if (row.is_active && row.is_selectable !== false) {
+        if (isIndustryEligibleForBusinessType(row)) {
             m[row.slug] = industryApiRowToConfig(row);
         }
     }

@@ -53,7 +53,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FALLBACK_INDUSTRIES, FLAT_INDUSTRY_SLUGS_ORDER, BUSINESS_CATEGORIES } from "@/config/industries";
+import {
+  FALLBACK_INDUSTRIES,
+  FLAT_INDUSTRY_SLUGS_ORDER,
+  BUSINESS_CATEGORIES,
+  isIndustryEligibleForBusinessType,
+} from "@/config/industries";
 import { useIndustries } from "@/hooks/useIndustries";
 
 const COUNTRY_CODE_MX = "+52";
@@ -253,7 +258,7 @@ function SettingsPageInner() {
   const industrySelectOptions = useMemo(() => {
     if (orderedRows?.length) {
       return orderedRows
-        .filter((r) => r.is_active && r.is_selectable !== false)
+        .filter(isIndustryEligibleForBusinessType)
         .map((r) => ({ value: r.slug, label: r.label }));
     }
     return FLAT_INDUSTRY_SLUGS_ORDER.filter((slug) => FALLBACK_INDUSTRIES[slug]).map((value) => ({
