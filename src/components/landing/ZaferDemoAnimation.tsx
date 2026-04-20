@@ -411,45 +411,11 @@ function Phone({
         borderRadius: 20,
         overflow: "hidden",
         background: B.waBg,
-        boxShadow: "0 18px 55px rgba(0,0,0,0.5)",
         display: "flex",
         flexDirection: "column",
         border: "1.5px solid rgba(255,255,255,0.08)",
       }}
     >
-      {/* Status bar */}
-      <div
-        style={{
-          background: B.dark,
-          padding: "6px 12px 4px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexShrink: 0,
-        }}
-      >
-        <span style={{ color: B.waText, fontSize: 9.5, fontWeight: 600 }}>
-          9:41
-        </span>
-        <div style={{ display: "flex", gap: 2.5, alignItems: "center" }}>
-          {[3, 2, 4, 3].map((h, i) => (
-            <div
-              key={i}
-              style={{
-                width: 2,
-                height: h,
-                background: B.waText,
-                borderRadius: 1,
-                opacity: 0.8,
-              }}
-            />
-          ))}
-          <span style={{ color: B.waText, fontSize: 7.5, marginLeft: 2.5 }}>
-            WiFi
-          </span>
-        </div>
-      </div>
-
       {/* Header */}
       <div
         style={{
@@ -574,7 +540,6 @@ function OrderCard({
         background: "#fff",
         borderRadius: 9,
         padding: "10px 12px",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.07)",
         border: "1px solid #eee",
         animation: isNew ? "zdPopIn 0.45s cubic-bezier(0.34,1.56,0.64,1)" : "none",
         flexShrink: 0,
@@ -650,7 +615,6 @@ function Panel({
         background: "#f7f8fa",
         borderRadius: 13,
         overflow: "hidden",
-        boxShadow: "0 18px 55px rgba(0,0,0,0.22)",
         border: "1px solid #e5e7eb",
         display: "flex",
         flexDirection: "column",
@@ -935,8 +899,11 @@ export default function ZaferDemoAnimation() {
   const c2Opacity = lt < 1.0 ? lt / 1.0 : 1;
   const c2TX = lt < 1.0 ? (1 - lt / 1.0) * 40 : 0;
 
-  const panelOpacity = useFade(lt, 16, 0.7);
-  const panelTX = lt < 17 ? (1 - useFade(lt, 16, 0.7)) * 50 : 0;
+  const panelFade = useFade(lt, 16, 0.7);
+  const panelOpacity = panelFade;
+  const panelTX = lt < 17 ? (1 - panelFade) * 50 : 0;
+  const scenePaddingX = scale < 0.72 ? 16 : 28;
+  const sceneGap = showPanel ? (scale < 0.72 ? 12 : 18) : scale < 0.72 ? 24 : 36;
 
   return (
     <>
@@ -992,8 +959,8 @@ export default function ZaferDemoAnimation() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              gap: showPanel ? 18 : 36,
-              padding: "20px 28px 28px",
+              gap: sceneGap,
+              padding: `20px ${scenePaddingX}px 28px`,
               transition: "gap 0.6s ease",
             }}
           >
