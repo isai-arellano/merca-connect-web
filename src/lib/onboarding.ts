@@ -1,7 +1,7 @@
 /**
  * Single source of truth for onboarding completion (dashboard + sidebar).
- * Flujo en producto: selección de categoría de negocio → datos mínimos (nombre) →
- * configuración de entrega/cobertura → Conectar WhatsApp.
+ * Flujo en producto: selección de categoría → selección de industria →
+ * datos mínimos (nombre) → configuración de entrega/cobertura → Conectar WhatsApp.
  * Horarios y slug no son obligatorios para desbloquear pasos.
  */
 
@@ -23,6 +23,51 @@ export interface OnboardingSettingsLike {
         signup_completed?: boolean;
     };
 }
+
+/** Industrias disponibles por business_category (alineado con TIPOS-NEGOCIOS.md).
+ *  `icon` corresponde a un nombre de icono Lucide (se resuelve en DashboardOnboarding). */
+export const INDUSTRIES_BY_CATEGORY: Record<string, ReadonlyArray<{ slug: string; label: string; icon: string }>> = {
+    restaurant: [
+        { slug: "restaurante",  label: "Restaurante",          icon: "UtensilsCrossed" },
+        { slug: "cafeteria",    label: "Cafetería",            icon: "Coffee" },
+        { slug: "taqueria",     label: "Taquería / Antojitos", icon: "ChefHat" },
+        { slug: "pasteleria",   label: "Pastelería",           icon: "ShoppingBag" },
+        { slug: "dark_kitchen", label: "Dark Kitchen",         icon: "Package" },
+    ],
+    physical_store: [
+        { slug: "abarrotera",  label: "Abarrotes / Miscelánea", icon: "ShoppingCart" },
+        { slug: "ferreteria",  label: "Ferretería",             icon: "Wrench" },
+        { slug: "farmacia",    label: "Farmacia",               icon: "Pill" },
+        { slug: "papeleria",   label: "Papelería",              icon: "BookOpen" },
+        { slug: "mascotas",    label: "Mascotas",               icon: "PawPrint" },
+    ],
+    physical_digital: [
+        { slug: "abarrotera",         label: "Abarrotes / Miscelánea", icon: "ShoppingCart" },
+        { slug: "ferreteria",         label: "Ferretería",             icon: "Wrench" },
+        { slug: "tienda_ropa",        label: "Ropa / Moda",            icon: "ShoppingBag" },
+        { slug: "tienda_electronica", label: "Electrónica",            icon: "Laptop" },
+        { slug: "muebles",            label: "Muebles y hogar",        icon: "Sofa" },
+    ],
+    online_store: [
+        { slug: "tienda_ropa",        label: "Ropa / Moda",         icon: "ShoppingBag" },
+        { slug: "tienda_electronica", label: "Electrónica",          icon: "Laptop" },
+        { slug: "tienda_online",      label: "Productos generales",  icon: "Package" },
+    ],
+    field_service: [
+        { slug: "servicios",   label: "Servicios generales",         icon: "Wrench" },
+        { slug: "consultoria", label: "Consultoría / Asesoría",      icon: "BarChart2" },
+        { slug: "belleza",     label: "Salón de belleza / Spa",      icon: "Scissors" },
+        { slug: "veterinaria", label: "Veterinaria",                 icon: "PawPrint" },
+        { slug: "medico",      label: "Consultorio médico",          icon: "Stethoscope" },
+        { slug: "isp",         label: "Internet / Telecomunicaciones", icon: "Wifi" },
+    ],
+    digital_service: [
+        { slug: "tienda_digital", label: "Tienda digital",     icon: "Globe" },
+        { slug: "cursos",         label: "Cursos / Formación", icon: "GraduationCap" },
+        { slug: "software",       label: "Software / SaaS",    icon: "Monitor" },
+        { slug: "contenido",      label: "Contenido digital",  icon: "PlayCircle" },
+    ],
+};
 
 export function hasValidBusinessHours(hours: OnboardingSettingsLike["hours"]): boolean {
     if (!hours || typeof hours !== "object") {
@@ -56,9 +101,11 @@ export interface OnboardingState {
     /** True si el modo de entrega ya fue configurado (o la categoría no lo requiere). */
     hasDeliveryConfig: boolean;
     hasWhatsApp: boolean;
-    /** Categoría + nombre + entrega listos — habilita la pestaña Conectar WhatsApp. */
+    /** Categoría + industria listos — habilita el paso de datos del negocio. */
+    hasIndustrySelected: boolean;
+    /** Categoría + industria + nombre + entrega listos — habilita la pestaña Conectar WhatsApp. */
     canStartWhatsApp: boolean;
-    /** Categoría + nombre + entrega + WhatsApp — onboarding terminado. */
+    /** Categoría + industria + nombre + entrega + WhatsApp — onboarding terminado. */
     allComplete: boolean;
 }
 
@@ -78,12 +125,16 @@ export function computeOnboardingState(input: OnboardingComputationInput): Onboa
             ? true
             : Boolean(settings.delivery_mode?.trim());
 
-    const canStartWhatsApp = hasName && hasCategory && hasDeliveryConfig;
-    const allComplete = hasCategory && hasName && hasDeliveryConfig && hasWhatsApp;
+    // Paso 0 (categoría) + paso 1 (industria) completados
+    const hasIndustrySelected = hasCategory && hasIndustry;
+
+    const canStartWhatsApp = hasName && hasCategory && hasIndustry && hasDeliveryConfig;
+    const allComplete = canStartWhatsApp && hasWhatsApp;
 
     return {
         hasIndustry,
         hasCategory,
+        hasIndustrySelected,
         hasBusinessProfile,
         hasCatalogContent,
         hasDeliveryConfig,
