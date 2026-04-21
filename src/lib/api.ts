@@ -17,24 +17,14 @@ export function getServerApiBaseUrl(): string {
     return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 }
 
-function withBusinessPhoneId(path: string, businessPhoneId?: string | null) {
-    if (!businessPhoneId) {
-        return path;
-    }
-
-    const separator = path.includes("?") ? "&" : "?";
-    return `${path}${separator}business_phone_id=${encodeURIComponent(businessPhoneId)}`;
-}
-
 export const endpoints = {
     auth: {
         login: `${API_URL}/api/v1/auth/login`,
         changePassword: `${API_URL}/api/v1/auth/change-password`,
     },
     categories: {
-        list: (businessPhoneId: string) => withBusinessPhoneId(`${API_URL}/api/v1/categories`, businessPhoneId),
-        create: (businessPhoneId: string) =>
-            withBusinessPhoneId(`${API_URL}/api/v1/categories`, businessPhoneId),
+        list: `${API_URL}/api/v1/categories`,
+        create: `${API_URL}/api/v1/categories`,
         delete: (id: string) => `${API_URL}/api/v1/categories/${id}`,
     },
     catalog: {
@@ -51,8 +41,9 @@ export const endpoints = {
             `${API_URL}/api/v1/admin/plan-definitions/${encodeURIComponent(planKey)}`,
     },
     products: {
-        list: (businessPhoneId: string, includeInactive = false) => withBusinessPhoneId(`${API_URL}/api/v1/products${includeInactive ? "?include_inactive=true" : ""}`, businessPhoneId),
-        detail: (id: string, businessPhoneId?: string | null) => withBusinessPhoneId(`${API_URL}/api/v1/products/${id}`, businessPhoneId),
+        list: (includeInactive = false) =>
+            `${API_URL}/api/v1/products${includeInactive ? "?include_inactive=true" : ""}`,
+        detail: (id: string) => `${API_URL}/api/v1/products/${id}`,
         disable: (id: string) => `${API_URL}/api/v1/products/${id}`,
         hardDelete: (id: string) => `${API_URL}/api/v1/products/${id}/permanent`,
         uploadImage: (id: string) => `${API_URL}/api/v1/products/${id}/image`,

@@ -44,7 +44,7 @@ import { motion, Variants } from "framer-motion";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher, ApiError, NetworkError } from "@/lib/api-client";
-import { getSessionBusinessPhoneId } from "@/lib/business";
+import { getSessionBusinessId } from "@/lib/business";
 import { type ApiList, type BusinessSettings } from "@/types/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProductsTableSkeleton } from "@/components/skeletons/dashboard-skeletons";
@@ -122,7 +122,7 @@ export default function ProductsPage() {
     const [selectedProduct, setSelectedProduct] = useState<ProductDialogProduct | undefined>(undefined);
     const [actingProductId, setActingProductId] = useState<string | null>(null);
 
-    const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
+    const sessionBusinessId = getSessionBusinessId(session);
     const { industriesMap } = useIndustries();
 
     const {
@@ -174,8 +174,11 @@ export default function ProductsPage() {
             if (bannerPreview?.startsWith("blob:")) URL.revokeObjectURL(bannerPreview);
         };
     }, [bannerPreview]);
-    const productsEndpoint = sessionBusinessPhoneId ? endpoints.products.list(sessionBusinessPhoneId, true) : null;
-    const { data: response, isLoading, mutate: mutateProducts } = useSWR<ApiList<Product>>(session && productsEndpoint ? productsEndpoint : null, fetcher);
+    const productsEndpoint = endpoints.products.list(true);
+    const { data: response, isLoading, mutate: mutateProducts } = useSWR<ApiList<Product>>(
+        session && sessionBusinessId ? productsEndpoint : null,
+        fetcher,
+    );
 
     const businessType: string = settingsData?.type ?? "";
     const previewSlug: string | null = (() => {
@@ -251,7 +254,7 @@ export default function ProductsPage() {
     async function handleEnableProduct(product: Product) {
         setActingProductId(product.id);
         try {
-            await apiClient.patch(endpoints.products.detail(product.id, sessionBusinessPhoneId), { is_active: true });
+            await apiClient.patch(endpoints.products.detail(product.id), { is_active: true });
             await mutateProducts();
             toast({
                 title: `${config.productLabel} habilitado`,
@@ -896,7 +899,6 @@ export default function ProductsPage() {
 
                     <TabsContent value="categories">
                         <CategoriesManager
-                            businessPhoneId={sessionBusinessPhoneId}
                             itemsPluralLower={itemsPluralLower}
                             moduleLower={moduleLower}
                         />
@@ -912,7 +914,6 @@ export default function ProductsPage() {
                 open={dialogOpen}
                 onOpenChange={setDialogOpen}
                 config={config}
-                businessPhoneId={sessionBusinessPhoneId}
                 product={selectedProduct}
             />
         </motion.div>

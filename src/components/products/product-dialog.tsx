@@ -47,7 +47,6 @@ interface ProductDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     config: IndustryConfig;
-    businessPhoneId: string | null;
     product?: ProductDialogProduct;
 }
 
@@ -139,7 +138,7 @@ function validateForm(state: FormState): FieldErrors {
     return errors;
 }
 
-export function ProductDialog({ open, onOpenChange, config, businessPhoneId, product }: ProductDialogProps) {
+export function ProductDialog({ open, onOpenChange, config, product }: ProductDialogProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formState, setFormState] = useState<FormState>(getInitialFormState(product));
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -165,12 +164,12 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
     const { toast } = useToast();
 
     const { mutate } = useSWRConfig();
-    const productsEndpoint = businessPhoneId ? endpoints.products.list(businessPhoneId) : null;
-    const categoriesEndpoint = businessPhoneId ? endpoints.categories.list(businessPhoneId) : null;
+    const productsEndpoint = endpoints.products.list();
+    const categoriesEndpoint = endpoints.categories.list;
     const isEditing = Boolean(product);
 
-    const productDetailEndpoint = open && isEditing && product && businessPhoneId
-        ? endpoints.products.detail(product.id, businessPhoneId)
+    const productDetailEndpoint = open && isEditing && product
+        ? endpoints.products.detail(product.id)
         : null;
 
     const { data: categoriesResponse, isLoading: isLoadingCategories, error: categoriesError } = useSWR<ApiList<CategoryOption>>(
@@ -180,10 +179,7 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
     const { data: unitsResponse } = useSWR<ApiList<UnitOption>>(open ? endpoints.units.list : null, fetcher);
     const { data: productResponse, isLoading: isLoadingProduct } = useSWR<ProductDialogProduct>(productDetailEndpoint, fetcher);
 
-    const { data: planUsageRaw } = useSWR<PlanUsage | { data: PlanUsage }>(
-        open && businessPhoneId ? endpoints.business.planUsage : null,
-        fetcher,
-    );
+    const { data: planUsageRaw } = useSWR<PlanUsage | { data: PlanUsage }>(open ? endpoints.business.planUsage : null, fetcher);
     const planUsage: PlanUsage | null =
         (planUsageRaw as { data: PlanUsage } | null)?.data ?? (planUsageRaw as PlanUsage | null) ?? null;
     const maxImagesAllowed = Math.min(3, planUsage?.product_image_limit ?? 1);
@@ -319,7 +315,7 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
 
     async function handleRemoveImage(index: number) {
         const productId = currentProduct?.id ?? product?.id;
-        if (!productId || !businessPhoneId) return;
+        if (!productId) return;
         setRemovingImageIndex(index);
         try {
             const updated = await apiClient.delete<ProductDialogProduct>(
@@ -342,12 +338,12 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
 
     async function handleCreateCategory() {
         const name = newCategoryName.trim();
-        if (!name || !categoriesEndpoint || !businessPhoneId) return;
+        if (!name || !categoriesEndpoint) return;
 
         setCategoryError(null);
         setIsCreatingCategory(true);
         try {
-            const created = await apiClient.post<ApiCategoryOption>(endpoints.categories.create(businessPhoneId), { name });
+            const created = await apiClient.post<ApiCategoryOption>(endpoints.categories.create, { name });
             const newId = String(created.id);
             const newName = created.name ?? name;
             await mutate(
@@ -428,7 +424,6 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
             setFieldErrors(errors);
             return;
         }
-        if (!productsEndpoint) return;
         setIsSubmitting(true);
 
         const payload = {
@@ -454,7 +449,7 @@ export function ProductDialog({ open, onOpenChange, config, businessPhoneId, pro
 
         try {
             if (isEditing && product) {
-                await apiClient.patch(endpoints.products.detail(product.id, businessPhoneId), payload);
+                await apiClient.patch(endpoints.products.detail(product.id), payload);
             } else {
                 await apiClient.post(productsEndpoint, payload);
             }

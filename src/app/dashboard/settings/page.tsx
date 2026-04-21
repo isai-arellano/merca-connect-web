@@ -26,6 +26,8 @@ import {
   Instagram,
   Facebook,
   AtSign,
+  Lock,
+  AlertTriangle,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
@@ -51,6 +53,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   FALLBACK_INDUSTRIES,
   FLAT_INDUSTRY_SLUGS_ORDER,
@@ -301,6 +311,10 @@ function SettingsPageInner() {
   const [deliveryZone, setDeliveryZone] = useState("");
   const [contactPhoneNumber, setContactPhoneNumber] = useState("");
   const [allowOrdersOutsideHours, setAllowOrdersOutsideHours] = useState(false);
+
+  // Modal de advertencia por cambio de vista (catalogo ↔ menu)
+  const [industryWarning, setIndustryWarning] = useState<{ pendingType: string; pendingLabel: string } | null>(null);
+
   // WhatsApp form state
   const [waForm, setWaForm] = useState({
     about: "",
@@ -352,6 +366,24 @@ function SettingsPageInner() {
       });
     }
   }, [waProfile]);
+
+  /** Intercepta cambio de industria: si cambia el view (catalogo↔menu), muestra advertencia. */
+  function handleTypeChange(val: string) {
+    const currentView = getIndustryConfig(settings.type, industriesMap).view;
+    const newView = getIndustryConfig(val, industriesMap).view;
+    if (settings.type && val !== settings.type && currentView !== newView) {
+      const newLabel = industrySelectOptions.find((o) => o.value === val)?.label ?? val;
+      setIndustryWarning({ pendingType: val, pendingLabel: newLabel });
+    } else {
+      setBusinessForm((prev) => ({ ...prev, type: val }));
+    }
+  }
+
+  function confirmIndustryChange() {
+    if (!industryWarning) return;
+    setBusinessForm((prev) => ({ ...prev, type: industryWarning.pendingType }));
+    setIndustryWarning(null);
+  }
 
   const handleSaveSettings = async () => {
     const nextErrors: BusinessFormErrors = {};
@@ -623,6 +655,36 @@ function SettingsPageInner() {
                           )}
                         </div>
 
+                        {/* Categoría de negocio — readonly después de completar onboarding */}
+                        {settings.business_category && (
+                          <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                              Categoría de negocio
+                              {onboardingState.allComplete && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 border border-border/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                  <Lock className="h-3 w-3" />
+                                  Fija
+                                </span>
+                              )}
+                            </Label>
+                            <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                              <span className="text-sm font-medium text-foreground">
+                                {BUSINESS_CATEGORIES.find(c => c.value === settings.business_category)?.label ?? settings.business_category}
+                              </span>
+                              {onboardingState.allComplete ? (
+                                <p className="ml-auto text-xs text-muted-foreground">
+                                  Para cambiarla contacta a soporte.
+                                </p>
+                              ) : (
+                                <p className="ml-auto text-xs text-muted-foreground">
+                                  Cámbiala en el onboarding.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         <div className="space-y-2">
                           <Label className="flex items-center gap-2">
                             <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
@@ -633,9 +695,7 @@ function SettingsPageInner() {
                           </Label>
                           <Select
                             value={businessForm.type}
-                            onValueChange={(val) =>
-                              setBusinessForm((prev) => ({ ...prev, type: val }))
-                            }
+                            onValueChange={handleTypeChange}
                           >
                             <SelectTrigger className={formErrors.type ? "border-destructive focus-visible:ring-destructive" : ""}>
                               <SelectValue placeholder="Selecciona tu industria" />
@@ -654,16 +714,9 @@ function SettingsPageInner() {
                               {formErrors.type}
                             </p>
                           )}
-                          <div className="flex flex-wrap items-center gap-2 mt-1">
-                            <p className="text-xs text-muted-foreground">
-                              Define el giro para adaptar formularios de {itemsPluralLower} y unidades.
-                            </p>
-                            {settings.business_category && (
-                              <span className="inline-flex items-center rounded-full border border-border/60 bg-muted/50 px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
-                                Categoría: {BUSINESS_CATEGORIES.find(c => c.value === settings.business_category)?.label ?? settings.business_category}
-                              </span>
-                            )}
-                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Define el giro para adaptar formularios de {itemsPluralLower} y unidades.
+                          </p>
                         </div>
 
                         <div className="space-y-2">
@@ -1168,6 +1221,31 @@ function SettingsPageInner() {
             </TabsContent>
         </Tabs>
       </motion.div>
+
+      {/* Modal de advertencia: cambio de industria con distinto view (catalogo ↔ menu) */}
+      <Dialog open={!!industryWarning} onOpenChange={(open) => { if (!open) setIndustryWarning(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Cambio de tipo de catálogo
+            </DialogTitle>
+            <DialogDescription className="text-sm leading-relaxed">
+              Estás cambiando a <strong>{industryWarning?.pendingLabel}</strong>, que usa una vista diferente a la actual.
+              <br /><br />
+              Tus productos y categorías <strong>no se borrarán</strong>, pero la vista pública cambiará entre &ldquo;Catálogo&rdquo; y &ldquo;Menú&rdquo;. Puedes ajustar tus productos después.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setIndustryWarning(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmIndustryChange}>
+              Sí, cambiar industria
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
