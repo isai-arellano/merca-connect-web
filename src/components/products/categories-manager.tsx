@@ -20,30 +20,29 @@ interface Category {
 }
 
 interface CategoriesManagerProps {
-    businessPhoneId: string | null;
     /** Plural en minúsculas (p. ej. productos, servicios, platillos). */
     itemsPluralLower: string;
     /** menú | catálogo */
     moduleLower: string;
 }
 
-export function CategoriesManager({ businessPhoneId, itemsPluralLower, moduleLower }: CategoriesManagerProps) {
+export function CategoriesManager({ itemsPluralLower, moduleLower }: CategoriesManagerProps) {
     const { toast } = useToast();
     const [newName, setNewName] = useState("");
     const [newDesc, setNewDesc] = useState("");
     const [isCreating, setIsCreating] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
-    const endpoint = businessPhoneId ? endpoints.categories.list(businessPhoneId) : null;
+    const endpoint = endpoints.categories.list;
     const { data, isLoading, mutate } = useSWR<ApiList<Category>>(endpoint, fetcher);
     const categories: Category[] = data?.data ?? [];
 
     async function handleCreate() {
         const name = newName.trim();
-        if (!name || !endpoint || !businessPhoneId) return;
+        if (!name || !endpoint) return;
         setIsCreating(true);
         try {
-            await apiClient.post(endpoints.categories.create(businessPhoneId), {
+            await apiClient.post(endpoints.categories.create, {
                 name,
                 description: newDesc.trim() || null,
             });
