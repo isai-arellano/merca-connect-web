@@ -11,12 +11,11 @@ import useSWR from "swr";
 import { endpoints } from "@/lib/api";
 import { useSession } from "next-auth/react";
 import { fetcher } from "@/lib/api-client";
-import { getSessionBusinessPhoneId } from "@/lib/business";
 import { catalogModuleLower, catalogModuleTitle, getIndustryConfig, pluralProductLabel } from "@/config/industries";
 import { useIndustries } from "@/hooks/useIndustries";
 import Link from "next/link";
 import { DashboardMetricsSkeleton, DashboardOrdersSkeleton } from "@/components/skeletons/dashboard-skeletons";
-import { type ApiList, type AnalyticsOverview, type BusinessSettings, type DashboardStats, type PlanUsage } from "@/types/api";
+import { type ApiList, type AnalyticsOverview, type BusinessSettings, type DashboardStats, type PlanUsage, type SignupStatus } from "@/types/api";
 import { computeOnboardingState } from "@/lib/onboarding";
 import { DashboardOnboarding } from "@/components/onboarding/DashboardOnboarding";
 
@@ -94,7 +93,6 @@ function MetricCard({
 
 export default function DashboardPage() {
     const { data: session } = useSession();
-    const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
 
     const { data: settingsData, isLoading: settingsLoading } = useSWR<BusinessSettings | { data: BusinessSettings } | SettingsLike | { data: SettingsLike }>(
         session ? endpoints.business.settings : null,
@@ -102,7 +100,7 @@ export default function DashboardPage() {
     );
 
     const { data: statsRaw, isLoading: statsLoading } = useSWR<DashboardStats>(
-        session && sessionBusinessPhoneId ? endpoints.dashboard.stats : null,
+        session ? endpoints.dashboard.stats : null,
         fetcher,
         { refreshInterval: 10000 }
     );
@@ -110,21 +108,26 @@ export default function DashboardPage() {
     const stats: DashboardStats | undefined = statsRaw;
 
     const { data: ordersData, isLoading: ordersLoading } = useSWR<ApiList<RecentOrder>>(
-        session && sessionBusinessPhoneId ? endpoints.orders.list : null,
+        session ? endpoints.orders.list : null,
         fetcher,
         { refreshInterval: 10000 }
     );
 
     const { data: analyticsData } = useSWR<AnalyticsOverview | { data: AnalyticsOverview }>(
-        session && sessionBusinessPhoneId ? endpoints.analytics.overview : null,
+        session ? endpoints.analytics.overview : null,
         fetcher,
         { refreshInterval: 30000 }
     );
 
     const { data: planRaw } = useSWR<PlanUsage | { data: PlanUsage }>(
-        session && sessionBusinessPhoneId ? endpoints.business.planUsage : null,
+        session ? endpoints.business.planUsage : null,
         fetcher,
         { refreshInterval: 60000 }
+    );
+    const { data: signupStatusRaw } = useSWR<SignupStatus | { data: SignupStatus }>(
+        session ? endpoints.business.whatsappSignupStatus : null,
+        fetcher,
+        { refreshInterval: 15000 }
     );
 
     const settings: SettingsLike =
@@ -145,13 +148,17 @@ export default function DashboardPage() {
         {};
     const messageStats = analytics.messages || {};
 
-    const hasWhatsApp = Boolean(sessionBusinessPhoneId);
+    const signupStatus: SignupStatus =
+        (signupStatusRaw as { data: SignupStatus } | null)?.data ??
+        (signupStatusRaw as SignupStatus | null) ??
+        { connected: false };
+    const hasWhatsApp = signupStatus.connected === true;
     const hasProducts = (stats?.active_products ?? 0) > 0;
 
     const onboardingState = computeOnboardingState({
         settings,
         activeProducts: stats?.active_products ?? 0,
-        hasWhatsAppSession: hasWhatsApp,
+        hasWhatsAppConnected: hasWhatsApp,
     });
 
     const allOnboarded = onboardingState.allComplete;

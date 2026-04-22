@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
+import { useSWRConfig } from "swr";
 import { useSession } from "next-auth/react";
 import {
     CheckCircle2,
@@ -68,6 +69,7 @@ interface SignupStatus {
 export function WhatsAppConnectTab() {
     const { data: session } = useSession();
     const { toast } = useToast();
+    const { mutate } = useSWRConfig();
     const [step, setStep] = useState<Step>("idle");
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const sdkLoaded = useRef(false);
@@ -207,6 +209,8 @@ export function WhatsAppConnectTab() {
                 waba_id,
             });
             await mutateStatus();
+            await mutate(endpoints.business.whatsappSignupStatus);
+            await mutate(endpoints.business.settings);
             setStep("done");
             toast({
                 title: "¡WhatsApp conectado!",
@@ -230,6 +234,8 @@ export function WhatsAppConnectTab() {
         try {
             await apiClient.delete(endpoints.business.whatsappDisconnect);
             await mutateStatus();
+            await mutate(endpoints.business.whatsappSignupStatus);
+            await mutate(endpoints.business.settings);
             setShowDisconnectDialog(false);
             setStep("idle");
             toast({
