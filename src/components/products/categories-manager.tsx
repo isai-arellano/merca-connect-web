@@ -24,16 +24,18 @@ interface CategoriesManagerProps {
     itemsPluralLower: string;
     /** menú | catálogo */
     moduleLower: string;
+    /** ID del teléfono de negocio en sesión (puede ser null). */
+    businessPhoneId?: string | null;
 }
 
-export function CategoriesManager({ itemsPluralLower, moduleLower }: CategoriesManagerProps) {
+export function CategoriesManager({ itemsPluralLower, moduleLower, businessPhoneId }: CategoriesManagerProps) {
     const { toast } = useToast();
     const [newName, setNewName] = useState("");
     const [newDesc, setNewDesc] = useState("");
     const [isCreating, setIsCreating] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
-    const endpoint = endpoints.categories.list;
+    const endpoint = endpoints.categories.list(businessPhoneId);
     const { data, isLoading, mutate } = useSWR<ApiList<Category>>(endpoint, fetcher);
     const categories: Category[] = data?.data ?? [];
 
@@ -42,7 +44,7 @@ export function CategoriesManager({ itemsPluralLower, moduleLower }: CategoriesM
         if (!name || !endpoint) return;
         setIsCreating(true);
         try {
-            await apiClient.post(endpoints.categories.create, {
+            await apiClient.post(endpoints.categories.create(businessPhoneId), {
                 name,
                 description: newDesc.trim() || null,
             });

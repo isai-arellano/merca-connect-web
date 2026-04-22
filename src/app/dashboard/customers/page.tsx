@@ -13,7 +13,7 @@ import { endpoints } from "@/lib/api";
 import { fetcher } from "@/lib/api-client";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { getSessionBusinessPhoneId } from "@/lib/business";
+import { getSessionBusinessId } from "@/lib/business";
 import { CustomerDialog, type Customer } from "@/components/customers/customer-dialog";
 import { type ApiList } from "@/types/api";
 
@@ -40,10 +40,10 @@ export default function CustomersPage() {
     const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
 
-    const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
+    const sessionBusinessId = getSessionBusinessId(session);
 
     const { data: response, isLoading, mutate } = useSWR<ApiList<Customer>>(
-        session && sessionBusinessPhoneId ? endpoints.customers.list : null,
+        session && sessionBusinessId ? endpoints.customers.list : null,
         fetcher
     );
 

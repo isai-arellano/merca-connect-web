@@ -12,7 +12,7 @@ import { endpoints } from "@/lib/api";
 import { apiClient } from "@/lib/api-client";
 import { type ApiList } from "@/types/api";
 import { useSession } from "next-auth/react";
-import { getSessionBusinessPhoneId } from "@/lib/business";
+import { getSessionBusinessId } from "@/lib/business";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -43,7 +43,7 @@ interface ActiveConversation {
 
 export default function InboxPage() {
     const { data: session } = useSession();
-    const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
+    const sessionBusinessId = getSessionBusinessId(session);
 
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [replyText, setReplyText] = useState("");
@@ -52,13 +52,13 @@ export default function InboxPage() {
     const { mutate } = useSWRConfig();
 
     const { data: conversationsResponse, isLoading: isLoadingList } = useSWR<ApiList<ConversationSummary>>(
-        session && sessionBusinessPhoneId ? endpoints.conversations.list : null,
+        session && sessionBusinessId ? endpoints.conversations.list : null,
         { refreshInterval: 15000 } // Polling cada 15 segundos para nuevos mensajes
     );
     const conversations: ConversationSummary[] = conversationsResponse?.data ?? [];
 
     const { data: activeConversationData, isLoading: isLoadingChat } = useSWR<ActiveConversation>(
-        selectedId && session && sessionBusinessPhoneId ? endpoints.conversations.detail(selectedId) : null,
+        selectedId && session && sessionBusinessId ? endpoints.conversations.detail(selectedId) : null,
         { refreshInterval: 8000 } // Polling cuando estamos leyendo un chat
     );
 

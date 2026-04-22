@@ -48,6 +48,7 @@ interface ProductDialogProps {
     onOpenChange: (open: boolean) => void;
     config: IndustryConfig;
     product?: ProductDialogProduct;
+    businessPhoneId?: string | null;
 }
 
 interface CategoryOption {
@@ -138,7 +139,7 @@ function validateForm(state: FormState): FieldErrors {
     return errors;
 }
 
-export function ProductDialog({ open, onOpenChange, config, product }: ProductDialogProps) {
+export function ProductDialog({ open, onOpenChange, config, product, businessPhoneId }: ProductDialogProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formState, setFormState] = useState<FormState>(getInitialFormState(product));
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -164,8 +165,8 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
     const { toast } = useToast();
 
     const { mutate } = useSWRConfig();
-    const productsEndpoint = endpoints.products.list();
-    const categoriesEndpoint = endpoints.categories.list;
+    const productsEndpoint = endpoints.products.list(businessPhoneId);
+    const categoriesEndpoint = endpoints.categories.list(businessPhoneId);
     const isEditing = Boolean(product);
 
     const productDetailEndpoint = open && isEditing && product
@@ -343,7 +344,7 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
         setCategoryError(null);
         setIsCreatingCategory(true);
         try {
-            const created = await apiClient.post<ApiCategoryOption>(endpoints.categories.create, { name });
+            const created = await apiClient.post<ApiCategoryOption>(endpoints.categories.create(businessPhoneId), { name });
             const newId = String(created.id);
             const newName = created.name ?? name;
             await mutate(
