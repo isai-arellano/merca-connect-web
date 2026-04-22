@@ -267,6 +267,8 @@ export interface PlanUsage {
   history_days: number;
   catalog_product_limit: number | null;
   product_image_limit: number;
+  /** Límite aplicado (min(3, max(1, product_image_limit del plan))) — añadido en API. */
+  effective_product_image_limit?: number;
 }
 
 // ── WhatsApp Profile ──

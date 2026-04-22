@@ -91,7 +91,7 @@ export function AdminPlanDefinitionsSection() {
         price_mxn: form.price_mxn,
         extra_conv_price_mxn: form.extra_conv_price_mxn,
         catalog_product_limit,
-        product_image_limit: Math.min(5, Math.max(1, form.product_image_limit)),
+        product_image_limit: Math.min(3, Math.max(1, form.product_image_limit)),
       });
       await mutate();
       setEditOpen(false);
@@ -134,7 +134,7 @@ export function AdminPlanDefinitionsSection() {
         price_mxn: createForm.price_mxn,
         extra_conv_price_mxn: createForm.extra_conv_price_mxn,
         catalog_product_limit: cat.value,
-        product_image_limit: Math.min(5, Math.max(1, createForm.product_image_limit)),
+        product_image_limit: Math.min(3, Math.max(1, createForm.product_image_limit)),
       });
       await mutate();
       setCreateOpen(false);
@@ -325,7 +325,7 @@ export function AdminPlanDefinitionsSection() {
               <Input
                 type="number"
                 min={1}
-                max={5}
+                max={3}
                 value={form.product_image_limit}
                 onChange={(e) =>
                   setForm((f) => ({
@@ -443,7 +443,7 @@ export function AdminPlanDefinitionsSection() {
               <Input
                 type="number"
                 min={1}
-                max={5}
+                max={3}
                 value={createForm.product_image_limit}
                 onChange={(e) =>
                   setCreateForm((f) => ({

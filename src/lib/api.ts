@@ -50,6 +50,9 @@ export const endpoints = {
         disable: (id: string) => `${API_URL}/api/v1/products/${id}`,
         hardDelete: (id: string) => `${API_URL}/api/v1/products/${id}/permanent`,
         uploadImage: (id: string) => `${API_URL}/api/v1/products/${id}/image`,
+        /** Misma ruta: PUT reemplaza, DELETE quita. */
+        productImageAtIndex: (id: string, imageIndex: number) =>
+            `${API_URL}/api/v1/products/${id}/image/${imageIndex}`,
         deleteImage: (id: string, imageIndex: number) =>
             `${API_URL}/api/v1/products/${id}/image/${imageIndex}`,
     },
