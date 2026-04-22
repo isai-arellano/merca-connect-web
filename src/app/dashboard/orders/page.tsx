@@ -6,7 +6,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
-import { getSessionBusinessPhoneId } from "@/lib/business";
+import { getSessionBusinessId } from "@/lib/business";
 import { type ApiList, type BusinessSettings } from "@/types/api";
 import { getIndustryConfig, pluralProductLabel } from "@/config/industries";
 import { useIndustries } from "@/hooks/useIndustries";
@@ -659,7 +659,7 @@ export default function OrdersPage() {
   const [sortKey, setSortKey] = useState("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
+  const sessionBusinessId = getSessionBusinessId(session);
   const { industriesMap } = useIndustries();
 
   const { data: settingsRes } = useSWR<BusinessSettings | { data: BusinessSettings }>(
@@ -678,7 +678,7 @@ export default function OrdersPage() {
   const itemsPlural = pluralProductLabel(productLabel);
   const itemsPluralLower = itemsPlural.toLowerCase();
 
-  const swrKey = session && sessionBusinessPhoneId
+  const swrKey = session && sessionBusinessId
     ? endpoints.orders.list
     : null;
 

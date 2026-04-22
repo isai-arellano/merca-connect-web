@@ -17,14 +17,21 @@ export function getServerApiBaseUrl(): string {
     return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 }
 
+/** Appends ?business_phone_id=... only when the value is a non-empty string. */
+function withBusinessPhoneId(path: string, businessPhoneId: string | null | undefined): string {
+    return businessPhoneId ? `${path}?business_phone_id=${encodeURIComponent(businessPhoneId)}` : path;
+}
+
 export const endpoints = {
     auth: {
         login: `${API_URL}/api/v1/auth/login`,
         changePassword: `${API_URL}/api/v1/auth/change-password`,
     },
     categories: {
-        list: `${API_URL}/api/v1/categories`,
-        create: `${API_URL}/api/v1/categories`,
+        list: (businessPhoneId: string | null | undefined) =>
+            withBusinessPhoneId(`${API_URL}/api/v1/categories`, businessPhoneId),
+        create: (businessPhoneId: string | null | undefined) =>
+            withBusinessPhoneId(`${API_URL}/api/v1/categories`, businessPhoneId),
         delete: (id: string) => `${API_URL}/api/v1/categories/${id}`,
     },
     catalog: {
@@ -41,8 +48,14 @@ export const endpoints = {
             `${API_URL}/api/v1/admin/plan-definitions/${encodeURIComponent(planKey)}`,
     },
     products: {
-        list: (includeInactive = false) =>
-            `${API_URL}/api/v1/products${includeInactive ? "?include_inactive=true" : ""}`,
+        list: (businessPhoneId: string | null | undefined, includeInactive = false) => {
+            const base = `${API_URL}/api/v1/products`;
+            const params = new URLSearchParams();
+            if (businessPhoneId) params.set("business_phone_id", businessPhoneId);
+            if (includeInactive) params.set("include_inactive", "true");
+            const qs = params.toString();
+            return qs ? `${base}?${qs}` : base;
+        },
         detail: (id: string) => `${API_URL}/api/v1/products/${id}`,
         disable: (id: string) => `${API_URL}/api/v1/products/${id}`,
         hardDelete: (id: string) => `${API_URL}/api/v1/products/${id}/permanent`,
