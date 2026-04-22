@@ -81,7 +81,7 @@ export interface PublicCatalogData {
   plan_limit: number | null;
   sections: PublicCatalogSection[];
   catalog_logo_url: string | null;
-  phone_number?: string | null;
+  whatsapp_display_number?: string | null;
   public_view?: PublicView;
   catalog_theme?: {
     preset: string;
@@ -848,7 +848,7 @@ function CatalogInteractiveShell({
         open={cartOpen}
         onClose={() => setCartOpen(false)}
         businessName={catalog.business_name}
-        phone={catalog.phone_number}
+        phone={catalog.whatsapp_display_number}
         tokens={tokens}
         items={cart.items}
         onQtyChange={cart.updateQty}
@@ -998,10 +998,10 @@ function CatalogHeader({
                   <span className="truncate max-w-[150px]">{info.address}</span>
                 </span>
               )}
-              {(info?.phone ?? catalog.phone_number) && (
+              {(info?.phone ?? catalog.whatsapp_display_number) && (
                 <span className="flex items-center gap-1.5 rounded-full bg-black/30 backdrop-blur-sm px-3 py-1 text-xs text-white/90">
                   <Phone className="h-3 w-3 shrink-0" />
-                  {info?.phone ?? catalog.phone_number}
+                  {info?.phone ?? catalog.whatsapp_display_number}
                 </span>
               )}
               {info?.payment_methods && info.payment_methods.length > 0 && (

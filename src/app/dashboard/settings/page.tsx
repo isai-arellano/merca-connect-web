@@ -33,8 +33,7 @@ import {
 
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher, ApiError, NetworkError } from "@/lib/api-client";
-import { type WhatsAppProfile, type BusinessSettings, type DashboardStats } from "@/types/api";
-import { getSessionBusinessPhoneId } from "@/lib/business";
+import { type WhatsAppProfile, type BusinessSettings, type DashboardStats, type SignupStatus } from "@/types/api";
 import { computeOnboardingState } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
 import { AgentTab } from "@/components/settings/AgentTab";
@@ -146,7 +145,6 @@ function isSettingsTabValue(v: string | null): v is SettingsTabValue {
 
 function SettingsPageInner() {
   const { data: session } = useSession();
-  const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
@@ -183,12 +181,22 @@ function SettingsPageInner() {
     isLoading: waLoading,
     mutate: mutateWaProfile,
   } = useSWR<WhatsAppProfile | { data: WhatsAppProfile }>(
-    session
-      && sessionBusinessPhoneId
-      ? endpoints.business.whatsappProfile
-      : null,
+    session ? endpoints.business.whatsappProfile : null,
     fetcher
   );
+
+  const { data: signupStatusRes } = useSWR<SignupStatus | { data: SignupStatus }>(
+    session ? endpoints.business.whatsappSignupStatus : null,
+    fetcher,
+  );
+  const signupStatus: SignupStatus = useMemo(
+    () =>
+      (signupStatusRes as { data: SignupStatus } | null)?.data ??
+      (signupStatusRes as SignupStatus | null) ??
+      { connected: false },
+    [signupStatusRes]
+  );
+
 
   const settings: BusinessSettings = useMemo(
     () =>
@@ -215,9 +223,9 @@ function SettingsPageInner() {
       computeOnboardingState({
         settings,
         activeProducts: statsRaw?.active_products ?? 0,
-        hasWhatsAppSession: Boolean(sessionBusinessPhoneId),
+        hasWhatsAppConnected: signupStatus.connected === true,
       }),
-    [settings, statsRaw?.active_products, sessionBusinessPhoneId],
+    [settings, statsRaw?.active_products, signupStatus.connected],
   );
 
   const canUseConnectTab = onboardingState.canStartWhatsApp;
@@ -479,7 +487,6 @@ function SettingsPageInner() {
         description: "Los datos del negocio se actualizaron correctamente.",
       });
     } catch (error: unknown) {
-      console.error("Error al guardar configuración:", error);
       if (error instanceof NetworkError) {
         setSaveError(error.message);
         toast({
@@ -530,7 +537,6 @@ function SettingsPageInner() {
         description: "El perfil de WhatsApp se actualizó correctamente.",
       });
     } catch (error) {
-      console.error("Error al guardar perfil de WhatsApp:", error);
       setSaveError("No se pudo guardar el perfil de WhatsApp. Inténtalo de nuevo.");
       toast({
         title: "Error al guardar",

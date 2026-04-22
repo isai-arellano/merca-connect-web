@@ -88,7 +88,7 @@ export function hasAtLeastOnePaymentMethod(config: OnboardingSettingsLike["confi
 export interface OnboardingComputationInput {
     settings: OnboardingSettingsLike;
     activeProducts: number;
-    hasWhatsAppSession: boolean;
+    hasWhatsAppConnected: boolean;
 }
 
 export interface OnboardingState {
@@ -110,14 +110,14 @@ export interface OnboardingState {
 }
 
 export function computeOnboardingState(input: OnboardingComputationInput): OnboardingState {
-    const { settings, activeProducts, hasWhatsAppSession } = input;
+    const { settings, activeProducts, hasWhatsAppConnected } = input;
     const hasIndustry = Boolean(settings.type?.trim());
     const hasCategory = Boolean(settings.business_category?.trim());
     const hasName = Boolean(settings.name?.trim());
     const hasBusinessProfile = hasName;
     const hasCatalogContent = hasIndustry && activeProducts > 0;
-    // Fuente de verdad: signup_completed en DB (via settings), no el JWT de sesión
-    const hasWhatsApp = Boolean(settings.config?.signup_completed) || hasWhatsAppSession;
+    // Fuente de verdad: estado de conexión desde backend (whatsapp-signup/status)
+    const hasWhatsApp = hasWhatsAppConnected;
 
     // digital_service no necesita configurar entrega — se considera completado automáticamente
     const hasDeliveryConfig =

@@ -84,6 +84,7 @@ export interface BusinessSettings {
     business_category?: BusinessCategory;
     delivery_mode?: DeliveryMode;
     social?: BusinessSocialLinks;
+  whatsapp_display_number?: string | null;
 }
 
 // ── Dashboard Stats ──
@@ -234,7 +235,6 @@ export interface SignupStatus {
     connected: boolean;
     waba_id?: string;
     display_phone?: string;
-    phone_number?: string;
     meta_app_id?: string;
 }
 

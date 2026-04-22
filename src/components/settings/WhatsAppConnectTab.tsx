@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
+import { useSWRConfig } from "swr";
 import { useSession } from "next-auth/react";
 import {
     CheckCircle2,
@@ -59,7 +60,6 @@ interface SignupStatus {
     connected: boolean;
     waba_id?: string;
     display_phone?: string;
-    phone_number?: string;
     meta_app_id?: string;
 }
 
@@ -68,6 +68,7 @@ interface SignupStatus {
 export function WhatsAppConnectTab() {
     const { data: session } = useSession();
     const { toast } = useToast();
+    const { mutate } = useSWRConfig();
     const [step, setStep] = useState<Step>("idle");
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const sdkLoaded = useRef(false);
@@ -207,6 +208,8 @@ export function WhatsAppConnectTab() {
                 waba_id,
             });
             await mutateStatus();
+            await mutate(endpoints.business.whatsappSignupStatus);
+            await mutate(endpoints.business.settings);
             setStep("done");
             toast({
                 title: "¡WhatsApp conectado!",
@@ -230,6 +233,8 @@ export function WhatsAppConnectTab() {
         try {
             await apiClient.delete(endpoints.business.whatsappDisconnect);
             await mutateStatus();
+            await mutate(endpoints.business.whatsappSignupStatus);
+            await mutate(endpoints.business.settings);
             setShowDisconnectDialog(false);
             setStep("idle");
             toast({
@@ -371,7 +376,7 @@ function ConnectedState({
             <Separator />
 
             <div className="grid gap-3 sm:grid-cols-2">
-                <InfoRow label="Número de WhatsApp" value={status.display_phone || status.phone_number || "—"} />
+                <InfoRow label="Número de WhatsApp" value={status.display_phone || "—"} />
                 <InfoRow label="WABA ID" value={status.waba_id || "—"} mono />
             </div>
 

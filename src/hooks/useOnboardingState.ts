@@ -5,8 +5,7 @@ import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
 import { fetcher } from "@/lib/api-client";
-import { getSessionBusinessPhoneId } from "@/lib/business";
-import { type BusinessSettings, type DashboardStats } from "@/types/api";
+import { type BusinessSettings, type DashboardStats, type SignupStatus } from "@/types/api";
 import {
   computeOnboardingState,
   type OnboardingSettingsLike,
@@ -20,14 +19,17 @@ export function useOnboardingState(): {
   isLoading: boolean;
 } {
   const { data: session } = useSession();
-  const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
 
   const { data: settingsData, isLoading: settingsLoading } = useSWR<
     BusinessSettings | { data: BusinessSettings }
   >(session ? endpoints.business.settings : null, fetcher);
 
+  const { data: signupStatusRaw, isLoading: signupStatusLoading } = useSWR<
+    SignupStatus | { data: SignupStatus }
+  >(session ? endpoints.business.whatsappSignupStatus : null, fetcher);
+
   const { data: statsRaw, isLoading: statsLoading } = useSWR<DashboardStats>(
-    session && sessionBusinessPhoneId ? endpoints.dashboard.stats : null,
+    session ? endpoints.dashboard.stats : null,
     fetcher
   );
 
@@ -40,21 +42,25 @@ export function useOnboardingState(): {
   );
 
   const stats = statsRaw;
+  const signupStatus: SignupStatus =
+    (signupStatusRaw as { data: SignupStatus } | null)?.data ??
+    (signupStatusRaw as SignupStatus | null) ??
+    { connected: false };
 
   const state = useMemo(
     () =>
       computeOnboardingState({
         settings,
         activeProducts: stats?.active_products ?? 0,
-        hasWhatsAppSession: Boolean(sessionBusinessPhoneId),
+        hasWhatsAppConnected: signupStatus.connected === true,
       }),
-    [settings, stats?.active_products, sessionBusinessPhoneId]
+    [settings, stats?.active_products, signupStatus.connected]
   );
 
   return {
     settings,
     stats,
     state,
-    isLoading: settingsLoading || statsLoading,
+    isLoading: settingsLoading || statsLoading || signupStatusLoading,
   };
 }

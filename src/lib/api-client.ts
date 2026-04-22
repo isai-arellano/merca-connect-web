@@ -25,8 +25,6 @@ interface SessionWithAccessToken {
     accessToken?: string;
 }
 
-let clientIdentityLogged = false;
-
 function resolveUrl(url: string): string {
     return url.startsWith("http") ? url : `${API_URL}${url}`;
 }
@@ -54,13 +52,6 @@ async function getAuthHeaders(optionsHeaders: HeadersInit = {}): Promise<Headers
     headers.set("X-Client-Build", CLIENT_BUILD_ID);
 
     if (typeof window !== "undefined") {
-        if (!clientIdentityLogged) {
-            console.info("[api-client] runtime identity", {
-                apiUrl: API_URL,
-                buildId: CLIENT_BUILD_ID,
-            });
-            clientIdentityLogged = true;
-        }
         const session = await getSession() as SessionWithAccessToken | null;
         const token = session?.accessToken;
         if (token) {
