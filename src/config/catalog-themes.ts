@@ -81,6 +81,108 @@ function hexToRgb(hex: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
+/** RGB 0–255 → triplete `H S% L%` para variables shadcn (`hsl(var(--token))`). */
+function rgbToHslTriplet(r: number, g: number, b: number): string {
+  r /= 255;
+  g /= 255;
+  b /= 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r:
+        h = (g - b) / d + (g < b ? 6 : 0);
+        break;
+      case g:
+        h = (b - r) / d + 2;
+        break;
+      default:
+        h = (r - g) / d + 4;
+        break;
+    }
+    h /= 6;
+  }
+  const H = Math.round(h * 360);
+  const S = Math.round(s * 100);
+  const L = Math.round(l * 100);
+  return `${H} ${S}% ${L}%`;
+}
+
+function isValidRgbChannel(v: number): boolean {
+  return Number.isFinite(v) && v >= 0 && v <= 255;
+}
+
+/**
+ * Convierte un color CSS (`#hex`, `rgb()`, `rgba()`) a triplete HSL para variables shadcn.
+ * La opacidad de `rgba` se ignora (solo se usan los canales RGB).
+ */
+export function colorToShadcnHslTriplet(value: string): string | null {
+  const v = value.trim();
+  if (v.startsWith("#")) {
+    try {
+      const [r, g, b] = hexToRgb(v);
+      if (!isValidRgbChannel(r) || !isValidRgbChannel(g) || !isValidRgbChannel(b)) return null;
+      return rgbToHslTriplet(r, g, b);
+    } catch {
+      return null;
+    }
+  }
+  const m = v.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (m) {
+    const r = Number(m[1]);
+    const g = Number(m[2]);
+    const b = Number(m[3]);
+    if (!isValidRgbChannel(r) || !isValidRgbChannel(g) || !isValidRgbChannel(b)) return null;
+    return rgbToHslTriplet(r, g, b);
+  }
+  return null;
+}
+
+/**
+ * Declaraciones CSS (`--background: …;`) alineadas con `--pub-*` del catálogo público
+ * para que Card/Button/Input hereden el tema del negocio vía tokens shadcn.
+ */
+export function buildShadcnBridgeCssBlockFromPubVars(pub: Record<string, string>): string {
+  const t = (key: string, fallback: string) =>
+    colorToShadcnHslTriplet(pub[key] ?? "") ?? fallback;
+
+  const background = t("--pub-page", "0 0% 100%");
+  const foreground = t("--pub-text", "240 10% 3.9%");
+  const card = t("--pub-surface", background);
+  const muted = t("--pub-surface-muted", "220 14% 96%");
+  const mutedForeground = t("--pub-text-muted", "240 4% 46%");
+  const border = t("--pub-border", "220 13% 91%");
+  const primary = t("--pub-button", "240 6% 10%");
+  const primaryForeground = t("--pub-on-button", "0 0% 98%");
+  const accentHue = t("--pub-accent", "221 83% 53%");
+
+  const entries: [string, string][] = [
+    ["--background", background],
+    ["--foreground", foreground],
+    ["--card", card],
+    ["--card-foreground", foreground],
+    ["--popover", card],
+    ["--popover-foreground", foreground],
+    ["--primary", primary],
+    ["--primary-foreground", primaryForeground],
+    ["--secondary", muted],
+    ["--secondary-foreground", foreground],
+    ["--muted", muted],
+    ["--muted-foreground", mutedForeground],
+    ["--accent", muted],
+    ["--accent-foreground", accentHue],
+    ["--border", border],
+    ["--input", border],
+    ["--ring", accentHue],
+  ];
+  return entries.map(([k, v]) => `${k}:${v}`).join(";");
+}
+
 export function relativeLuminance(hex: string): number {
   const [r, g, b] = hexToRgb(hex).map((c) => {
     const s = c / 255;

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useState } from "react";
 import {
   ShoppingCart,
   Package,
@@ -25,19 +25,35 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import {
+  buildShadcnBridgeCssBlockFromPubVars,
   resolveThemeTokens,
   type CatalogThemeApiData,
   type PublicView,
   type ResolvedThemeTokens,
 } from "@/config/catalog-themes";
 import { useCatalogCart } from "@/hooks/useCatalogCart";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 // ─── Tipos públicos ────────────────────────────────────────────────────────────
 
@@ -207,14 +223,34 @@ function buildWhatsAppText(
   return `🛒 *Pedido en ${businessName}*\n\nQuiero pedir estos artículos, por favor:\n\n${lines}${notesLine}\n\n*Total: ${formatPrice(total)}*\n¿Me apoyas validando disponibilidad y siguiente paso para envío o recolección?`;
 }
 
-// ─── CSS Variables (presets + custom) bajo scope ───────────────────────
+// ─── CSS Variables (presets + custom) + puente shadcn en :root (Sheet portal) ─
+
+const MERCA_PUB_CATALOG_ROOT_CLASS = "merca-pub-catalog-active";
+const MERCA_PUB_CATALOG_STYLE_ID = "merca-pub-catalog-theme";
 
 function ThemeVarsInjector({ tokens }: { tokens: ResolvedThemeTokens }) {
-  if (!tokens.cssVars || Object.keys(tokens.cssVars).length === 0) return null;
-  const styleStr = Object.entries(tokens.cssVars)
-    .map(([k, v]) => `${k}:${v}`)
-    .join(";");
-  return <style>{`[data-pub-catalog]{${styleStr}}`}</style>;
+  const serializedCssVars = JSON.stringify(tokens.cssVars ?? {});
+
+  useLayoutEffect(() => {
+    const vars = JSON.parse(serializedCssVars) as Record<string, string>;
+    if (Object.keys(vars).length === 0) return;
+
+    const pubBlock = Object.entries(vars)
+      .map(([k, v]) => `${k}:${v}`)
+      .join(";");
+    const bridge = buildShadcnBridgeCssBlockFromPubVars(vars);
+    const style = document.createElement("style");
+    style.id = MERCA_PUB_CATALOG_STYLE_ID;
+    style.textContent = `:root.${MERCA_PUB_CATALOG_ROOT_CLASS}{${bridge}}[data-pub-catalog]{${pubBlock}}`;
+    document.head.appendChild(style);
+    document.documentElement.classList.add(MERCA_PUB_CATALOG_ROOT_CLASS);
+    return () => {
+      document.documentElement.classList.remove(MERCA_PUB_CATALOG_ROOT_CLASS);
+      style.remove();
+    };
+  }, [serializedCssVars]);
+
+  return null;
 }
 
 // ─── Tipos de estado de filtros ───────────────────────────────────────────────
@@ -224,7 +260,8 @@ type CatalogSort = "default" | "price_asc" | "price_desc" | "name_asc";
 interface FilterState {
   category: string | null;
   search: string;
-  maxPrice: number;
+  /** `null` = usar el máximo actual del catálogo (evita efecto de sincronización). */
+  maxPrice: number | null;
   sort: CatalogSort;
 }
 
@@ -274,107 +311,130 @@ function CatalogFilterBar({
     <div className="space-y-3">
       {/* Fila búsqueda + toggle precio */}
       <div className="flex gap-2">
-        <div className={`flex flex-1 items-center gap-2 rounded-2xl px-4 py-2.5 ${tokens.filterBg}`}>
-          <Search className={`h-4 w-4 shrink-0 ${tokens.subtitle} opacity-60`} />
-          <input
-            type="text"
+        <div className="relative flex flex-1 items-center">
+          <Search
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            type="search"
             placeholder={view === "menu" ? "Buscar en el menú…" : "Buscar productos…"}
             value={filters.search}
             onChange={(e) => onFilter({ search: e.target.value })}
-            className={`flex-1 bg-transparent text-sm outline-none placeholder:opacity-50 ${tokens.title}`}
+            className="h-11 rounded-2xl border-muted/80 bg-muted/40 pl-10 pr-10 text-sm shadow-none"
+            aria-label={view === "menu" ? "Buscar en el menú" : "Buscar productos"}
           />
-          {filters.search && (
-            <button
+          {filters.search ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 text-muted-foreground"
               onClick={() => onFilter({ search: "" })}
-              className={`opacity-60 hover:opacity-100 transition-opacity ${tokens.subtitle}`}
               aria-label="Limpiar búsqueda"
             >
               <X className="h-3.5 w-3.5" />
-            </button>
-          )}
+            </Button>
+          ) : null}
         </div>
-        {maxProductPrice > 0 && (
-          <button
+        {maxProductPrice > 0 ? (
+          <Button
+            type="button"
+            variant={showPriceFilter ? "default" : "outline"}
+            size="icon"
+            className="h-11 w-11 shrink-0 rounded-2xl"
             onClick={() => setShowPriceFilter((v) => !v)}
-            className={`flex items-center gap-1.5 rounded-2xl px-3 py-2.5 text-xs font-semibold transition-all ${
-              showPriceFilter
-                ? `${tokens.buttonBg} ${tokens.buttonText}`
-                : `${tokens.filterBg} ${tokens.subtitle}`
-            }`}
+            aria-label="Filtrar por precio"
+            aria-pressed={showPriceFilter}
           >
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-          </button>
-        )}
+            <SlidersHorizontal className="h-4 w-4" />
+          </Button>
+        ) : null}
       </div>
 
       {/* Slider de precio colapsable */}
-      {showPriceFilter && maxProductPrice > 0 && (
-        <div className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-xs ${tokens.filterBg} ${tokens.subtitle}`}>
-          <span className="shrink-0 font-medium">Hasta</span>
-          <input
-            type="range"
-            min={0}
-            max={maxProductPrice}
-            step={10}
-            value={filters.maxPrice}
-            onChange={(e) => onFilter({ maxPrice: Number(e.target.value) })}
-            className="flex-1 cursor-pointer accent-current"
-          />
-          <span className={`shrink-0 tabular-nums font-semibold ${tokens.accent}`}>
-            {formatPrice(filters.maxPrice)}
-          </span>
-        </div>
-      )}
+      {showPriceFilter && maxProductPrice > 0 ? (
+        <Card className="rounded-2xl border-muted/60 bg-muted/30 py-0 shadow-none">
+          <CardContent className="flex items-center gap-3 px-4 py-3 text-xs">
+            <span className="shrink-0 font-medium text-muted-foreground">Hasta</span>
+            <input
+              type="range"
+              min={0}
+              max={maxProductPrice}
+              step={10}
+              value={filters.maxPrice ?? maxProductPrice}
+              onChange={(e) => onFilter({ maxPrice: Number(e.target.value) })}
+              className="flex-1 cursor-pointer accent-primary"
+            />
+            <span className={`shrink-0 tabular-nums font-semibold ${tokens.accent}`}>
+              {formatPrice(filters.maxPrice ?? maxProductPrice)}
+            </span>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Ordenar por */}
-      <div className={`flex items-center gap-2 rounded-2xl px-3 py-2 ${tokens.filterBg}`}>
-        <span className={`shrink-0 text-xs font-medium ${tokens.subtitle}`}>Ordenar</span>
-        <select
-          value={filters.sort}
-          onChange={(e) => onFilter({ sort: e.target.value as CatalogSort })}
-          className={`min-w-0 flex-1 cursor-pointer rounded-lg border-0 bg-transparent text-sm font-medium outline-none ${tokens.title}`}
-          aria-label="Ordenar productos"
-        >
-          <option value="default">Destacado</option>
-          <option value="name_asc">Nombre (A–Z)</option>
-          <option value="price_asc">Precio: menor a mayor</option>
-          <option value="price_desc">Precio: mayor a menor</option>
-        </select>
-      </div>
+      <Card className="rounded-2xl border-muted/60 bg-muted/30 py-0 shadow-none">
+        <CardContent className="flex items-center gap-2 px-3 py-2">
+          <span className="shrink-0 text-xs font-medium text-muted-foreground">Ordenar</span>
+          <Select
+            value={filters.sort}
+            onValueChange={(v) => onFilter({ sort: v as CatalogSort })}
+          >
+            <SelectTrigger
+              className="h-9 min-w-0 flex-1 border-0 bg-transparent text-sm font-medium shadow-none focus:ring-0"
+              aria-label="Ordenar productos"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Destacado</SelectItem>
+              <SelectItem value="name_asc">Nombre (A–Z)</SelectItem>
+              <SelectItem value="price_asc">Precio: menor a mayor</SelectItem>
+              <SelectItem value="price_desc">Precio: mayor a menor</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
       {/* Chips de categoría con scroll horizontal */}
       <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-none">
-        <button
+        <Button
+          type="button"
+          variant={filters.category === null ? "default" : "outline"}
+          size="sm"
+          className="shrink-0 rounded-full px-4 text-xs font-semibold"
           onClick={() => onFilter({ category: null })}
-          className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
-            filters.category === null
-              ? `${tokens.buttonBg} ${tokens.buttonText} shadow-sm`
-              : `${tokens.filterBg} ${tokens.subtitle} hover:opacity-80`
-          }`}
         >
           Todos
-        </button>
-        {categories.map((cat) => (
-          <button
-            key={cat.id ?? cat.name}
-            onClick={() => onFilter({ category: cat.id ?? cat.name })}
-            className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
-              filters.category === (cat.id ?? cat.name)
-                ? `${tokens.buttonBg} ${tokens.buttonText} shadow-sm`
-                : `${tokens.filterBg} ${tokens.subtitle} hover:opacity-80`
-            }`}
-          >
-            {cat.name}
-          </button>
-        ))}
+        </Button>
+        {categories.map((cat) => {
+          const id = cat.id ?? cat.name;
+          return (
+            <Button
+              key={id}
+              type="button"
+              variant={filters.category === id ? "default" : "outline"}
+              size="sm"
+              className="shrink-0 rounded-full px-4 text-xs font-semibold"
+              onClick={() => onFilter({ category: id })}
+            >
+              {cat.name}
+            </Button>
+          );
+        })}
       </div>
 
       {/* Contador de resultados */}
-      <p className={`text-xs tabular-nums ${tokens.subtitle}`}>
+      <p className="text-xs tabular-nums text-muted-foreground">
         <span className={`font-semibold ${tokens.accent}`}>{totalResults}</span>{" "}
         {view === "menu"
-          ? totalResults === 1 ? "platillo encontrado" : "platillos encontrados"
-          : totalResults === 1 ? "producto encontrado" : "productos encontrados"}
+          ? totalResults === 1
+            ? "platillo encontrado"
+            : "platillos encontrados"
+          : totalResults === 1
+            ? "producto encontrado"
+            : "productos encontrados"}
       </p>
     </div>
   );
@@ -403,54 +463,59 @@ function ProductCard({
   // Vista MENÚ — card horizontal
   if (view === "menu") {
     return (
-      <div
-        className={`group relative flex gap-3 rounded-2xl border p-3.5 shadow-[0_8px_20px_rgba(91,63,43,0.08)] transition-all duration-200 hover:shadow-md ${tokens.border} ${tokens.cardBackground}`}
-      >
-        <div className="flex flex-1 flex-col gap-1.5 min-w-0">
-          <p className={`font-bold text-base leading-snug ${tokens.title}`}>
-            {product.name}
-          </p>
-          {product.description && (
+      <Card className="group relative flex gap-3 overflow-hidden rounded-2xl border-muted/80 p-0 shadow-[0_8px_20px_rgba(91,63,43,0.08)] transition-all duration-200 hover:shadow-md">
+        <CardContent className="flex flex-1 flex-col gap-1.5 p-3.5 pb-3.5 min-w-0">
+          <p className={`font-bold text-base leading-snug ${tokens.title}`}>{product.name}</p>
+          {product.description ? (
             <p className={`text-sm line-clamp-2 leading-relaxed ${tokens.subtitle}`}>
               {product.description}
             </p>
-          )}
-          <div className="mt-auto pt-2.5 flex items-center justify-between gap-2 flex-wrap">
+          ) : null}
+          <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-2.5">
             <span className={`text-2xl font-extrabold tabular-nums ${tokens.accent}`}>
               {formatPrice(product.price)}
             </span>
             {qtyInCart === 0 ? (
-              <button
+              <Button
+                type="button"
+                size="sm"
+                className="rounded-full px-4 text-xs font-bold shadow-sm"
                 onClick={onAdd}
-                className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-bold shadow-sm transition-all active:scale-95 hover:opacity-90 ${tokens.buttonBg} ${tokens.buttonText}`}
               >
-                <Plus className="h-3.5 w-3.5" />
+                <Plus className="!h-3.5 !w-3.5" />
                 Agregar
-              </button>
+              </Button>
             ) : (
-              <div className={`flex items-center gap-2 rounded-full px-2 py-1 ${tokens.filterBg}`}>
-                <button
+              <div className="flex items-center gap-2 rounded-full bg-muted/80 px-2 py-1">
+                <Button
+                  type="button"
+                  variant="default"
+                  size="icon"
+                  className="h-6 w-6 rounded-full"
                   onClick={() => onQtyChange(qtyInCart - 1)}
-                  className={`flex h-6 w-6 items-center justify-center rounded-full bg-black text-white transition-transform active:scale-90`}
+                  aria-label="Quitar uno"
                 >
-                  <Minus className="h-3 w-3" />
-                </button>
+                  <Minus className="!h-3 !w-3" />
+                </Button>
                 <span className={`min-w-[20px] text-center text-sm font-bold tabular-nums ${tokens.title}`}>
                   {qtyInCart}
                 </span>
-                <button
+                <Button
+                  type="button"
+                  variant="default"
+                  size="icon"
+                  className="h-6 w-6 rounded-full"
                   onClick={onAdd}
-                  className={`flex h-6 w-6 items-center justify-center rounded-full bg-black text-white transition-transform active:scale-90`}
+                  aria-label="Agregar uno"
                 >
-                  <Plus className="h-3 w-3" />
-                </button>
+                  <Plus className="!h-3 !w-3" />
+                </Button>
               </div>
             )}
           </div>
-        </div>
+        </CardContent>
 
-        {/* Imagen derecha */}
-        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl">
+        <div className="relative m-3.5 ml-0 h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-muted/40">
           {urls[0] ? (
             <Image
               src={urls[0]}
@@ -460,22 +525,19 @@ function ProductCard({
               sizes="96px"
             />
           ) : (
-            <div className={`flex h-full w-full items-center justify-center ${tokens.filterBg}`}>
-              <UtensilsCrossed className={`h-8 w-8 opacity-25 ${tokens.subtitle}`} />
+            <div className="flex h-full w-full items-center justify-center bg-muted/50">
+              <UtensilsCrossed className="h-8 w-8 text-muted-foreground opacity-40" />
             </div>
           )}
         </div>
-      </div>
+      </Card>
     );
   }
 
   // Vista CATÁLOGO — card vertical con imagen cuadrada
   return (
-    <div
-      className={`group flex flex-col rounded-2xl border overflow-hidden shadow-[0_10px_24px_rgba(88,52,109,0.10)] transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 ${tokens.border} ${tokens.cardBackground}`}
-    >
-      {/* Imagen */}
-      <div className="relative aspect-square w-full overflow-hidden bg-black/5">
+    <Card className="group flex flex-col overflow-hidden rounded-2xl border-muted/80 p-0 shadow-[0_10px_24px_rgba(88,52,109,0.1)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg">
+      <div className="relative aspect-square w-full overflow-hidden bg-muted/40">
         {urls.length > 0 ? (
           <>
             <Image
@@ -485,80 +547,83 @@ function ProductCard({
               className="object-cover transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
             />
-            {/* Dots para galería multi-imagen */}
-            {urls.length > 1 && (
-              <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1.5 px-2">
+            {urls.length > 1 ? (
+              <div className="absolute inset-x-0 bottom-2 flex justify-center gap-1.5 px-2">
                 {urls.map((_, i) => (
                   <button
                     key={i}
                     type="button"
                     aria-label={`Imagen ${i + 1}`}
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setImgIdx(i); }}
-                    className={`h-1.5 rounded-full transition-all ${
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setImgIdx(i);
+                    }}
+                    className={cn(
+                      "h-1.5 rounded-full transition-all",
                       i === imgIdx ? "w-4 bg-white shadow" : "w-1.5 bg-white/45 hover:bg-white/70"
-                    }`}
+                    )}
                   />
                 ))}
               </div>
-            )}
+            ) : null}
           </>
         ) : (
-          <div className={`flex h-full w-full items-center justify-center ${tokens.filterBg}`}>
-            <Package className={`h-10 w-10 opacity-20 ${tokens.subtitle}`} />
+          <div className="flex h-full w-full items-center justify-center bg-muted/50">
+            <Package className="h-10 w-10 text-muted-foreground opacity-30" />
           </div>
         )}
       </div>
 
-      {/* Info */}
-      <div className="flex flex-1 flex-col gap-1.5 p-3">
-        <p className={`font-bold text-sm leading-snug line-clamp-2 ${tokens.title}`}>
-          {product.name}
-        </p>
-        {product.description && (
-          <p className={`text-xs line-clamp-2 leading-relaxed ${tokens.subtitle}`}>
+      <CardContent className="flex flex-1 flex-col gap-1.5 p-3 pt-3">
+        <p className={`line-clamp-2 text-sm font-bold leading-snug ${tokens.title}`}>{product.name}</p>
+        {product.description ? (
+          <p className={`line-clamp-2 text-xs leading-relaxed ${tokens.subtitle}`}>
             {product.description}
           </p>
-        )}
-        <div className="mt-auto pt-2 flex items-center justify-between gap-1">
+        ) : null}
+        <div className="mt-auto flex items-center justify-between gap-1 pt-2">
           <div>
             <span className={`text-base font-extrabold tabular-nums ${tokens.accent}`}>
               {formatPrice(product.price)}
             </span>
-            {product.unit && product.unit !== "pieza" && (
+            {product.unit && product.unit !== "pieza" ? (
               <span className={`ml-1 text-[10px] ${tokens.subtitle}`}>/{product.unit}</span>
-            )}
+            ) : null}
           </div>
         </div>
 
-        {/* Botón agregar / contador */}
         {qtyInCart === 0 ? (
-          <button
-            onClick={onAdd}
-            className={`mt-1 w-full rounded-xl py-2 text-xs font-bold shadow-sm transition-all active:scale-95 hover:opacity-90 ${tokens.buttonBg} ${tokens.buttonText}`}
-          >
+          <Button type="button" className="mt-1 w-full rounded-xl text-xs font-bold shadow-sm" onClick={onAdd}>
             + Agregar
-          </button>
+          </Button>
         ) : (
-          <div className={`mt-1 flex items-center justify-between rounded-xl px-2 py-1 ${tokens.filterBg}`}>
-            <button
+          <div className="mt-1 flex items-center justify-between rounded-xl bg-muted/80 px-2 py-1">
+            <Button
+              type="button"
+              variant="default"
+              size="icon"
+              className="h-7 w-7 rounded-lg"
               onClick={() => onQtyChange(qtyInCart - 1)}
-              className={`flex h-7 w-7 items-center justify-center rounded-lg ${tokens.buttonBg} ${tokens.buttonText} transition-transform active:scale-90`}
+              aria-label="Quitar uno"
             >
-              <Minus className="h-3.5 w-3.5" />
-            </button>
-            <span className={`text-sm font-bold tabular-nums ${tokens.title}`}>
-              {qtyInCart}
-            </span>
-            <button
+              <Minus className="!h-3.5 !w-3.5" />
+            </Button>
+            <span className={`text-sm font-bold tabular-nums ${tokens.title}`}>{qtyInCart}</span>
+            <Button
+              type="button"
+              variant="default"
+              size="icon"
+              className="h-7 w-7 rounded-lg"
               onClick={onAdd}
-              className={`flex h-7 w-7 items-center justify-center rounded-lg ${tokens.buttonBg} ${tokens.buttonText} transition-transform active:scale-90`}
+              aria-label="Agregar uno"
             >
-              <Plus className="h-3.5 w-3.5" />
-            </button>
+              <Plus className="!h-3.5 !w-3.5" />
+            </Button>
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -615,148 +680,173 @@ function CartDrawer({
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent
         side="right"
-        className={`flex w-full flex-col p-0 sm:max-w-md ${tokens.cartBg}`}
+        overlayClassName="bg-background/70 backdrop-blur-sm"
+        className={cn(
+          "flex h-full min-h-0 w-full max-h-[100dvh] flex-col gap-0 border-l bg-background p-0 sm:max-w-md",
+          tokens.cartBg
+        )}
       >
-        {/* Header */}
-        <SheetHeader className={`border-b px-5 py-4 ${tokens.sectionBorder}`}>
-          <div className="flex items-center justify-between">
-            <SheetTitle className={`flex items-center gap-2 text-base font-bold ${tokens.title}`}>
-              <ShoppingCart className="h-5 w-5" />
-              Mi pedido
-              {totalItems > 0 && (
-                <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tokens.badge}`}>
+        <SheetHeader className="shrink-0 space-y-0 px-5 py-4 text-left">
+          <div className="flex items-center justify-between gap-2">
+            <SheetTitle className={cn("flex items-center gap-2 text-base font-bold", tokens.title)}>
+              <ShoppingCart className="h-5 w-5 shrink-0" />
+              <span>Mi pedido</span>
+              {totalItems > 0 ? (
+                <Badge variant="secondary" className="ml-0.5 rounded-full px-2 py-0.5 text-xs font-semibold">
                   {totalItems}
-                </span>
-              )}
+                </Badge>
+              ) : null}
             </SheetTitle>
-            {items.length > 0 && (
-              <button
+            {items.length > 0 ? (
+              <Button
+                type="button"
+                variant="link"
+                className="h-auto p-0 text-xs text-muted-foreground no-underline opacity-70 hover:opacity-100"
                 onClick={onClear}
-                className={`text-xs underline underline-offset-2 opacity-60 hover:opacity-100 transition-opacity ${tokens.subtitle}`}
               >
                 Vaciar
-              </button>
-            )}
+              </Button>
+            ) : null}
           </div>
         </SheetHeader>
 
-        {/* Items */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-          {items.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-16 text-center">
-              <div className={`rounded-full p-5 ${tokens.filterBg}`}>
-                <ShoppingCart className={`h-8 w-8 opacity-25 ${tokens.subtitle}`} />
-              </div>
-              <p className={`text-sm font-semibold ${tokens.subtitle}`}>Tu carrito está vacío</p>
-              <p className={`text-xs opacity-60 ${tokens.subtitle}`}>
-                Agrega productos para continuar
-              </p>
-            </div>
-          ) : (
-            <>
-              {items.map((item) => (
-                <div
-                  key={item.id}
-                  className={`flex items-center gap-3 rounded-2xl border p-3 ${tokens.border} ${tokens.cardBackground}`}
-                >
-                  {item.image_url && (
-                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl">
-                      <Image
-                        src={item.image_url}
-                        alt={item.name}
-                        fill
-                        className="object-cover"
-                        sizes="48px"
-                      />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-bold truncate ${tokens.title}`}>{item.name}</p>
-                    <p className={`text-xs ${tokens.subtitle}`}>{formatPrice(item.price)} c/u</p>
+        <Separator className="shrink-0" />
+
+        <div className="relative min-h-0 flex-1">
+          <ScrollArea className="h-full max-h-[min(70dvh,calc(100dvh-220px))]">
+            <div className="space-y-3 px-5 py-4 pr-3">
+              {items.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 py-16 text-center">
+                  <div className="rounded-full bg-muted/80 p-5">
+                    <ShoppingCart className="h-8 w-8 text-muted-foreground opacity-40" />
                   </div>
-                  <div className={`flex items-center gap-1.5 rounded-xl px-1.5 py-1 ${tokens.filterBg}`}>
-                    <button
-                      onClick={() => onQtyChange(item.id, item.quantity - 1)}
-                      className={`flex h-6 w-6 items-center justify-center rounded-lg transition-transform active:scale-90 ${tokens.buttonBg} ${tokens.buttonText}`}
-                    >
-                      <Minus className="h-2.5 w-2.5" />
-                    </button>
-                    <span className={`min-w-[20px] text-center text-sm font-bold tabular-nums ${tokens.title}`}>
-                      {item.quantity}
-                    </span>
-                    <button
-                      onClick={() => onQtyChange(item.id, item.quantity + 1)}
-                      className={`flex h-6 w-6 items-center justify-center rounded-lg transition-transform active:scale-90 ${tokens.buttonBg} ${tokens.buttonText}`}
-                    >
-                      <Plus className="h-2.5 w-2.5" />
-                    </button>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className={`text-sm font-bold ${tokens.accent}`}>
-                      {formatPrice(item.price * item.quantity)}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => onRemove(item.id)}
-                    className={`opacity-40 hover:opacity-80 transition-opacity ${tokens.subtitle}`}
-                    aria-label="Eliminar"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <p className="text-sm font-semibold text-muted-foreground">Tu carrito está vacío</p>
+                  <p className="text-xs text-muted-foreground opacity-80">
+                    Agrega productos para continuar
+                  </p>
                 </div>
-              ))}
+              ) : (
+                <>
+                  {items.map((item) => (
+                    <Card
+                      key={item.id}
+                      className="flex items-center gap-3 rounded-2xl border-muted/80 p-3 shadow-none"
+                    >
+                      {item.image_url ? (
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl">
+                          <Image
+                            src={item.image_url}
+                            alt={item.name}
+                            fill
+                            className="object-cover"
+                            sizes="48px"
+                          />
+                        </div>
+                      ) : null}
+                      <div className="min-w-0 flex-1">
+                        <p className={cn("truncate text-sm font-bold", tokens.title)}>{item.name}</p>
+                        <p className={cn("text-xs", tokens.subtitle)}>{formatPrice(item.price)} c/u</p>
+                      </div>
+                      <div className="flex items-center gap-1.5 rounded-xl bg-muted/80 px-1.5 py-1">
+                        <Button
+                          type="button"
+                          variant="default"
+                          size="icon"
+                          className="h-6 w-6 rounded-lg"
+                          onClick={() => onQtyChange(item.id, item.quantity - 1)}
+                          aria-label="Quitar uno"
+                        >
+                          <Minus className="!h-2.5 !w-2.5" />
+                        </Button>
+                        <span className={cn("min-w-[20px] text-center text-sm font-bold tabular-nums", tokens.title)}>
+                          {item.quantity}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="default"
+                          size="icon"
+                          className="h-6 w-6 rounded-lg"
+                          onClick={() => onQtyChange(item.id, item.quantity + 1)}
+                          aria-label="Agregar uno"
+                        >
+                          <Plus className="!h-2.5 !w-2.5" />
+                        </Button>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p className={cn("text-sm font-bold", tokens.accent)}>
+                          {formatPrice(item.price * item.quantity)}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-muted-foreground opacity-60 hover:opacity-100"
+                        onClick={() => onRemove(item.id)}
+                        aria-label="Eliminar"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </Card>
+                  ))}
 
-              {/* Notas */}
-              <div className="pt-2">
-                <label className={`block text-xs font-semibold mb-1.5 ${tokens.subtitle}`}>
-                  Notas / instrucciones especiales
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Ej: sin cebolla, extra salsa…"
-                  rows={3}
-                  className={`w-full resize-none rounded-xl border px-3 py-2.5 text-sm outline-none placeholder:opacity-40 ${tokens.border} ${tokens.filterBg} ${tokens.title}`}
-                />
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Footer */}
-        {items.length > 0 && (
-          <div className={`border-t px-5 py-5 space-y-3 ${tokens.sectionBorder}`}>
-            <div className={`flex items-center justify-between font-bold ${tokens.title}`}>
-              <span className="text-sm">Total</span>
-              <span className={`text-2xl tabular-nums ${tokens.accent}`}>
-                {formatPrice(totalPrice)}
-              </span>
-            </div>
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={handleCopy}
-                className={`flex w-full items-center justify-center gap-2 rounded-xl border py-3 text-sm font-semibold transition-all active:scale-95 ${tokens.border} ${tokens.filterBg} ${tokens.title}`}
-              >
-                {copied ? (
-                  <><CheckCheck className="h-4 w-4" />¡Copiado!</>
-                ) : (
-                  <><Copy className="h-4 w-4" />Copiar pedido</>
-                )}
-              </button>
-              {whatsappUrl && (
-                <a
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-bold transition-all active:scale-95 hover:opacity-90 ${tokens.buttonBg} ${tokens.buttonText}`}
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  Continuar por WhatsApp
-                </a>
+                  <div className="pt-1">
+                    <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">
+                      Notas / instrucciones especiales
+                    </label>
+                    <Textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Ej: sin cebolla, extra salsa…"
+                      rows={3}
+                      className="resize-none rounded-xl border-muted/80 bg-muted/30 text-sm"
+                    />
+                  </div>
+                </>
               )}
             </div>
-          </div>
-        )}
+          </ScrollArea>
+        </div>
+
+        {items.length > 0 ? (
+          <>
+            <Separator className="shrink-0" />
+            <div className="shrink-0 space-y-3 px-5 py-5">
+              <div className={cn("flex items-center justify-between font-bold", tokens.title)}>
+                <span className="text-sm">Total</span>
+                <span className={cn("text-2xl tabular-nums", tokens.accent)}>{formatPrice(totalPrice)}</span>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full rounded-xl py-6 text-sm font-semibold"
+                  onClick={handleCopy}
+                >
+                  {copied ? (
+                    <>
+                      <CheckCheck className="h-4 w-4" />
+                      ¡Copiado!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-4 w-4" />
+                      Copiar pedido
+                    </>
+                  )}
+                </Button>
+                {whatsappUrl ? (
+                  <Button type="button" className="w-full rounded-full text-sm font-bold" asChild>
+                    <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                      <MessageCircle className="h-4 w-4" />
+                      Continuar por WhatsApp
+                    </a>
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </>
+        ) : null}
       </SheetContent>
     </Sheet>
   );
@@ -790,13 +880,9 @@ function CatalogInteractiveShell({
   const [filters, setFilters] = useState<FilterState>({
     category: null,
     search: "",
-    maxPrice: maxProductPrice,
+    maxPrice: null,
     sort: "default",
   });
-
-  useEffect(() => {
-    setFilters((f) => ({ ...f, maxPrice: maxProductPrice }));
-  }, [maxProductPrice]);
 
   const updateFilter = (partial: Partial<FilterState>) => {
     setFilters((f) => ({ ...f, ...partial }));
@@ -816,7 +902,8 @@ function CatalogInteractiveShell({
             !filters.search ||
             p.name.toLowerCase().includes(filters.search.toLowerCase()) ||
             p.description?.toLowerCase().includes(filters.search.toLowerCase());
-          const matchPrice = p.price <= filters.maxPrice;
+          const cap = filters.maxPrice ?? maxProductPrice;
+          const matchPrice = p.price <= cap;
           return matchSearch && matchPrice;
         });
 
@@ -825,7 +912,7 @@ function CatalogInteractiveShell({
         return { ...section, products: sorted };
       })
       .filter((s): s is PublicCatalogSection => s !== null);
-  }, [catalog.sections, filters]);
+  }, [catalog.sections, filters, maxProductPrice]);
 
   const totalResults = useMemo(
     () => filteredSections.reduce((sum, s) => sum + s.products.length, 0),
@@ -840,7 +927,9 @@ function CatalogInteractiveShell({
     Boolean(filters.search) ||
     filters.category !== null ||
     filters.sort !== "default" ||
-    (maxProductPrice > 0 && filters.maxPrice < maxProductPrice);
+    (maxProductPrice > 0 &&
+      filters.maxPrice !== null &&
+      filters.maxPrice < maxProductPrice);
   const flatProducts = useMemo(
     () => filteredSections.flatMap((section) => section.products),
     [filteredSections]
@@ -895,7 +984,7 @@ function CatalogInteractiveShell({
                 setFilters({
                   category: null,
                   search: "",
-                  maxPrice: maxProductPrice,
+                  maxPrice: null,
                   sort: "default",
                 })
               }
@@ -994,48 +1083,49 @@ function CatalogInteractiveShell({
       {/* Barra inferior: solo "Ver carrito" en menú; catálogo mantiene inicio + carrito */}
       <div className="fixed bottom-4 left-1/2 z-50 w-[min(92vw,420px)] -translate-x-1/2">
         {view === "menu" ? (
-          <button
+          <Button
+            type="button"
             onClick={() => setCartOpen(true)}
-            className={`flex w-full items-center justify-center gap-2 rounded-full border border-[color:var(--pub-border)] px-4 py-3.5 text-sm font-semibold shadow-2xl backdrop-blur ${tokens.buttonBg} ${tokens.buttonText}`}
+            className="h-auto w-full rounded-full border border-border/80 px-4 py-3.5 text-sm font-semibold shadow-2xl backdrop-blur-sm"
             aria-label={`Ver carrito, ${cart.totalItems} productos`}
           >
             <ShoppingCart className="h-5 w-5 shrink-0" />
             <span>Ver carrito</span>
-            {cart.isReady && cart.totalItems > 0 && (
-              <span
-                className={`ml-1 rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums ${tokens.filterBg} ${tokens.title} border ${tokens.border}`}
-              >
+            {cart.isReady && cart.totalItems > 0 ? (
+              <Badge variant="secondary" className="ml-1 rounded-full px-2.5 py-0.5 text-xs font-bold tabular-nums">
                 {cart.totalItems}
-              </span>
-            )}
-          </button>
+              </Badge>
+            ) : null}
+          </Button>
         ) : (
-          <div
-            className={`flex items-center justify-between gap-2 rounded-full border p-2 shadow-2xl backdrop-blur ${tokens.cardBackground} border-[color:var(--pub-border)]`}
-          >
-            <button
+          <div className="flex items-center justify-between gap-2 rounded-full border border-border/80 bg-card/95 p-2 shadow-2xl backdrop-blur-sm">
+            <Button
               type="button"
+              variant="ghost"
               onClick={scrollToTop}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2.5 text-sm font-semibold transition-colors ${tokens.subtitle} hover:bg-[var(--pub-surface-muted)]`}
+              className={cn(
+                "h-auto flex-1 rounded-full py-2.5 text-sm font-semibold text-muted-foreground hover:bg-muted/80",
+                tokens.subtitle
+              )}
               aria-label="Ir al inicio"
             >
               <House className="h-4 w-4" />
               Inicio
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => setCartOpen(true)}
-              className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-full py-2.5 text-sm font-semibold transition-opacity hover:opacity-90 ${tokens.buttonBg} ${tokens.buttonText}`}
+              className="relative h-auto flex-1 rounded-full py-2.5 text-sm font-semibold shadow-none"
               aria-label={`Abrir carrito con ${cart.totalItems} productos`}
             >
               <ShoppingCart className="h-4 w-4" />
               Carrito
-              {cart.isReady && cart.totalItems > 0 && (
-                <span className="rounded-full bg-white/20 px-2 text-xs font-bold tabular-nums">
+              {cart.isReady && cart.totalItems > 0 ? (
+                <span className="rounded-full bg-primary-foreground/15 px-2 text-xs font-bold tabular-nums">
                   {cart.totalItems}
                 </span>
-              )}
-            </button>
+              ) : null}
+            </Button>
           </div>
         )}
       </div>
@@ -1292,9 +1382,11 @@ function BusinessDescription({
   if (!info?.description) return null;
 
   return (
-    <div className={`rounded-2xl border px-5 py-4 ${tokens.border} ${tokens.cardBackground}`}>
-      <p className={`text-sm leading-relaxed ${tokens.subtitle}`}>{info.description}</p>
-    </div>
+    <Card className="rounded-2xl border-muted/80 shadow-sm">
+      <CardContent className="px-5 py-4">
+        <p className={`text-sm leading-relaxed ${tokens.subtitle}`}>{info.description}</p>
+      </CardContent>
+    </Card>
   );
 }
 
