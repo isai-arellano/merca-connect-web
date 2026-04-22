@@ -7,6 +7,7 @@
  * `CORS_ALLOWED_ORIGINS`; un **500** sin respuesta CORS suele mostrarse en consola como error de CORS.
  */
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+export const CLIENT_BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID || "local-dev";
 
 /**
  * URL base del API para fetch en el servidor (páginas públicas de catálogo/menú).

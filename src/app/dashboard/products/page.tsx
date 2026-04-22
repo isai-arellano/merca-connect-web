@@ -114,6 +114,17 @@ function formatValidationDetail(error: ApiError): string {
     return "";
 }
 
+function getRequestErrorMessage(error: unknown): string {
+    if (error instanceof NetworkError) return error.message;
+    if (error instanceof ApiError) {
+        if (error.status >= 500) {
+            return "El servidor no pudo procesar la solicitud. Intenta nuevamente en unos segundos.";
+        }
+        return formatValidationDetail(error) || error.message || "No se pudo completar la solicitud.";
+    }
+    return "Ocurrió un error inesperado. Intenta nuevamente.";
+}
+
 export default function ProductsPage() {
     const { data: session } = useSession();
     const { toast } = useToast();
@@ -175,7 +186,7 @@ export default function ProductsPage() {
         };
     }, [bannerPreview]);
     const productsEndpoint = endpoints.products.list(true);
-    const { data: response, isLoading, mutate: mutateProducts } = useSWR<ApiList<Product>>(
+    const { data: response, isLoading, error: productsError, mutate: mutateProducts } = useSWR<ApiList<Product>>(
         session && sessionBusinessId ? productsEndpoint : null,
         fetcher,
     );
@@ -229,8 +240,12 @@ export default function ProductsPage() {
                 title: `${config.productLabel} deshabilitado`,
                 description: `Ya no se mostrará en tu ${moduleLower}.`,
             });
-        } catch {
-            toast({ title: "No se pudo deshabilitar", description: "Intenta de nuevo en unos segundos.", variant: "destructive" });
+        } catch (error: unknown) {
+            toast({
+                title: "No se pudo deshabilitar",
+                description: getRequestErrorMessage(error),
+                variant: "destructive",
+            });
         } finally {
             setActingProductId(null);
         }
@@ -244,8 +259,12 @@ export default function ProductsPage() {
             await apiClient.delete(endpoints.products.hardDelete(product.id));
             await mutateProducts();
             toast({ title: `${config.productLabel} eliminado`, description: "Se eliminó de forma definitiva." });
-        } catch {
-            toast({ title: "No se pudo eliminar", description: "Intenta nuevamente.", variant: "destructive" });
+        } catch (error: unknown) {
+            toast({
+                title: "No se pudo eliminar",
+                description: getRequestErrorMessage(error),
+                variant: "destructive",
+            });
         } finally {
             setActingProductId(null);
         }
@@ -260,8 +279,12 @@ export default function ProductsPage() {
                 title: `${config.productLabel} habilitado`,
                 description: `Ya vuelve a estar disponible en tu ${moduleLower}.`,
             });
-        } catch {
-            toast({ title: "No se pudo habilitar", description: "Intenta nuevamente.", variant: "destructive" });
+        } catch (error: unknown) {
+            toast({
+                title: "No se pudo habilitar",
+                description: getRequestErrorMessage(error),
+                variant: "destructive",
+            });
         } finally {
             setActingProductId(null);
         }
@@ -704,6 +727,11 @@ export default function ProductsPage() {
                     </TabsList>
 
                     <TabsContent value="products" className="space-y-4">
+                        {productsError && (
+                            <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                                No se pudo cargar la lista de productos. {getRequestErrorMessage(productsError)}
+                            </div>
+                        )}
                         <div className="flex items-center gap-2">
                             <div className="relative flex-1 max-w-sm">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
