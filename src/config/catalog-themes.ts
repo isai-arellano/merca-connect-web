@@ -1,38 +1,57 @@
 export type CatalogThemePreset = "default" | "peach" | "ocean" | "custom";
 export type PublicView = "catalogo" | "menu";
 
+/**
+ * Paleta semántica → se inyecta en [data-pub-catalog] como --pub-*.
+ * Los tokens de clase usan siempre `bg-[var(--pub-…)]` / `text-[var(--pub-…)]` para que
+ * preset y custom compartan el mismo mecanismo (evita clases inválidas tipo "cat-page-bg").
+ */
+export interface SemanticPalette {
+  page: string;
+  headerFrom: string;
+  headerTo: string;
+  surface: string;
+  surfaceMuted: string;
+  cart: string;
+  border: string;
+  text: string;
+  textMuted: string;
+  accent: string;
+  button: string;
+  onButton: string;
+  badgeBg: string;
+  badgeFg: string;
+  sectionBorder: string;
+}
+
 export interface CatalogThemeTokens {
-  // Fondos
   pageBackground: string;
   headerBg: string;
   cardBackground: string;
   filterBg: string;
   cartBg: string;
-  // Bordes
   border: string;
-  // Texto
   title: string;
   subtitle: string;
   accent: string;
-  // Componentes
   badge: string;
   buttonBg: string;
   buttonText: string;
-  // Separador de sección
   sectionBorder: string;
 }
 
 export interface CatalogThemeDefinition {
   label: string;
   description: string;
-  /** Tres colores hex para el preview del picker: [primario, secundario, fondo] */
   previewColors: [string, string, string];
   tokens: Record<PublicView, CatalogThemeTokens>;
+  /** Paletas por vista para inyección de variables */
+  palettes: Record<PublicView, SemanticPalette>;
 }
 
 export interface CatalogThemeCustom {
-  primary: string;   // hex, e.g. "#2B5BB5"
-  secondary: string; // hex, e.g. "#7AB3F0"
+  primary: string;
+  secondary: string;
 }
 
 export interface CatalogThemeApiData {
@@ -40,148 +59,14 @@ export interface CatalogThemeApiData {
   custom?: CatalogThemeCustom;
 }
 
-/** Tokens con flag para saber si es custom (usa CSS variables) */
 export interface ResolvedThemeTokens extends CatalogThemeTokens {
+  /** Siempre presente: variables inyectadas bajo [data-pub-catalog] */
+  cssVars: Record<string, string>;
+  /** Tema generado a partir de colores del negocio */
   isCustom: boolean;
-  /** Solo en custom: mapa de CSS variables → valor hex */
-  cssVars?: Record<string, string>;
 }
 
-// ─────────────────────────────────────────────────────────────────
-// TEMA 1: MercaConnect — Premium pastel (default)
-// ─────────────────────────────────────────────────────────────────
-const defaultTheme: CatalogThemeDefinition = {
-  label: "MercaConnect",
-  description: "Pastel premium con acentos mint suaves y contraste legible.",
-  previewColors: ["#5A4A7A", "#BFE8D9", "#FFF8FC"],
-  tokens: {
-    catalogo: {
-      pageBackground: "bg-[#FFF8FC]",
-      headerBg: "bg-gradient-to-br from-[#BFE8D9] via-[#D9D4FA] to-[#F8DFF1]",
-      cardBackground: "bg-white",
-      filterBg: "bg-[#F7EEF9] border border-[#E3D4EF]",
-      cartBg: "bg-[#FFF5FB]",
-      border: "border-[#E8DAF3]",
-      title: "text-[#2F2A3A]",
-      subtitle: "text-[#5A5270]",
-      accent: "text-[#7A4F8E]",
-      badge: "bg-[#EFE5F8] text-[#5A3C74] border border-[#DAC6EA]",
-      buttonBg: "bg-[#7A4F8E]",
-      buttonText: "text-white",
-      sectionBorder: "border-[#E3D1F0]",
-    },
-    menu: {
-      pageBackground: "bg-[#FFF9F4]",
-      headerBg: "bg-gradient-to-br from-[#FFDCC8] via-[#F8E2EC] to-[#D7EAF7]",
-      cardBackground: "bg-white",
-      filterBg: "bg-[#FFF1E8] border border-[#F0D8C8]",
-      cartBg: "bg-[#FFF7F1]",
-      border: "border-[#F2DECF]",
-      title: "text-[#3E2F2B]",
-      subtitle: "text-[#6A5650]",
-      accent: "text-[#AD5C3B]",
-      badge: "bg-[#FFE6D8] text-[#8B4A30] border border-[#F3CDB8]",
-      buttonBg: "bg-[#AD5C3B]",
-      buttonText: "text-white",
-      sectionBorder: "border-[#F0D8C8]",
-    },
-  },
-};
-
-// ─────────────────────────────────────────────────────────────────
-// TEMA 2: Cálido — Warm Peach / Terracota pastel
-// ─────────────────────────────────────────────────────────────────
-const peachTheme: CatalogThemeDefinition = {
-  label: "Cálido",
-  description: "Tonos durazno y terracota. Ideal para cafeterías, pastelerías y tiendas de ropa.",
-  previewColors: ["#D4603A", "#FDDBC8", "#FFF8F3"],
-  tokens: {
-    catalogo: {
-      pageBackground: "bg-[#FFF8F3]",
-      headerBg: "bg-gradient-to-br from-[#FDDBC8] to-[#FFC9A8]",
-      cardBackground: "bg-white",
-      filterBg: "bg-[#FFF0E8] border border-[#F5C4A8]/50",
-      cartBg: "bg-[#FFF0E8]",
-      border: "border-[#F5C4A8]/60",
-      title: "text-[#5C2A1A]",
-      subtitle: "text-[#8B4A30]/80",
-      accent: "text-[#D4603A]",
-      badge: "bg-[#FDDBC8] text-[#D4603A] border border-[#F5C4A8]",
-      buttonBg: "bg-[#D4603A]",
-      buttonText: "text-white",
-      sectionBorder: "border-[#F5C4A8]/70",
-    },
-    menu: {
-      pageBackground: "bg-[#FFF8F3]",
-      headerBg: "bg-gradient-to-br from-[#FFC9A8] to-[#FFB494]",
-      cardBackground: "bg-white",
-      filterBg: "bg-[#FFF0E8] border border-[#F5C4A8]/50",
-      cartBg: "bg-[#FFF0E8]",
-      border: "border-[#F5C4A8]/60",
-      title: "text-[#5C2A1A]",
-      subtitle: "text-[#8B4A30]/80",
-      accent: "text-[#D4603A]",
-      badge: "bg-[#FDDBC8] text-[#D4603A] border border-[#F5C4A8]",
-      buttonBg: "bg-[#D4603A]",
-      buttonText: "text-white",
-      sectionBorder: "border-[#F5C4A8]/60",
-    },
-  },
-};
-
-// ─────────────────────────────────────────────────────────────────
-// TEMA 3: Oceánico — Azul / Turquesa pastel
-// ─────────────────────────────────────────────────────────────────
-const oceanTheme: CatalogThemeDefinition = {
-  label: "Oceánico",
-  description: "Azul cielo y turquesa suave. Fresco y confiable para cualquier tipo de tienda.",
-  previewColors: ["#1A7A9A", "#A8D8EA", "#F0F7FF"],
-  tokens: {
-    catalogo: {
-      pageBackground: "bg-[#F0F7FF]",
-      headerBg: "bg-gradient-to-br from-[#A8D8EA] to-[#7EC8E3]",
-      cardBackground: "bg-white",
-      filterBg: "bg-[#E4F2FB] border border-[#9ECFE8]/50",
-      cartBg: "bg-[#E4F2FB]",
-      border: "border-[#9ECFE8]/50",
-      title: "text-[#0C3D5C]",
-      subtitle: "text-[#1A5E80]/75",
-      accent: "text-[#1A7A9A]",
-      badge: "bg-[#A8D8EA] text-[#0C3D5C] border border-[#9ECFE8]",
-      buttonBg: "bg-[#1A7A9A]",
-      buttonText: "text-white",
-      sectionBorder: "border-[#9ECFE8]/60",
-    },
-    menu: {
-      pageBackground: "bg-[#F0F7FF]",
-      headerBg: "bg-gradient-to-br from-[#7EC8E3] to-[#5BB8D8]",
-      cardBackground: "bg-white",
-      filterBg: "bg-[#E4F2FB] border border-[#9ECFE8]/50",
-      cartBg: "bg-[#E4F2FB]",
-      border: "border-[#9ECFE8]/50",
-      title: "text-[#0C3D5C]",
-      subtitle: "text-[#1A5E80]/75",
-      accent: "text-[#1A7A9A]",
-      badge: "bg-[#A8D8EA] text-[#0C3D5C] border border-[#9ECFE8]",
-      buttonBg: "bg-[#1A7A9A]",
-      buttonText: "text-white",
-      sectionBorder: "border-[#9ECFE8]/55",
-    },
-  },
-};
-
-export const CATALOG_THEME_PRESETS: Record<
-  Exclude<CatalogThemePreset, "custom">,
-  CatalogThemeDefinition
-> = {
-  default: defaultTheme,
-  peach: peachTheme,
-  ocean: oceanTheme,
-};
-
-// ─────────────────────────────────────────────────────────────────
-// Generador de tema custom
-// ─────────────────────────────────────────────────────────────────
+// ── Utilidades de color (preset + custom) ──────────────────────────
 
 function hexToRgb(hex: string): [number, number, number] {
   const clean = hex.replace("#", "");
@@ -196,7 +81,7 @@ function hexToRgb(hex: string): [number, number, number] {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-function relativeLuminance(hex: string): number {
+export function relativeLuminance(hex: string): number {
   const [r, g, b] = hexToRgb(hex).map((c) => {
     const s = c / 255;
     return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
@@ -223,71 +108,207 @@ function lighten(hex: string, amount: number): string {
 }
 
 function hexWithAlpha(hex: string, alpha: number): string {
-  // Devuelve hex + alpha como rgba string para CSS variables
   const [r, g, b] = hexToRgb(hex);
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-/** Genera tokens completos a partir de colores primario y secundario */
+function paletteToCssVars(p: SemanticPalette): Record<string, string> {
+  return {
+    "--pub-page": p.page,
+    "--pub-header-from": p.headerFrom,
+    "--pub-header-to": p.headerTo,
+    "--pub-surface": p.surface,
+    "--pub-surface-muted": p.surfaceMuted,
+    "--pub-cart": p.cart,
+    "--pub-border": p.border,
+    "--pub-text": p.text,
+    "--pub-text-muted": p.textMuted,
+    "--pub-accent": p.accent,
+    "--pub-button": p.button,
+    "--pub-on-button": p.onButton,
+    "--pub-badge-bg": p.badgeBg,
+    "--pub-badge-fg": p.badgeFg,
+    "--pub-section-border": p.sectionBorder,
+  };
+}
+
+/** Mismas clases para preset y custom: referencias a var(--pub-*) */
+const THEME_CLASSES: CatalogThemeTokens = {
+  pageBackground: "bg-[var(--pub-page)]",
+  headerBg: "bg-gradient-to-br from-[var(--pub-header-from)] to-[var(--pub-header-to)]",
+  cardBackground: "bg-[var(--pub-surface)]",
+  filterBg:
+    "bg-[var(--pub-surface-muted)] border border-[color:var(--pub-border)]",
+  cartBg: "bg-[var(--pub-cart)]",
+  border: "border border-[color:var(--pub-border)]",
+  title: "text-[var(--pub-text)]",
+  subtitle: "text-[var(--pub-text-muted)]",
+  accent: "text-[var(--pub-accent)]",
+  badge:
+    "bg-[var(--pub-badge-bg)] text-[var(--pub-badge-fg)] border border-[color:var(--pub-border)]",
+  buttonBg: "bg-[var(--pub-button)]",
+  buttonText: "text-[var(--pub-on-button)]",
+  sectionBorder: "border-[color:var(--pub-section-border)]",
+};
+
+/** Fondos: blanco; el color va en tipografía, acentos e iconos (no al page). */
+const BG_PAGE = "#FFFFFF";
+const BG_RAIL = "#F5F5F5";
+
+// ── Preset: neutro — página blanca, carril gris mínimo para filtros ─
+const defaultNeutralCatalogo: SemanticPalette = {
+  page: BG_PAGE,
+  headerFrom: "#FFFFFF",
+  headerTo: "#E4E4E7",
+  surface: BG_PAGE,
+  surfaceMuted: BG_RAIL,
+  cart: BG_PAGE,
+  border: "rgba(24, 24, 27, 0.1)",
+  text: "#18181B",
+  textMuted: "#3F3F46",
+  accent: "#2563EB",
+  button: "#18181B",
+  onButton: "#FFFFFF",
+  badgeBg: BG_RAIL,
+  badgeFg: "#27272A",
+  sectionBorder: "rgba(24, 24, 27, 0.12)",
+};
+
+const defaultNeutralMenu: SemanticPalette = {
+  ...defaultNeutralCatalogo,
+  accent: "#C2410C",
+  button: "#1C1917",
+  onButton: "#FFFFFF",
+  badgeFg: "#431407",
+};
+
+const defaultTheme: CatalogThemeDefinition = {
+  label: "MercaConnect",
+  description: "Fondo claro (blanco) y color en textos, botones y acentos.",
+  previewColors: ["#18181B", "#2563EB", "#FFFFFF"],
+  tokens: { catalogo: THEME_CLASSES, menu: THEME_CLASSES },
+  palettes: {
+    catalogo: defaultNeutralCatalogo,
+    menu: defaultNeutralMenu,
+  },
+};
+
+// ── Peach — fondo blanco, acento naranja/terracota intenso ───────────
+const peachCatalogo: SemanticPalette = {
+  page: BG_PAGE,
+  headerFrom: "#FFFFFF",
+  headerTo: "#E7E5E4",
+  surface: BG_PAGE,
+  surfaceMuted: BG_RAIL,
+  cart: BG_PAGE,
+  border: "rgba(194, 65, 12, 0.15)",
+  text: "#431407",
+  textMuted: "#78716C",
+  accent: "#EA580C",
+  button: "#C2410C",
+  onButton: "#FFFFFF",
+  badgeBg: BG_RAIL,
+  badgeFg: "#9A3412",
+  sectionBorder: "rgba(194, 65, 12, 0.2)",
+};
+
+const peachMenu: SemanticPalette = {
+  ...peachCatalogo,
+  accent: "#C2410C",
+  button: "#9A3412",
+};
+
+// ── Ocean — fondo blanco, acento azul vivo ─────────────────────────
+const oceanCatalogo: SemanticPalette = {
+  page: BG_PAGE,
+  headerFrom: "#FFFFFF",
+  headerTo: "#E4E4E7",
+  surface: BG_PAGE,
+  surfaceMuted: BG_RAIL,
+  cart: BG_PAGE,
+  border: "rgba(3, 105, 161, 0.12)",
+  text: "#0C4A6E",
+  textMuted: "#475569",
+  accent: "#0284C7",
+  button: "#0369A1",
+  onButton: "#FFFFFF",
+  badgeBg: BG_RAIL,
+  badgeFg: "#075985",
+  sectionBorder: "rgba(3, 105, 161, 0.18)",
+};
+
+const oceanMenu: SemanticPalette = {
+  ...oceanCatalogo,
+  accent: "#0369A1",
+  button: "#0E7490",
+};
+
+const peachTheme: CatalogThemeDefinition = {
+  label: "Cálido",
+  description: "Acento cálido intenso sobre fondo blanco.",
+  previewColors: ["#C2410C", "#EA580C", "#FFFFFF"],
+  tokens: { catalogo: THEME_CLASSES, menu: THEME_CLASSES },
+  palettes: { catalogo: peachCatalogo, menu: peachMenu },
+};
+
+const oceanTheme: CatalogThemeDefinition = {
+  label: "Oceánico",
+  description: "Acento azul sobre blanco, lectura nítida.",
+  previewColors: ["#0369A1", "#0284C7", "#FFFFFF"],
+  tokens: { catalogo: THEME_CLASSES, menu: THEME_CLASSES },
+  palettes: { catalogo: oceanCatalogo, menu: oceanMenu },
+};
+
+export const CATALOG_THEME_PRESETS: Record<
+  Exclude<CatalogThemePreset, "custom">,
+  CatalogThemeDefinition
+> = {
+  default: defaultTheme,
+  peach: peachTheme,
+  ocean: oceanTheme,
+};
+
+// ── Custom: a partir de primary + secondary (contraste ajustado) ─────
+
 export function generateCustomThemeTokens(
   custom: CatalogThemeCustom,
   _view: PublicView
 ): ResolvedThemeTokens {
   const { primary, secondary } = custom;
-  const lum = relativeLuminance(primary);
-  const isDark = lum <= 0.4;
+  const lumP = relativeLuminance(primary);
+  const onPrimary = lumP > 0.45 ? "#0A0A0B" : "#FAFAFA";
 
-  const textOnPrimary = isDark ? "#FFFFFF" : darken(primary, 0.7);
-  const titleColor = isDark ? lighten(primary, 0.85) : darken(primary, 0.6);
-  const subtitleColor = isDark ? lighten(primary, 0.65) : darken(primary, 0.4);
-  const pageBackground = isDark ? darken(primary, 0.2) : lighten(secondary, 0.7);
-  const cardBackground = isDark ? lighten(primary, 0.08) : "#FFFFFF";
-  const headerBg = primary;
-  const filterBg = isDark ? lighten(primary, 0.12) : lighten(secondary, 0.55);
-  const cartBg = isDark ? lighten(primary, 0.1) : lighten(secondary, 0.5);
-  const borderColor = hexWithAlpha(secondary, 0.5);
-  const accentColor = isDark ? secondary : darken(primary, 0.1);
-  const badgeBg = hexWithAlpha(secondary, 0.25);
+  const textMain = lumP < 0.35 ? "#18181B" : darken(primary, 0.45);
+  const textSub = lumP < 0.4 ? "#52525B" : darken(secondary, 0.15);
+  const accent = lumP > 0.5 ? darken(primary, 0.1) : secondary;
+  const borderNeutral = "rgba(24, 24, 27, 0.1)";
 
-  const cssVars: Record<string, string> = {
-    "--cat-page-bg": pageBackground,
-    "--cat-header-bg": headerBg,
-    "--cat-card-bg": cardBackground,
-    "--cat-filter-bg": filterBg,
-    "--cat-cart-bg": cartBg,
-    "--cat-border": borderColor,
-    "--cat-title": titleColor,
-    "--cat-subtitle": subtitleColor,
-    "--cat-accent": accentColor,
-    "--cat-badge-bg": badgeBg,
-    "--cat-badge-text": isDark ? "#FFFFFF" : darken(primary, 0.6),
-    "--cat-button-bg": primary,
-    "--cat-button-text": textOnPrimary,
-    "--cat-section-border": hexWithAlpha(secondary, 0.4),
+  const p: SemanticPalette = {
+    page: BG_PAGE,
+    headerFrom: "#FFFFFF",
+    headerTo: lumP > 0.6 ? "#F4F4F5" : lighten(primary, 0.92),
+    surface: BG_PAGE,
+    surfaceMuted: BG_RAIL,
+    cart: BG_PAGE,
+    border: borderNeutral,
+    text: textMain,
+    textMuted: textSub,
+    accent,
+    button: primary,
+    onButton: onPrimary,
+    badgeBg: BG_RAIL,
+    badgeFg: lumP > 0.5 ? darken(primary, 0.35) : darken(secondary, 0.1),
+    sectionBorder: hexWithAlpha(primary, 0.2),
   };
 
   return {
-    pageBackground: "cat-page-bg",
-    headerBg: "cat-header-bg",
-    cardBackground: "cat-card-bg",
-    filterBg: "cat-filter-bg",
-    cartBg: "cat-cart-bg",
-    border: "cat-border",
-    title: "cat-title",
-    subtitle: "cat-subtitle",
-    accent: "cat-accent",
-    badge: "cat-badge",
-    buttonBg: "cat-button-bg",
-    buttonText: "cat-button-text",
-    sectionBorder: "cat-section-border",
+    ...THEME_CLASSES,
+    cssVars: paletteToCssVars(p),
     isCustom: true,
-    cssVars,
   };
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Resolver principal
-// ─────────────────────────────────────────────────────────────────
+// ── Resolver principal ─────────────────────────────────────────────
 
 const LEGACY_PRESETS = new Set(["brand_classic", "brand_modern", "brand_contrast"]);
 
@@ -304,14 +325,14 @@ export function resolveThemeTokens(
   view: PublicView
 ): ResolvedThemeTokens {
   if (!theme) {
-    return { ...CATALOG_THEME_PRESETS.default.tokens[view], isCustom: false };
+    return {
+      ...THEME_CLASSES,
+      cssVars: paletteToCssVars(CATALOG_THEME_PRESETS.default.palettes[view]),
+      isCustom: false,
+    };
   }
 
-  if (
-    theme.preset === "custom" &&
-    theme.custom?.primary &&
-    theme.custom?.secondary
-  ) {
+  if (theme.preset === "custom" && theme.custom?.primary && theme.custom?.secondary) {
     return generateCustomThemeTokens(theme.custom, view);
   }
 
@@ -319,17 +340,16 @@ export function resolveThemeTokens(
     ? "default"
     : (theme.preset as Exclude<CatalogThemePreset, "custom">);
 
-  const def =
-    CATALOG_THEME_PRESETS[presetKey] ?? CATALOG_THEME_PRESETS.default;
-  return { ...def.tokens[view], isCustom: false };
+  const def = CATALOG_THEME_PRESETS[presetKey] ?? CATALOG_THEME_PRESETS.default;
+  return {
+    ...THEME_CLASSES,
+    cssVars: paletteToCssVars(def.palettes[view]),
+    isCustom: false,
+  };
 }
 
 export function getDefaultCatalogThemePreset(_view: PublicView): CatalogThemePreset {
   return "default";
 }
 
-/**
- * Valor legacy para compatibilidad con validadores que no incluyen "default".
- * @deprecated Usar el preset directamente.
- */
 export const CATALOG_THEME_PRESET_API_WIRE = "default" as const;

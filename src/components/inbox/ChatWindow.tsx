@@ -322,8 +322,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                     </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                    {detailData.agent_enabled && (
-                        <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                             <span
                                 className={`flex items-center gap-1 max-w-[7.5rem] sm:max-w-none ${isHandoff ? "text-muted-foreground" : "text-emerald-700"}`}
                                 title="Zafer Agent"
@@ -366,7 +365,6 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                                 Tú
                             </span>
                         </div>
-                    )}
                     {/* Badge de estado */}
                     <span className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full font-medium transition-colors duration-200 ${
                         isHandoff
