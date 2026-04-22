@@ -12,6 +12,12 @@ import { catalogModuleLower, IndustryConfig, pluralProductLabel } from "@/config
 import { useSWRConfig } from "swr";
 import { endpoints } from "@/lib/api";
 import { apiClient, ApiError, fetcher, NetworkError } from "@/lib/api-client";
+import {
+    CLIENT_IMAGE_MAX_BYTES,
+    uploadProductImageAppend,
+    uploadProductImageReplace,
+    validateClientCatalogImage,
+} from "@/lib/image-upload-form";
 import { Loader2, Plus, Trash2, X, Upload, ImageIcon } from "lucide-react";
 import useSWR from "swr";
 import { type ApiList, type CategoryOption as ApiCategoryOption, type PlanUsage } from "@/types/api";
@@ -103,7 +109,6 @@ function getRequestErrorMessage(error: unknown): string {
 }
 
 const EMPTY_VALUE = "__none__";
-const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 
 function imageUrlsFromProduct(p: ProductDialogProduct | undefined): string[] {
     if (!p) return [];
@@ -258,21 +263,12 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (file.type && !file.type.startsWith("image/")) {
-            toast({
-                title: "Formato no permitido",
-                description: "Selecciona un archivo de imagen (JPG, PNG, WEBP, GIF, etc.).",
-                variant: "destructive",
-            });
-            return;
-        }
-
-        if (file.size > MAX_UPLOAD_SIZE_BYTES) {
-            toast({
-                title: "Archivo demasiado grande",
-                description: "La imagen debe ser menor a 10 MB.",
-                variant: "destructive",
-            });
+        const check = validateClientCatalogImage(file, {
+            maxBytes: CLIENT_IMAGE_MAX_BYTES.product,
+            sizeLabel: "La imagen",
+        });
+        if (!check.ok) {
+            toast({ title: check.title, description: check.description, variant: "destructive" });
             return;
         }
 
@@ -305,18 +301,13 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
         }
         setIsUploadingImage(true);
         try {
-            const formData = new FormData();
-            formData.append("file", imageFile);
             const res = isReplace
-                ? await apiClient.uploadForm<ProductDialogProduct>(
-                    endpoints.products.productImageAtIndex(productId, replaceTargetIndex!),
-                    formData,
-                    { method: "PUT" },
+                ? await uploadProductImageReplace<ProductDialogProduct>(
+                    productId,
+                    replaceTargetIndex!,
+                    imageFile,
                 )
-                : await apiClient.uploadForm<ProductDialogProduct>(
-                    endpoints.products.uploadImage(productId),
-                    formData,
-                );
+                : await uploadProductImageAppend<ProductDialogProduct>(productId, imageFile);
             await mutate(productsEndpoint);
             if (productDetailEndpoint) {
                 await mutate(productDetailEndpoint, res, { revalidate: true });
@@ -493,10 +484,34 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
             if (isEditing && product) {
                 await apiClient.patch(endpoints.products.detail(product.id), payload);
             } else {
-                await apiClient.post(productsEndpoint, payload);
+                const created = await apiClient.post<ProductDialogProduct>(productsEndpoint, payload);
+                if (imageFile) {
+                    try {
+                        await uploadProductImageAppend<ProductDialogProduct>(created.id, imageFile);
+                    } catch (uploadErr: unknown) {
+                        let detail = "Abre el producto y súbela desde Imágenes.";
+                        if (uploadErr instanceof ApiError && uploadErr.message) {
+                            detail = uploadErr.message;
+                        } else if (uploadErr instanceof NetworkError) {
+                            detail = uploadErr.message;
+                        }
+                        toast({
+                            title: "Producto creado",
+                            description: `La imagen no se subió al almacenamiento: ${detail}`,
+                            variant: "destructive",
+                        });
+                    }
+                }
             }
             await mutate(productsEndpoint);
             if (categoriesEndpoint) await mutate(categoriesEndpoint);
+            if (imagePreview?.startsWith("blob:")) {
+                URL.revokeObjectURL(imagePreview);
+            }
+            setImageFile(null);
+            setImagePreview(null);
+            setReplaceTargetIndex(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
             onOpenChange(false);
         } catch (error) {
             toast({
@@ -531,13 +546,75 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
                             </div>
                         )}
 
-                        {/* Imagen — solo en modo edición */}
+                        {/* Imagen al crear: se sube a Hetzner tras guardar (multipart aparte del JSON del producto) */}
+                        {!isEditing && (
+                            <div className="grid grid-cols-4 items-start gap-4">
+                                <Label className="text-right pt-2">Imagen</Label>
+                                <div className="col-span-3 space-y-2">
+                                    <p className="text-xs text-muted-foreground">
+                                        Opcional. El JSON del producto no incluye archivos: al guardar, si eliges imagen, se envía a almacenamiento (WebP) en la ruta del bucket{" "}
+                                        <span className="font-mono text-[10px] break-all">{"{slug}/products/{id}/…"}</span>
+                                        {" "}(distinto de logo en <span className="font-mono text-[10px]">…/business/logo</span>).
+                                    </p>
+                                    <div className="flex flex-wrap gap-2 items-center">
+                                        {imagePreview ? (
+                                            <img
+                                                src={imagePreview}
+                                                alt="Vista previa"
+                                                className="w-16 h-16 rounded-md object-cover border border-dashed border-primary"
+                                            />
+                                        ) : (
+                                            <div className="w-16 h-16 rounded-md bg-muted flex items-center justify-center text-muted-foreground border border-border">
+                                                <ImageIcon className="h-6 w-6" />
+                                            </div>
+                                        )}
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => fileInputRef.current?.click()}
+                                        >
+                                            Elegir imagen
+                                        </Button>
+                                        {imageFile && (
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    if (imagePreview?.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
+                                                    setImageFile(null);
+                                                    setImagePreview(null);
+                                                    if (fileInputRef.current) fileInputRef.current.value = "";
+                                                }}
+                                            >
+                                                Quitar
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleFileChange}
+                                    />
+                                    {imageFile && (
+                                        <p className="text-xs text-muted-foreground">{imageFile.name}</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Imagen — edición: galería + subir/reemplazar */}
                         {isEditing && (
                             <div className="grid grid-cols-4 items-start gap-4">
                                 <Label className="text-right pt-2">Imágenes</Label>
                                 <div className="col-span-3 space-y-2">
                                     <p className="text-xs text-muted-foreground">
-                                        Hasta {maxImagesAllowed} imagen(es) según tu plan (máx. 3 en la plataforma). La primera es la principal.
+                                        Hasta {maxImagesAllowed} imagen(es) según tu plan (máx. 3 en la plataforma). La primera es la principal. En el bucket están bajo{" "}
+                                        <span className="font-mono text-[10px] break-all">{"{slug}/products/{id}/"}</span>
+                                        , no junto al logo.
                                     </p>
                                     {planUsageError && (
                                         <p className="text-xs text-amber-700 dark:text-amber-500">

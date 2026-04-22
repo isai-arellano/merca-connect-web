@@ -151,8 +151,8 @@ export const apiClient = {
         const token = session?.accessToken;
         const headers = new Headers();
         if (token) headers.set("Authorization", `Bearer ${token}`);
-        headers.set("X-Client-App", "merca-connect-web");
-        headers.set("X-Client-Build", CLIENT_BUILD_ID);
+        // Sin X-Client-*: headers extra forzan un preflight distinto; algunos proxies/CDN
+        // no reflejan bien Access-Control-Allow-Headers y el browser muestra "CORS" aunque OPTIONS básico funcione.
         return requestJson<TResponse>(url, { method, headers, body: formData });
     },
 };
