@@ -44,7 +44,7 @@ import { motion, Variants } from "framer-motion";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher, ApiError, NetworkError } from "@/lib/api-client";
-import { getSessionBusinessId, getSessionBusinessPhoneId } from "@/lib/business";
+import { getSessionBusinessId } from "@/lib/business";
 import { type ApiList, type BusinessSettings } from "@/types/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProductsTableSkeleton } from "@/components/skeletons/dashboard-skeletons";
@@ -123,7 +123,6 @@ export default function ProductsPage() {
     const [actingProductId, setActingProductId] = useState<string | null>(null);
 
     const sessionBusinessId = getSessionBusinessId(session);
-    const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
     const { industriesMap } = useIndustries();
 
     const {
@@ -175,7 +174,7 @@ export default function ProductsPage() {
             if (bannerPreview?.startsWith("blob:")) URL.revokeObjectURL(bannerPreview);
         };
     }, [bannerPreview]);
-    const productsEndpoint = endpoints.products.list(sessionBusinessPhoneId, true);
+    const productsEndpoint = endpoints.products.list(true);
     const { data: response, isLoading, mutate: mutateProducts } = useSWR<ApiList<Product>>(
         session && sessionBusinessId ? productsEndpoint : null,
         fetcher,
@@ -902,7 +901,6 @@ export default function ProductsPage() {
                         <CategoriesManager
                             itemsPluralLower={itemsPluralLower}
                             moduleLower={moduleLower}
-                            businessPhoneId={sessionBusinessPhoneId}
                         />
                     </TabsContent>
 
@@ -917,7 +915,6 @@ export default function ProductsPage() {
                 onOpenChange={setDialogOpen}
                 config={config}
                 product={selectedProduct}
-                businessPhoneId={sessionBusinessPhoneId}
             />
         </motion.div>
     );

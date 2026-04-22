@@ -28,6 +28,7 @@ import {
   AtSign,
   Lock,
   AlertTriangle,
+  Link2,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
@@ -79,6 +80,26 @@ interface BusinessFormErrors {
   name?: string;
   type?: string;
   hours?: string;
+}
+
+const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+function slugifyInput(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100);
+}
+
+function validateSlug(slug: string): string | null {
+  if (!slug) return null; // vacío es válido (se auto-genera)
+  if (slug.length < 3) return "El slug debe tener al menos 3 caracteres.";
+  if (slug.length > 100) return "El slug debe tener máximo 100 caracteres.";
+  if (!SLUG_RE.test(slug)) return "Solo letras minúsculas, números y guiones. Sin espacios ni caracteres especiales.";
+  return null;
 }
 
 function getPhoneDigits(value: string): string {
@@ -294,7 +315,9 @@ function SettingsPageInner() {
     address: "",
     phone: "",
     description: "",
+    slug: "",
   });
+  const [slugError, setSlugError] = useState<string | null>(null);
 
   // Social links state
   const [socialForm, setSocialForm] = useState({
@@ -331,6 +354,7 @@ function SettingsPageInner() {
         address: settings.address || "",
         phone: settings.phone || "",
         description: settings.description || "",
+        slug: settings.slug || "",
       });
       if (settings.hours && typeof settings.hours === "object") {
         setWeekSchedule({ ...EMPTY_WEEK_SCHEDULE, ...settings.hours });
@@ -389,6 +413,14 @@ function SettingsPageInner() {
     const nextErrors: BusinessFormErrors = {};
     const trimmedName = businessForm.name.trim();
     const trimmedType = businessForm.type.trim();
+    const trimmedSlug = businessForm.slug.trim();
+    const slugValidErr = validateSlug(trimmedSlug);
+    if (slugValidErr) {
+      setSlugError(slugValidErr);
+      toast({ title: "Slug inválido", description: slugValidErr, variant: "destructive" });
+      return;
+    }
+    setSlugError(null);
     const hasAtLeastOneOpenDay = Object.values(weekSchedule).some((day) => day.open); // para validar horas incompletas si hay días activos
 
     if (!trimmedName) {
@@ -420,6 +452,7 @@ function SettingsPageInner() {
           ...businessForm,
           name: trimmedName,
           type: trimmedType,
+          slug: trimmedSlug || undefined,
           phone: buildPhoneForApi(contactPhoneNumber),
           hours: weekSchedule,
           config: {
@@ -821,6 +854,44 @@ function SettingsPageInner() {
                             placeholder="Describe tu negocio brevemente..."
                             rows={3}
                           />
+                        </div>
+
+                        {/* Slug del catálogo público */}
+                        <div className="space-y-2">
+                          <Label htmlFor="biz-slug" className="flex items-center gap-2">
+                            <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
+                            Slug del catálogo público
+                            <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
+                          </Label>
+                          <div className="flex items-center gap-0 rounded-lg border border-border/80 overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1">
+                            <span className="bg-muted/50 px-3 py-2 text-xs text-muted-foreground select-none border-r border-border/60">
+                              /catalogo/
+                            </span>
+                            <input
+                              id="biz-slug"
+                              type="text"
+                              value={businessForm.slug}
+                              onChange={(e) => {
+                                const raw = slugifyInput(e.target.value);
+                                setBusinessForm((prev) => ({ ...prev, slug: raw }));
+                                setSlugError(validateSlug(raw));
+                              }}
+                              placeholder="mi-negocio"
+                              className="flex-1 bg-transparent px-3 py-2 text-sm outline-none"
+                            />
+                          </div>
+                          {slugError ? (
+                            <p className="text-xs text-destructive flex items-center gap-1.5">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              {slugError}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              {businessForm.slug
+                                ? <>URL pública: <span className="font-mono text-foreground">/catalogo/{businessForm.slug}</span></>
+                                : "Si lo dejas vacío, se genera automáticamente desde el nombre del negocio."}
+                            </p>
+                          )}
                         </div>
 
                         <Separator />
