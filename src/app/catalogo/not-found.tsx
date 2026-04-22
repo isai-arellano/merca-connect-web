@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function CatalogoNotFound() {
   return (
     <div className="min-h-screen bg-[#1A3E35] flex flex-col items-center justify-center px-4 py-16">
@@ -35,12 +37,12 @@ export default function CatalogoNotFound() {
               Verifica que el enlace sea correcto o contacta al negocio para obtener la URL actualizada de su catálogo.
             </p>
 
-            <a
+            <Link
               href="/"
               className="inline-flex items-center gap-2 rounded-xl bg-[#74E79C] px-6 py-2.5 text-sm font-semibold text-[#1A3E35] shadow-lg shadow-[#74E79C]/20 transition-all hover:opacity-90 active:scale-95"
             >
               Volver al inicio
-            </a>
+            </Link>
           </div>
         </div>
 
