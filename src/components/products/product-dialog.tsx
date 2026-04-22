@@ -165,6 +165,7 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
 
     const { mutate } = useSWRConfig();
     const productsEndpoint = endpoints.products.list(true);
+    const categoriesEndpoint = endpoints.categories.list;
     const isEditing = Boolean(product);
 
     const productDetailEndpoint = open && isEditing && product
