@@ -48,7 +48,6 @@ interface ProductDialogProps {
     onOpenChange: (open: boolean) => void;
     config: IndustryConfig;
     product?: ProductDialogProduct;
-    businessPhoneId?: string | null;
 }
 
 interface CategoryOption {
@@ -139,7 +138,7 @@ function validateForm(state: FormState): FieldErrors {
     return errors;
 }
 
-export function ProductDialog({ open, onOpenChange, config, product, businessPhoneId }: ProductDialogProps) {
+export function ProductDialog({ open, onOpenChange, config, product }: ProductDialogProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formState, setFormState] = useState<FormState>(getInitialFormState(product));
     const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -165,8 +164,7 @@ export function ProductDialog({ open, onOpenChange, config, product, businessPho
     const { toast } = useToast();
 
     const { mutate } = useSWRConfig();
-    const productsEndpoint = endpoints.products.list(businessPhoneId);
-    const categoriesEndpoint = endpoints.categories.list(businessPhoneId);
+    const productsEndpoint = endpoints.products.list(true);
     const isEditing = Boolean(product);
 
     const productDetailEndpoint = open && isEditing && product
@@ -174,7 +172,7 @@ export function ProductDialog({ open, onOpenChange, config, product, businessPho
         : null;
 
     const { data: categoriesResponse, isLoading: isLoadingCategories, error: categoriesError } = useSWR<ApiList<CategoryOption>>(
-        open && categoriesEndpoint ? categoriesEndpoint : null,
+        open ? endpoints.categories.list : null,
         fetcher,
     );
     const { data: unitsResponse } = useSWR<ApiList<UnitOption>>(open ? endpoints.units.list : null, fetcher);
@@ -344,11 +342,11 @@ export function ProductDialog({ open, onOpenChange, config, product, businessPho
         setCategoryError(null);
         setIsCreatingCategory(true);
         try {
-            const created = await apiClient.post<ApiCategoryOption>(endpoints.categories.create(businessPhoneId), { name });
+            const created = await apiClient.post<ApiCategoryOption>(endpoints.categories.create, { name });
             const newId = String(created.id);
             const newName = created.name ?? name;
             await mutate(
-                categoriesEndpoint,
+                endpoints.categories.list,
                 async (current) => {
                     const prevList = current?.data ?? [];
                     if (prevList.some((c: CategoryOption) => c.id === newId)) {

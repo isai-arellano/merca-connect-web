@@ -6,7 +6,7 @@ import { Bot, Loader2 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
-import { getSessionBusinessContext } from "@/lib/business";
+import { getSessionBusinessId } from "@/lib/business";
 import { useToast } from "@/hooks/use-toast";
 import {
   Card,
@@ -78,7 +78,7 @@ function ToggleSwitch({
 
 export function AgentTab() {
   const { data: session } = useSession();
-  const { businessPhoneId: sessionBusinessPhoneId } = getSessionBusinessContext(session);
+  const sessionBusinessId = getSessionBusinessId(session);
   const { toast } = useToast();
   const [toggling, setToggling] = useState(false);
 
@@ -87,7 +87,7 @@ export function AgentTab() {
     isLoading: settingsLoading,
     mutate: mutateSettings,
   } = useSWR<SettingsResponse>(
-    sessionBusinessPhoneId ? endpoints.business.settings : null,
+    sessionBusinessId ? endpoints.business.settings : null,
     fetcher
   );
 
