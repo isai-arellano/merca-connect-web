@@ -19,7 +19,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getSessionBusinessPhoneId } from "@/lib/business";
 import { catalogModuleTitle, getIndustryConfig } from "@/config/industries";
 import { useIndustries } from "@/hooks/useIndustries";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -124,7 +123,6 @@ export function SidebarContent({
 }) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
   const isAdmin = session?.role === "admin";
 
   const { settings, state: onboardingState } = useOnboardingState();
@@ -134,7 +132,7 @@ export function SidebarContent({
   const catalogLabel = catalogModuleTitle(industryConfig);
 
   const hasIndustry = Boolean(settings.type);
-  const hasWhatsApp = Boolean(sessionBusinessPhoneId);
+  const hasWhatsApp = onboardingState.hasWhatsApp;
   const canAccessSettings =
     onboardingState.hasIndustry && onboardingState.hasBusinessProfile;
 

@@ -487,7 +487,6 @@ function SettingsPageInner() {
         description: "Los datos del negocio se actualizaron correctamente.",
       });
     } catch (error: unknown) {
-      console.error("Error al guardar configuración:", error);
       if (error instanceof NetworkError) {
         setSaveError(error.message);
         toast({
@@ -538,7 +537,6 @@ function SettingsPageInner() {
         description: "El perfil de WhatsApp se actualizó correctamente.",
       });
     } catch (error) {
-      console.error("Error al guardar perfil de WhatsApp:", error);
       setSaveError("No se pudo guardar el perfil de WhatsApp. Inténtalo de nuevo.");
       toast({
         title: "Error al guardar",

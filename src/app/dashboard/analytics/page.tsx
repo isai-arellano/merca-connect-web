@@ -19,7 +19,6 @@ import { endpoints } from "@/lib/api";
 import { fetcher } from "@/lib/api-client";
 import { formatStatIntegerEsMx } from "@/lib/format-stat";
 import { type AnalyticsOverview, type MessagesByDay } from "@/types/api";
-import { getSessionBusinessPhoneId } from "@/lib/business";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -94,10 +93,9 @@ function toSafeNumber(value: number | string | null | undefined) {
 
 export default function AnalyticsPage() {
   const { data: session } = useSession();
-  const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
 
   const { data: response, isLoading } = useSWR<AnalyticsOverview | { data: AnalyticsOverview }>(
-    session && sessionBusinessPhoneId ? endpoints.analytics.overview : null,
+    session ? endpoints.analytics.overview : null,
     fetcher,
     { refreshInterval: 30000 }
   );

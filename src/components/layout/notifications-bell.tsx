@@ -8,7 +8,6 @@ import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { endpoints } from "@/lib/api";
 import { fetcher } from "@/lib/api-client";
-import { getSessionBusinessPhoneId } from "@/lib/business";
 import {
     Popover,
     PopoverContent,
@@ -35,12 +34,11 @@ function timeAgo(isoString: string | null): string {
 
 export function NotificationsBell() {
     const { data: session } = useSession();
-    const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
     const router = useRouter();
     const [open, setOpen] = useState(false);
 
     const { data } = useSWR<HandoffNotification[] | { data: HandoffNotification[] }>(
-        session && sessionBusinessPhoneId
+        session
             ? endpoints.conversations.handoffNotifications
             : null,
         fetcher,

@@ -60,7 +60,6 @@ interface SignupStatus {
     connected: boolean;
     waba_id?: string;
     display_phone?: string;
-    phone_number?: string;
     meta_app_id?: string;
 }
 
@@ -377,7 +376,7 @@ function ConnectedState({
             <Separator />
 
             <div className="grid gap-3 sm:grid-cols-2">
-                <InfoRow label="Número de WhatsApp" value={status.display_phone || status.phone_number || "—"} />
+                <InfoRow label="Número de WhatsApp" value={status.display_phone || "—"} />
                 <InfoRow label="WABA ID" value={status.waba_id || "—"} mono />
             </div>
 

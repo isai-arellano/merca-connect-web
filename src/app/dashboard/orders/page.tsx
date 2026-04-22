@@ -739,7 +739,6 @@ export default function OrdersPage() {
 
         mutate();
       } catch (error) {
-        console.error("Error al actualizar estado del pedido:", error);
         mutate();
       }
     },

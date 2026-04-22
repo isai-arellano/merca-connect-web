@@ -9,7 +9,6 @@ interface LoginResponse {
         name?: string | null;
         email?: string | null;
         business_id?: string | null;
-        business_phone_id?: string | null;
         business_name?: string | null;
         role?: string | null;
     };
@@ -57,12 +56,10 @@ export const authOptions: NextAuthOptions = {
                         email: user.email ?? undefined,
                         accessToken,
                         businessId: user.business_id ?? null,
-                        businessPhoneId: user.business_phone_id ?? null,
                         businessName: user.business_name ?? null,
                         role: user.role ?? "operator",
                     };
                 } catch (e) {
-                    console.error("Auth error:", e);
                     return null;
                 }
             },
@@ -78,7 +75,6 @@ export const authOptions: NextAuthOptions = {
             if (user) {
                 token.accessToken = user.accessToken;
                 token.businessId = user.businessId ?? null;
-                token.businessPhoneId = user.businessPhoneId ?? null;
                 token.businessName = user.businessName ?? null;
                 token.role = user.role ?? "operator";
                 // Guardar timestamp de expiración (maxAge desde ahora)
@@ -102,12 +98,10 @@ export const authOptions: NextAuthOptions = {
                 ...session.user,
                 id: token.sub,
                 businessId: token.businessId ?? null,
-                businessPhoneId: token.businessPhoneId ?? null,
                 businessName: token.businessName ?? null,
             };
             session.accessToken = token.accessToken;
             session.businessId = token.businessId ?? null;
-            session.businessPhoneId = token.businessPhoneId ?? null;
             session.businessName = token.businessName ?? null;
             session.role = token.role ?? "operator";
 

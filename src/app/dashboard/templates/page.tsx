@@ -18,7 +18,6 @@ import {
 
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
-import { getSessionBusinessPhoneId } from "@/lib/business";
 import { type ApiList } from "@/types/api";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -122,15 +121,13 @@ function getTemplateBody(template: MessageTemplate) {
 export default function TemplatesPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
   const { toast } = useToast();
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<MessageTemplate | null>(null);
 
-  const canLoadTemplates =
-    session?.role === "admin" && sessionBusinessPhoneId;
+  const canLoadTemplates = session?.role === "admin";
 
   const { data: response, isLoading, mutate } = useSWR<ApiList<MessageTemplate> | MessageTemplate[]>(
     canLoadTemplates ? endpoints.templates.list : null,
@@ -177,7 +174,6 @@ export default function TemplatesPage() {
         description: "La plantilla fue enviada a Meta para aprobación.",
       });
     } catch (error) {
-      console.error("Error al crear template:", error);
       toast({
         title: "Error al crear template",
         description: "No se pudo crear la plantilla. Inténtalo de nuevo.",

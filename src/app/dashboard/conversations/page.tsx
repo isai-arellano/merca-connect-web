@@ -76,7 +76,6 @@ export default function InboxPage() {
             mutate(endpoints.conversations.detail(selectedId));
             mutate(endpoints.conversations.list);
         } catch (error) {
-            console.error("Error al enviar el mensaje:", error);
         } finally {
             setIsSending(false);
         }
