@@ -44,6 +44,12 @@ import { motion, Variants } from "framer-motion";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher, ApiError, NetworkError } from "@/lib/api-client";
+import {
+    CLIENT_IMAGE_MAX_BYTES,
+    uploadBusinessBanner,
+    uploadBusinessLogo,
+    validateClientCatalogImage,
+} from "@/lib/image-upload-form";
 import { getSessionBusinessId } from "@/lib/business";
 import { type ApiList, type BusinessSettings } from "@/types/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,10 +57,6 @@ import { ProductsTableSkeleton } from "@/components/skeletons/dashboard-skeleton
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-
-const MAX_LOGO_BYTES = 5 * 1024 * 1024;
-const MAX_BANNER_BYTES = 10 * 1024 * 1024;
-const ALLOWED_LOGO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 interface Product {
     id: string;
@@ -296,20 +298,12 @@ export default function ProductsPage() {
     function handleLogoFileChange(event: React.ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0];
         if (!file) return;
-        if (!ALLOWED_LOGO_TYPES.has(file.type)) {
-            toast({
-                title: "Formato no permitido",
-                description: "Usa JPG, PNG o WEBP.",
-                variant: "destructive",
-            });
-            return;
-        }
-        if (file.size > MAX_LOGO_BYTES) {
-            toast({
-                title: "Archivo demasiado grande",
-                description: "El logo debe ser menor a 5 MB.",
-                variant: "destructive",
-            });
+        const check = validateClientCatalogImage(file, {
+            maxBytes: CLIENT_IMAGE_MAX_BYTES.logo,
+            sizeLabel: "El logo",
+        });
+        if (!check.ok) {
+            toast({ title: check.title, description: check.description, variant: "destructive" });
             return;
         }
         if (logoPreview?.startsWith("blob:")) URL.revokeObjectURL(logoPreview);
@@ -322,9 +316,7 @@ export default function ProductsPage() {
         if (!logoFile) return;
         setIsUploadingLogo(true);
         try {
-            const formData = new FormData();
-            formData.append("file", logoFile);
-            await apiClient.uploadForm(endpoints.business.logoUpload, formData);
+            await uploadBusinessLogo(logoFile);
             await mutateSettings();
             setLogoFile(null);
             setLogoPreview(null);
@@ -342,20 +334,12 @@ export default function ProductsPage() {
     function handleBannerFileChange(event: React.ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0];
         if (!file) return;
-        if (!ALLOWED_LOGO_TYPES.has(file.type)) {
-            toast({
-                title: "Formato no permitido",
-                description: "Usa JPG, PNG o WEBP.",
-                variant: "destructive",
-            });
-            return;
-        }
-        if (file.size > MAX_BANNER_BYTES) {
-            toast({
-                title: "Archivo demasiado grande",
-                description: "El banner debe ser menor a 10 MB.",
-                variant: "destructive",
-            });
+        const check = validateClientCatalogImage(file, {
+            maxBytes: CLIENT_IMAGE_MAX_BYTES.banner,
+            sizeLabel: "El banner",
+        });
+        if (!check.ok) {
+            toast({ title: check.title, description: check.description, variant: "destructive" });
             return;
         }
         if (bannerPreview?.startsWith("blob:")) URL.revokeObjectURL(bannerPreview);
@@ -368,9 +352,7 @@ export default function ProductsPage() {
         if (!bannerFile) return;
         setIsUploadingBanner(true);
         try {
-            const formData = new FormData();
-            formData.append("file", bannerFile);
-            await apiClient.uploadForm(endpoints.business.bannerUpload, formData);
+            await uploadBusinessBanner(bannerFile);
             await mutateSettings();
             setBannerFile(null);
             setBannerPreview(null);
