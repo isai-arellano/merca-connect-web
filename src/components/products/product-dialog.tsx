@@ -103,8 +103,7 @@ function getRequestErrorMessage(error: unknown): string {
 }
 
 const EMPTY_VALUE = "__none__";
-const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
-const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 
 function imageUrlsFromProduct(p: ProductDialogProduct | undefined): string[] {
     if (!p) return [];
@@ -173,6 +172,7 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [isUploadingImage, setIsUploadingImage] = useState(false);
     const [removingImageIndex, setRemovingImageIndex] = useState<number | null>(null);
+    const [replaceTargetIndex, setReplaceTargetIndex] = useState<number | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { toast } = useToast();
 
@@ -192,10 +192,13 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
     const { data: unitsResponse } = useSWR<ApiList<UnitOption>>(open ? endpoints.units.list : null, fetcher);
     const { data: productResponse, isLoading: isLoadingProduct } = useSWR<ProductDialogProduct>(productDetailEndpoint, fetcher);
 
-    const { data: planUsageRaw } = useSWR<PlanUsage | { data: PlanUsage }>(open ? endpoints.business.planUsage : null, fetcher);
+    const { data: planUsageRaw, error: planUsageError } = useSWR<PlanUsage | { data: PlanUsage }>(open ? endpoints.business.planUsage : null, fetcher);
     const planUsage: PlanUsage | null =
         (planUsageRaw as { data: PlanUsage } | null)?.data ?? (planUsageRaw as PlanUsage | null) ?? null;
-    const maxImagesAllowed = Math.min(3, planUsage?.product_image_limit ?? 1);
+    const maxImagesAllowed = planUsage
+        ? (planUsage.effective_product_image_limit ??
+            Math.min(3, Math.max(1, planUsage.product_image_limit)))
+        : 3;
 
     const currentProduct: ProductDialogProduct | undefined = productResponse ?? product;
     const categoryOptions: CategoryOption[] = categoriesResponse?.data ?? [];
@@ -224,6 +227,7 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
             setUnitError(null);
             setImageFile(null);
             setImagePreview(null);
+            setReplaceTargetIndex(null);
             return;
         }
         setFormState(getInitialFormState(productResponse ?? product));
@@ -254,10 +258,10 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+        if (file.type && !file.type.startsWith("image/")) {
             toast({
                 title: "Formato no permitido",
-                description: "Usa JPG, PNG o WEBP para la imagen del producto.",
+                description: "Selecciona un archivo de imagen (JPG, PNG, WEBP, GIF, etc.).",
                 variant: "destructive",
             });
             return;
@@ -266,7 +270,7 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
         if (file.size > MAX_UPLOAD_SIZE_BYTES) {
             toast({
                 title: "Archivo demasiado grande",
-                description: "La imagen debe ser menor a 5 MB.",
+                description: "La imagen debe ser menor a 10 MB.",
                 variant: "destructive",
             });
             return;
@@ -282,10 +286,19 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
         const productId = currentProduct?.id ?? product?.id;
         if (!imageFile || !productId) return;
         const currentUrls = imageUrlsFromProduct(currentProduct);
-        if (currentUrls.length >= maxImagesAllowed) {
+        const isReplace = replaceTargetIndex !== null;
+        if (!isReplace && currentUrls.length >= maxImagesAllowed) {
             toast({
                 title: "Límite alcanzado",
                 description: `Tu plan permite hasta ${maxImagesAllowed} imagen(es) por producto.`,
+                variant: "destructive",
+            });
+            return;
+        }
+        if (isReplace && (replaceTargetIndex! < 0 || replaceTargetIndex! >= currentUrls.length)) {
+            toast({
+                title: "No se puede reemplazar",
+                description: "Vuelve a elegir qué imagen reemplazar.",
                 variant: "destructive",
             });
             return;
@@ -294,27 +307,43 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
         try {
             const formData = new FormData();
             formData.append("file", imageFile);
-            const res = await apiClient.uploadForm<ProductDialogProduct>(
-                endpoints.products.uploadImage(productId),
-                formData,
-            );
+            const res = isReplace
+                ? await apiClient.uploadForm<ProductDialogProduct>(
+                    endpoints.products.productImageAtIndex(productId, replaceTargetIndex!),
+                    formData,
+                    { method: "PUT" },
+                )
+                : await apiClient.uploadForm<ProductDialogProduct>(
+                    endpoints.products.uploadImage(productId),
+                    formData,
+                );
             await mutate(productsEndpoint);
             if (productDetailEndpoint) {
                 await mutate(productDetailEndpoint, res, { revalidate: true });
             }
             setImageFile(null);
             setImagePreview(null);
+            setReplaceTargetIndex(null);
             if (fileInputRef.current) fileInputRef.current.value = "";
             toast({
-                title: "Imagen agregada",
-                description: "La imagen se guardó en el producto.",
+                title: isReplace ? "Imagen reemplazada" : "Imagen agregada",
+                description: isReplace
+                    ? "La imagen se actualizó (formato WebP en el almacenamiento)."
+                    : "La imagen se guardó en el producto.",
             });
         } catch (error: unknown) {
             let description = "No se pudo subir la imagen del producto. Intenta nuevamente.";
             if (error instanceof NetworkError) {
                 description = error.message;
-            } else if (error instanceof ApiError && error.message) {
-                description = error.message;
+            } else if (error instanceof ApiError) {
+                if (error.status === 502) {
+                    description =
+                        "El almacenamiento de imágenes no está disponible. Verifica la configuración del servidor (Hetzner S3) o inténtalo más tarde.";
+                } else if (error.status === 415) {
+                    description = error.message || "El archivo no es una imagen válida. Prueba con JPG, PNG, WEBP o GIF.";
+                } else if (error.message) {
+                    description = error.message;
+                }
             }
             toast({
                 title: "Error al subir imagen",
@@ -508,8 +537,18 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
                                 <Label className="text-right pt-2">Imágenes</Label>
                                 <div className="col-span-3 space-y-2">
                                     <p className="text-xs text-muted-foreground">
-                                        Hasta {maxImagesAllowed} imagen(es) según tu plan (máx. 3). La primera es la principal.
+                                        Hasta {maxImagesAllowed} imagen(es) según tu plan (máx. 3 en la plataforma). La primera es la principal.
                                     </p>
+                                    {planUsageError && (
+                                        <p className="text-xs text-amber-700 dark:text-amber-500">
+                                            No se pudo cargar el límite del plan. El servidor seguirá aplicando tu cuota al subir.
+                                        </p>
+                                    )}
+                                    {replaceTargetIndex !== null && imageFile && (
+                                        <p className="text-xs text-primary">
+                                            Sustituyendo la imagen {replaceTargetIndex + 1} (misma posición, nuevo archivo en WebP).
+                                        </p>
+                                    )}
                                     <div className="flex flex-wrap gap-2">
                                         {galleryUrls.map((url, idx) => (
                                             <div key={`${url}-${idx}`} className="relative group">
@@ -518,6 +557,22 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
                                                     alt={`Imagen ${idx + 1}`}
                                                     className="w-16 h-16 rounded-md object-cover border border-border"
                                                 />
+                                                <div className="absolute inset-0 flex items-end justify-center gap-0.5 p-0.5 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-black/30 rounded-md">
+                                                    <Button
+                                                        type="button"
+                                                        size="icon"
+                                                        variant="secondary"
+                                                        className="h-6 w-6 shrink-0"
+                                                        title="Reemplazar"
+                                                        disabled={isUploadingImage}
+                                                        onClick={() => {
+                                                            setReplaceTargetIndex(idx);
+                                                            fileInputRef.current?.click();
+                                                        }}
+                                                    >
+                                                        <Upload className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
                                                 <button
                                                     type="button"
                                                     title="Quitar imagen"
@@ -532,7 +587,7 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
                                                     )}
                                                 </button>
                                                 {idx === 0 && (
-                                                    <span className="absolute bottom-0 left-0 right-0 bg-black/55 text-[9px] text-white text-center py-0.5 rounded-b-md">
+                                                    <span className="absolute bottom-0 left-0 right-0 bg-black/55 text-[9px] text-white text-center py-0.5 rounded-b-md pointer-events-none">
                                                         Principal
                                                     </span>
                                                 )}
@@ -557,15 +612,18 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
                                             variant="outline"
                                             size="sm"
                                             disabled={galleryUrls.length >= maxImagesAllowed}
-                                            onClick={() => fileInputRef.current?.click()}
+                                            onClick={() => {
+                                                setReplaceTargetIndex(null);
+                                                fileInputRef.current?.click();
+                                            }}
                                         >
-                                            Seleccionar archivo
+                                            Añadir imagen
                                         </Button>
                                         {imageFile && (
                                             <Button
                                                 type="button"
                                                 size="sm"
-                                                disabled={isUploadingImage || galleryUrls.length >= maxImagesAllowed}
+                                                disabled={isUploadingImage || (replaceTargetIndex === null && galleryUrls.length >= maxImagesAllowed)}
                                                 onClick={handleUploadImage}
                                                 className="bg-primary text-primary-foreground hover:opacity-90"
                                             >
@@ -574,7 +632,7 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
                                                 ) : (
                                                     <Upload className="h-3 w-3 mr-1" />
                                                 )}
-                                                Subir
+                                                {replaceTargetIndex !== null ? "Reemplazar" : "Subir"}
                                             </Button>
                                         )}
                                     </div>

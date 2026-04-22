@@ -140,13 +140,20 @@ export const apiClient = {
         });
     },
 
-    uploadForm: async <TResponse = unknown>(url: string, formData: FormData) => {
+    uploadForm: async <TResponse = unknown>(
+        url: string,
+        formData: FormData,
+        options: { method?: "POST" | "PUT" } = {},
+    ) => {
         // No incluir Content-Type — el browser lo establece con el boundary correcto
+        const method = options.method ?? "POST";
         const session = typeof window !== "undefined" ? await getSession() as SessionWithAccessToken | null : null;
         const token = session?.accessToken;
         const headers = new Headers();
         if (token) headers.set("Authorization", `Bearer ${token}`);
-        return requestJson<TResponse>(url, { method: "POST", headers, body: formData });
+        headers.set("X-Client-App", "merca-connect-web");
+        headers.set("X-Client-Build", CLIENT_BUILD_ID);
+        return requestJson<TResponse>(url, { method, headers, body: formData });
     },
 };
 
