@@ -89,6 +89,19 @@ interface FieldErrors {
     name?: string;
 }
 
+function getRequestErrorMessage(error: unknown): string {
+    if (error instanceof NetworkError) {
+        return error.message;
+    }
+    if (error instanceof ApiError) {
+        if (error.status >= 500) {
+            return "El servidor no pudo procesar la solicitud. Intenta nuevamente en unos segundos.";
+        }
+        return error.message || "No se pudo completar la solicitud.";
+    }
+    return "Ocurrió un error inesperado. Intenta nuevamente.";
+}
+
 const EMPTY_VALUE = "__none__";
 const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -457,7 +470,11 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
             if (categoriesEndpoint) await mutate(categoriesEndpoint);
             onOpenChange(false);
         } catch (error) {
-            console.error("Error al guardar producto:", error);
+            toast({
+                title: "Error al guardar producto",
+                description: getRequestErrorMessage(error),
+                variant: "destructive",
+            });
         } finally {
             setIsSubmitting(false);
         }
