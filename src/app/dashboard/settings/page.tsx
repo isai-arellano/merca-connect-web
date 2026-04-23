@@ -736,31 +736,50 @@ function SettingsPageInner() {
                             <span className="text-destructive" aria-hidden>
                               *
                             </span>
+                            {onboardingState.allComplete && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 border border-border/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                <Lock className="h-3 w-3" />
+                                Fija
+                              </span>
+                            )}
                           </Label>
-                          <Select
-                            value={businessForm.type}
-                            onValueChange={handleTypeChange}
-                          >
-                            <SelectTrigger className={formErrors.type ? "border-destructive focus-visible:ring-destructive" : ""}>
-                              <SelectValue placeholder="Selecciona tu industria" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {industrySelectOptions.map(({ value, label }) => (
-                                <SelectItem key={value} value={value}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {onboardingState.allComplete ? (
+                            <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                              <span className="text-sm font-medium text-foreground">
+                                {industrySelectOptions.find(o => o.value === businessForm.type)?.label ?? businessForm.type}
+                              </span>
+                              <p className="ml-auto text-xs text-muted-foreground">
+                                Para cambiarla contacta a soporte.
+                              </p>
+                            </div>
+                          ) : (
+                            <Select
+                              value={businessForm.type}
+                              onValueChange={handleTypeChange}
+                            >
+                              <SelectTrigger className={formErrors.type ? "border-destructive focus-visible:ring-destructive" : ""}>
+                                <SelectValue placeholder="Selecciona tu industria" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {industrySelectOptions.map(({ value, label }) => (
+                                  <SelectItem key={value} value={value}>
+                                    {label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                           {formErrors.type && (
                             <p className="text-xs text-destructive flex items-center gap-1.5">
                               <AlertCircle className="h-3.5 w-3.5" />
                               {formErrors.type}
                             </p>
                           )}
-                          <p className="text-xs text-muted-foreground">
-                            Define el giro para adaptar formularios de {itemsPluralLower} y unidades.
-                          </p>
+                          {!onboardingState.allComplete && (
+                            <p className="text-xs text-muted-foreground">
+                              Define el giro para adaptar formularios de {itemsPluralLower} y unidades.
+                            </p>
+                          )}
                         </div>
 
                         <div className="space-y-2">
@@ -876,7 +895,7 @@ function SettingsPageInner() {
                           </Label>
                           <div className="flex items-center gap-0 rounded-lg border border-border/80 overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1">
                             <span className="bg-muted/50 px-3 py-2 text-xs text-muted-foreground select-none border-r border-border/60">
-                              /catalogo/
+                              /c/
                             </span>
                             <input
                               id="biz-slug"
@@ -899,7 +918,7 @@ function SettingsPageInner() {
                           ) : (
                             <p className="text-xs text-muted-foreground">
                               {businessForm.slug
-                                ? <>URL pública: <span className="font-mono text-foreground">/catalogo/{businessForm.slug}</span></>
+                                ? <>URL pública: <span className="font-mono text-foreground">/c/{businessForm.slug}</span></>
                                 : "Si lo dejas vacío, se genera automáticamente desde el nombre del negocio."}
                             </p>
                           )}
