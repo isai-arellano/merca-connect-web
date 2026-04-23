@@ -339,6 +339,7 @@ function SettingsPageInner() {
 
   const PAYMENT_OPTIONS = ["Efectivo", "Transferencia SPEI", "Tarjeta débito", "Tarjeta crédito"];
   const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
+  const [fulfillmentOptions, setFulfillmentOptions] = useState<string[]>(["delivery", "pickup"]);
   const [deliveryZone, setDeliveryZone] = useState("");
   const [contactPhoneNumber, setContactPhoneNumber] = useState("");
   const [allowOrdersOutsideHours, setAllowOrdersOutsideHours] = useState(false);
@@ -370,6 +371,9 @@ function SettingsPageInner() {
       const cfg = settings.config || {};
       if (Array.isArray(cfg.payment_methods)) {
         setPaymentMethods(cfg.payment_methods);
+      }
+      if (Array.isArray(cfg.fulfillment_options) && cfg.fulfillment_options.length > 0) {
+        setFulfillmentOptions(cfg.fulfillment_options);
       }
       if (cfg.delivery_zone) {
         setDeliveryZone(cfg.delivery_zone);
@@ -465,6 +469,7 @@ function SettingsPageInner() {
           hours: weekSchedule,
           config: {
             payment_methods: paymentMethods,
+            fulfillment_options: fulfillmentOptions,
             delivery_zone: deliveryZone.trim() || null,
           },
           allow_orders_outside_hours: allowOrdersOutsideHours,
@@ -938,6 +943,39 @@ function SettingsPageInner() {
 
                         {/* Plantillas de pago */}
                         <PaymentTemplatesSection />
+
+                        {/* Opciones de entrega */}
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-2">
+                            <Truck className="h-3.5 w-3.5 text-muted-foreground" />
+                            Opciones de entrega
+                          </Label>
+                          <p className="text-xs text-muted-foreground">
+                            El agente solo ofrecerá las opciones que habilites aquí.
+                          </p>
+                          <div className="flex flex-col gap-2">
+                            {[
+                              { value: "delivery", label: "Entrega a domicilio" },
+                              { value: "pickup", label: "Recoger en tienda" },
+                            ].map(({ value, label }) => (
+                              <label key={value} className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 rounded border-input accent-primary"
+                                  checked={fulfillmentOptions.includes(value)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setFulfillmentOptions((prev) => [...prev, value]);
+                                    } else {
+                                      setFulfillmentOptions((prev) => prev.filter((v) => v !== value));
+                                    }
+                                  }}
+                                />
+                                <span className="text-sm">{label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
 
                         {/* Zona de entrega */}
                         <div className="space-y-2">
