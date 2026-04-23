@@ -37,7 +37,7 @@ async function CSlugContent({ params }: { params: Promise<{ slug: string }> }) {
         case "ok":
             return <PublicCatalogView catalog={result.data} />;
         case "forbidden":
-            return <CatalogNotPublished kind={result.data?.public_view === "menu" ? "menu" : "catalogo"} />;
+            return <CatalogNotPublished kind="catalogo" />;
         case "not_found":
         case "invalid_body":
         case "error":
