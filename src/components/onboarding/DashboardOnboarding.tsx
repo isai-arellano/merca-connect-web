@@ -26,12 +26,11 @@ const BUSINESS_CATEGORIES: Array<{
   Icon: LucideIcon;
   description: string;
 }> = [
-  { value: "physical_store",   Icon: Store,           label: "Tienda física",               description: "Productos físicos con pickup o entrega local" },
-  { value: "physical_digital", Icon: ShoppingBag,     label: "Tienda física y en línea",    description: "Vendes en local y también haces envíos" },
-  { value: "online_store",     Icon: Package,         label: "Tienda en línea",             description: "Ventas con envío nacional o paquetería" },
-  { value: "restaurant",       Icon: UtensilsCrossed, label: "Comida",                      description: "Menú, pedidos, delivery o pickup" },
-  { value: "field_service",    Icon: Wrench,          label: "Servicio a domicilio",        description: "Instalaciones, visitas técnicas, servicios en sitio" },
-  { value: "digital_service",  Icon: Monitor,         label: "Servicio o producto digital", description: "Sin entrega física: cursos, software, consultoría" },
+  { value: "physical_store",  Icon: Store,           label: "Tienda física",                    description: "Vendes productos en local con entrega o pickup" },
+  { value: "restaurant",      Icon: UtensilsCrossed, label: "Comida y bebidas",                  description: "Restaurantes, cafeterías, taquerías, dark kitchens" },
+  { value: "online_store",    Icon: Package,         label: "Tienda en línea",                  description: "Ventas con envío a todo el país o paquetería" },
+  { value: "field_service",   Icon: Wrench,          label: "Servicio a domicilio",             description: "Instalaciones, visitas técnicas, servicios en sitio" },
+  { value: "digital_service", Icon: Monitor,         label: "Producto o servicio digital",      description: "Cursos, software, consultoría — sin entrega física" },
 ];
 
 const itemVariants = {
@@ -65,7 +64,7 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
   const category = selectedCategory as string;
   const isDigitalService = category === "digital_service";
   const isOnlineStore = category === "online_store";
-  const isPhysicalOrRestaurant = category === "physical_store" || category === "physical_digital" || category === "restaurant";
+  const isPhysicalOrRestaurant = category === "physical_store" || category === "online_store" || category === "restaurant";
   const isFieldService = category === "field_service";
 
   // Opciones de industria filtradas por categoría seleccionada
