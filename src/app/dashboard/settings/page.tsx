@@ -895,7 +895,7 @@ function SettingsPageInner() {
                           </Label>
                           <div className="flex items-center gap-0 rounded-lg border border-border/80 overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1">
                             <span className="bg-muted/50 px-3 py-2 text-xs text-muted-foreground select-none border-r border-border/60">
-                              /catalogo/
+                              /c/
                             </span>
                             <input
                               id="biz-slug"
@@ -918,7 +918,7 @@ function SettingsPageInner() {
                           ) : (
                             <p className="text-xs text-muted-foreground">
                               {businessForm.slug
-                                ? <>URL pública: <span className="font-mono text-foreground">/catalogo/{businessForm.slug}</span></>
+                                ? <>URL pública: <span className="font-mono text-foreground">/c/{businessForm.slug}</span></>
                                 : "Si lo dejas vacío, se genera automáticamente desde el nombre del negocio."}
                             </p>
                           )}
