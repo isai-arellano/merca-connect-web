@@ -49,10 +49,10 @@ export function EscalationPanel() {
                 type="button"
                 size="icon"
                 onClick={() => setOpen(true)}
-                className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-xl bg-[#1A3E35] hover:bg-[#1A3E35]/95"
+                className="fixed bottom-6 right-6 z-50 h-16 w-16 rounded-2xl shadow-lg bg-[#EEFAEE] hover:bg-[#DDFADD] border border-gray-200"
                 title="Chat con Zafer"
             >
-                <MessageCircleWarning className="h-6 w-6" />
+                <MessageCircleWarning className="h-6 w-6 text-[#1A3E35]" />
                 {count > 0 && (
                     <span className="absolute -top-1 -right-1 h-6 min-w-6 px-1 rounded-full bg-red-500 text-white text-xs font-bold inline-flex items-center justify-center">
                         {count > 99 ? "99+" : count}
