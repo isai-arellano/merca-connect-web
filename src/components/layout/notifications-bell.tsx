@@ -3,11 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, UserRound, ChevronRight } from "lucide-react";
-import useSWR from "swr";
-import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
-import { endpoints } from "@/lib/api";
-import { fetcher } from "@/lib/api-client";
 import {
     Popover,
     PopoverContent,
@@ -15,13 +11,8 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
-interface HandoffNotification {
-    id: string;
-    customer_name: string | null;
-    customer_phone: string | null;
-    updated_at: string | null;
-}
+import { useHandoffNotifications } from "@/hooks/useHandoffNotifications";
+import { formatPhoneDisplay } from "@/lib/phoneUtils";
 
 function timeAgo(isoString: string | null): string {
     if (!isoString) return "";
@@ -33,20 +24,9 @@ function timeAgo(isoString: string | null): string {
 }
 
 export function NotificationsBell() {
-    const { data: session } = useSession();
     const router = useRouter();
     const [open, setOpen] = useState(false);
-
-    const { data } = useSWR<HandoffNotification[] | { data: HandoffNotification[] }>(
-        session
-            ? endpoints.conversations.handoffNotifications
-            : null,
-        fetcher,
-        { refreshInterval: 15000 }
-    );
-
-    const notifications: HandoffNotification[] = Array.isArray(data) ? data : ((data as { data: HandoffNotification[] } | null)?.data ?? []);
-    const count = notifications.length;
+    const { notifications, count } = useHandoffNotifications();
 
     function handleGoToConversation(id: string) {
         setOpen(false);
@@ -102,7 +82,7 @@ export function NotificationsBell() {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-medium text-foreground truncate">
-                                                {n.customer_name || n.customer_phone || "Cliente"}
+                                                {n.customer_name || formatPhoneDisplay(n.customer_phone) || "Cliente"}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
                                                 Solicita atención humana · {timeAgo(n.updated_at)}

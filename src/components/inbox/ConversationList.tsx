@@ -7,6 +7,7 @@ import { Bot, User } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { type ConversationSummary } from "@/types/api";
+import { formatPhoneDisplay } from "@/lib/phoneUtils";
 
 interface ConversationListProps {
     conversations: ConversationSummary[];
@@ -54,7 +55,9 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                                         </Avatar>
                                         <div className="min-w-0">
                                             <div className="font-medium truncate">{conv.customer?.name || conv.customer?.phone}</div>
-                                            <div className="text-[11px] text-muted-foreground truncate">{conv.customer?.phone || ""}</div>
+                                            <div className="text-[11px] text-muted-foreground truncate">
+                                                {formatPhoneDisplay(conv.customer?.phone) || ""}
+                                            </div>
                                         </div>
                                         {conv.agent_enabled === true && conv.status === "handoff" && (
                                             <Badge

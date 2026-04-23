@@ -15,6 +15,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import { formatPhoneDisplay } from "@/lib/phoneUtils";
 
 interface ChatWindowProps {
     conversationId: string;
@@ -317,7 +318,9 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                         <p className="font-semibold text-sm truncate leading-tight">{customerName}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
                             <Phone className="h-3 w-3 text-muted-foreground" />
-                            <p className="text-xs text-muted-foreground truncate">{detailData.customer?.phone_number}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                                {formatPhoneDisplay(detailData.customer?.phone_number)}
+                            </p>
                         </div>
                     </div>
                 </div>
