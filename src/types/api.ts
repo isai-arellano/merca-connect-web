@@ -6,7 +6,7 @@ export interface ApiList<T> {
 }
 
 // ── Business Category / Delivery ──
-export type BusinessCategory = "physical_store" | "physical_digital" | "online_store" | "restaurant" | "field_service" | "digital_service";
+export type BusinessCategory = "physical_store" | "online_store" | "restaurant" | "field_service" | "digital_service";
 export type DeliveryMode = "delivery" | "pickup" | "delivery_pickup" | "shipping" | "on_site" | "none";
 
 export interface BusinessSocialLinks {

@@ -28,44 +28,27 @@ export interface OnboardingSettingsLike {
  *  `icon` corresponde a un nombre de icono Lucide (se resuelve en DashboardOnboarding). */
 export const INDUSTRIES_BY_CATEGORY: Record<string, ReadonlyArray<{ slug: string; label: string; icon: string }>> = {
     restaurant: [
-        { slug: "restaurante",  label: "Restaurante",          icon: "UtensilsCrossed" },
-        { slug: "cafeteria",    label: "Cafetería",            icon: "Coffee" },
-        { slug: "taqueria",     label: "Taquería / Antojitos", icon: "ChefHat" },
-        { slug: "pasteleria",   label: "Pastelería",           icon: "ShoppingBag" },
-        { slug: "dark_kitchen", label: "Dark Kitchen",         icon: "Package" },
+        { slug: "restaurante",  label: "Restaurante",                icon: "UtensilsCrossed" },
+        { slug: "cafeteria",    label: "Cafetería / Panadería",      icon: "Coffee" },
+        { slug: "comida_rapida", label: "Comida rápida / Tacos / Pizza", icon: "ChefHat" },
     ],
     physical_store: [
         { slug: "abarrotera",  label: "Abarrotes / Miscelánea", icon: "ShoppingCart" },
-        { slug: "ferreteria",  label: "Ferretería",             icon: "Wrench" },
-        { slug: "farmacia",    label: "Farmacia",               icon: "Pill" },
-        { slug: "papeleria",   label: "Papelería",              icon: "BookOpen" },
-        { slug: "mascotas",    label: "Mascotas",               icon: "PawPrint" },
-    ],
-    physical_digital: [
-        { slug: "abarrotera",         label: "Abarrotes / Miscelánea", icon: "ShoppingCart" },
-        { slug: "ferreteria",         label: "Ferretería",             icon: "Wrench" },
-        { slug: "tienda_ropa",        label: "Ropa / Moda",            icon: "ShoppingBag" },
-        { slug: "tienda_electronica", label: "Electrónica",            icon: "Laptop" },
-        { slug: "muebles",            label: "Muebles y hogar",        icon: "Sofa" },
+        { slug: "ferreteria",  label: "Ferretería / Materiales", icon: "Wrench" },
+        { slug: "farmacia",    label: "Farmacia",                icon: "Pill" },
+        { slug: "tienda_ropa", label: "Ropa y accesorios",       icon: "ShoppingBag" },
     ],
     online_store: [
-        { slug: "tienda_ropa",        label: "Ropa / Moda",         icon: "ShoppingBag" },
-        { slug: "tienda_electronica", label: "Electrónica",          icon: "Laptop" },
-        { slug: "tienda_online",      label: "Productos generales",  icon: "Package" },
+        { slug: "tienda_online", label: "Tienda en línea / E-commerce", icon: "Package" },
+        { slug: "tienda_ropa",   label: "Ropa y accesorios",            icon: "ShoppingBag" },
     ],
     field_service: [
-        { slug: "servicios",   label: "Servicios generales",         icon: "Wrench" },
-        { slug: "consultoria", label: "Consultoría / Asesoría",      icon: "BarChart2" },
-        { slug: "belleza",     label: "Salón de belleza / Spa",      icon: "Scissors" },
-        { slug: "veterinaria", label: "Veterinaria",                 icon: "PawPrint" },
-        { slug: "medico",      label: "Consultorio médico",          icon: "Stethoscope" },
-        { slug: "isp",         label: "Internet / Telecomunicaciones", icon: "Wifi" },
+        { slug: "servicios",   label: "Servicios generales",    icon: "Wrench" },
+        { slug: "belleza",     label: "Salón de belleza / Spa", icon: "Scissors" },
+        { slug: "medico",      label: "Consultorio médico",     icon: "Stethoscope" },
     ],
     digital_service: [
-        { slug: "tienda_digital", label: "Tienda digital",     icon: "Globe" },
-        { slug: "cursos",         label: "Cursos / Formación", icon: "GraduationCap" },
-        { slug: "software",       label: "Software / SaaS",    icon: "Monitor" },
-        { slug: "contenido",      label: "Contenido digital",  icon: "PlayCircle" },
+        { slug: "tienda_digital", label: "Productos o servicios digitales", icon: "Globe" },
     ],
 };
 
