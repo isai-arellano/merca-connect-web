@@ -2,6 +2,7 @@
 
 import { Sidebar, SidebarProvider, useSidebar } from "@/components/layout/sidebar";
 import { Navbar } from "@/components/layout/navbar";
+import { EscalationPanel } from "@/components/layout/escalation-panel";
 import { useEffect, useSyncExternalStore } from "react";
 import { useSession, signOut } from "next-auth/react";
 
@@ -68,6 +69,7 @@ function DashboardInner({ children }: { children: React.ReactNode }) {
                     </div>
                 </div>
             </main>
+            <EscalationPanel />
         </>
     );
 }

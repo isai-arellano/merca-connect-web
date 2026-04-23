@@ -61,6 +61,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import { formatPhoneDisplay } from "@/lib/phoneUtils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -182,7 +183,7 @@ function shortId(id: string) {
 }
 
 function customerDisplay(order: Order) {
-  return order.customer?.name || order.customer?.phone_number || "Cliente";
+  return order.customer?.name || formatPhoneDisplay(order.customer?.phone_number) || "Cliente";
 }
 
 function timeAgo(dateStr: string) {
@@ -373,7 +374,7 @@ function OrderDetailDialog({
           <p className="text-sm">{order.customer?.name || "Sin nombre"}</p>
           {order.customer?.phone_number && (
             <p className="text-xs text-muted-foreground">
-              {order.customer.phone_number}
+              {formatPhoneDisplay(order.customer.phone_number)}
             </p>
           )}
         </div>

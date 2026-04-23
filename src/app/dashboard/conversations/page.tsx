@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { formatPhoneDisplay } from "@/lib/phoneUtils";
 
 interface ConversationMessage {
     id: string;
@@ -181,7 +182,7 @@ export default function InboxPage() {
                                     {activeConversationData.customer?.name || "Cliente"}
                                 </h2>
                                 <p className="text-xs text-muted-foreground">
-                                    +{activeConversationData.customer?.phone_number}
+                                    {formatPhoneDisplay(activeConversationData.customer?.phone_number)}
                                 </p>
                             </div>
                         </div>
