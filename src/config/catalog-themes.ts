@@ -69,168 +69,182 @@ export interface ResolvedThemeTokens extends CatalogThemeTokens {
 // ── Utilidades de color (preset + custom) ──────────────────────────
 
 function hexToRgb(hex: string): [number, number, number] {
-  const clean = hex.replace("#", "");
-  const full =
-    clean.length === 3
-      ? clean
+  const hexWithoutHash = hex.replace("#", "");
+  const expandedHex =
+    hexWithoutHash.length === 3
+      ? hexWithoutHash
           .split("")
-          .map((c) => c + c)
+          .map((ch) => ch + ch)
           .join("")
-      : clean;
-  const n = parseInt(full, 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-/** RGB 0–255 → triplete `H S% L%` para variables shadcn (`hsl(var(--token))`). */
-function rgbToHslTriplet(r: number, g: number, b: number): string {
-  r /= 255;
-  g /= 255;
-  b /= 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  let h = 0;
-  let s = 0;
-  const l = (max + min) / 2;
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r:
-        h = (g - b) / d + (g < b ? 6 : 0);
-        break;
-      case g:
-        h = (b - r) / d + 2;
-        break;
-      default:
-        h = (r - g) / d + 4;
-        break;
-    }
-    h /= 6;
-  }
-  const H = Math.round(h * 360);
-  const S = Math.round(s * 100);
-  const L = Math.round(l * 100);
-  return `${H} ${S}% ${L}%`;
-}
-
-function isValidRgbChannel(v: number): boolean {
-  return Number.isFinite(v) && v >= 0 && v <= 255;
+      : hexWithoutHash;
+  const packedRgb = parseInt(expandedHex, 16);
+  return [(packedRgb >> 16) & 255, (packedRgb >> 8) & 255, packedRgb & 255];
 }
 
 /**
- * Convierte un color CSS (`#hex`, `rgb()`, `rgba()`) a triplete HSL para variables shadcn.
+ * RGB canales 0–255 → triplete `H S% L%` para usar en `hsl(var(--token))` (Tailwind / tokens globales).
+ * Las variables r/g/b en 0–1 son el paso estándar del algoritmo HSL.
+ */
+function rgbToHslTriplet(red255: number, green255: number, blue255: number): string {
+  const r = red255 / 255;
+  const g = green255 / 255;
+  const b = blue255 / 255;
+  const maxChannel = Math.max(r, g, b);
+  const minChannel = Math.min(r, g, b);
+  let hue01 = 0;
+  let saturation01 = 0;
+  const lightness01 = (maxChannel + minChannel) / 2;
+  if (maxChannel !== minChannel) {
+    const chroma = maxChannel - minChannel;
+    saturation01 =
+      lightness01 > 0.5 ? chroma / (2 - maxChannel - minChannel) : chroma / (maxChannel + minChannel);
+    switch (maxChannel) {
+      case r:
+        hue01 = (g - b) / chroma + (g < b ? 6 : 0);
+        break;
+      case g:
+        hue01 = (b - r) / chroma + 2;
+        break;
+      default:
+        hue01 = (r - g) / chroma + 4;
+        break;
+    }
+    hue01 /= 6;
+  }
+  const hueDegrees = Math.round(hue01 * 360);
+  const saturationPercent = Math.round(saturation01 * 100);
+  const lightnessPercent = Math.round(lightness01 * 100);
+  return `${hueDegrees} ${saturationPercent}% ${lightnessPercent}%`;
+}
+
+function isValidRgbChannel(channel: number): boolean {
+  return Number.isFinite(channel) && channel >= 0 && channel <= 255;
+}
+
+/**
+ * Convierte un color CSS (`#hex`, `rgb()`, `rgba()`) a triplete HSL para `hsl(var(--…))`.
  * La opacidad de `rgba` se ignora (solo se usan los canales RGB).
  */
-export function colorToShadcnHslTriplet(value: string): string | null {
-  const v = value.trim();
-  if (v.startsWith("#")) {
+export function colorToHslTripletForCssVar(value: string): string | null {
+  const trimmedColor = value.trim();
+  if (trimmedColor.startsWith("#")) {
     try {
-      const [r, g, b] = hexToRgb(v);
-      if (!isValidRgbChannel(r) || !isValidRgbChannel(g) || !isValidRgbChannel(b)) return null;
-      return rgbToHslTriplet(r, g, b);
+      const [red, green, blue] = hexToRgb(trimmedColor);
+      if (!isValidRgbChannel(red) || !isValidRgbChannel(green) || !isValidRgbChannel(blue)) {
+        return null;
+      }
+      return rgbToHslTriplet(red, green, blue);
     } catch {
       return null;
     }
   }
-  const m = v.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
-  if (m) {
-    const r = Number(m[1]);
-    const g = Number(m[2]);
-    const b = Number(m[3]);
-    if (!isValidRgbChannel(r) || !isValidRgbChannel(g) || !isValidRgbChannel(b)) return null;
-    return rgbToHslTriplet(r, g, b);
+  const rgbFunctionMatch = trimmedColor.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (rgbFunctionMatch) {
+    const red = Number(rgbFunctionMatch[1]);
+    const green = Number(rgbFunctionMatch[2]);
+    const blue = Number(rgbFunctionMatch[3]);
+    if (!isValidRgbChannel(red) || !isValidRgbChannel(green) || !isValidRgbChannel(blue)) {
+      return null;
+    }
+    return rgbToHslTriplet(red, green, blue);
   }
   return null;
 }
 
 /**
- * Declaraciones CSS (`--background: …;`) alineadas con `--pub-*` del catálogo público
- * para que Card/Button/Input hereden el tema del negocio vía tokens shadcn.
+ * Genera un bloque CSS con `--background`, `--primary`, etc. a partir de las variables `--pub-*`
+ * del tema del catálogo, para inyectarlas en `:root` y que el panel (drawer portaled, etc.) use el mismo
+ * esquema de color que el bloque `[data-pub-catalog]`.
  */
-export function buildShadcnBridgeCssBlockFromPubVars(pub: Record<string, string>): string {
-  const t = (key: string, fallback: string) =>
-    colorToShadcnHslTriplet(pub[key] ?? "") ?? fallback;
+export function buildGlobalUiThemeCssFromPubVars(pubCssVariables: Record<string, string>): string {
+  /** `--pub-*` (hex/rgba) → triplete HSL consumido por los tokens globales de UI. */
+  const hslTripletFromPubKey = (pubKey: string, fallbackHslTriplet: string): string =>
+    colorToHslTripletForCssVar(pubCssVariables[pubKey] ?? "") ?? fallbackHslTriplet;
 
-  const background = t("--pub-page", "0 0% 100%");
-  const foreground = t("--pub-text", "240 10% 3.9%");
-  const card = t("--pub-surface", background);
-  const muted = t("--pub-surface-muted", "220 14% 96%");
-  const mutedForeground = t("--pub-text-muted", "240 4% 46%");
-  const border = t("--pub-border", "220 13% 91%");
-  const primary = t("--pub-button", "240 6% 10%");
-  const primaryForeground = t("--pub-on-button", "0 0% 98%");
-  const accentHue = t("--pub-accent", "221 83% 53%");
+  const pageBackgroundHsl = hslTripletFromPubKey("--pub-page", "0 0% 100%");
+  const mainTextHsl = hslTripletFromPubKey("--pub-text", "240 10% 3.9%");
+  const cardSurfaceHsl = hslTripletFromPubKey("--pub-surface", pageBackgroundHsl);
+  const mutedSurfaceHsl = hslTripletFromPubKey("--pub-surface-muted", "220 14% 96%");
+  const mutedTextHsl = hslTripletFromPubKey("--pub-text-muted", "240 4% 46%");
+  const borderHsl = hslTripletFromPubKey("--pub-border", "220 13% 91%");
+  const primaryButtonHsl = hslTripletFromPubKey("--pub-button", "240 6% 10%");
+  const onPrimaryButtonTextHsl = hslTripletFromPubKey("--pub-on-button", "0 0% 98%");
+  const accentBrandHsl = hslTripletFromPubKey("--pub-accent", "221 83% 53%");
 
-  const entries: [string, string][] = [
-    ["--background", background],
-    ["--foreground", foreground],
-    ["--card", card],
-    ["--card-foreground", foreground],
-    ["--popover", card],
-    ["--popover-foreground", foreground],
-    ["--primary", primary],
-    ["--primary-foreground", primaryForeground],
-    ["--secondary", muted],
-    ["--secondary-foreground", foreground],
-    ["--muted", muted],
-    ["--muted-foreground", mutedForeground],
-    ["--accent", muted],
-    ["--accent-foreground", accentHue],
-    ["--border", border],
-    ["--input", border],
-    ["--ring", accentHue],
+  const globalUiTokenVariablePairs: [string, string][] = [
+    ["--background", pageBackgroundHsl],
+    ["--foreground", mainTextHsl],
+    ["--card", cardSurfaceHsl],
+    ["--card-foreground", mainTextHsl],
+    ["--popover", cardSurfaceHsl],
+    ["--popover-foreground", mainTextHsl],
+    ["--primary", primaryButtonHsl],
+    ["--primary-foreground", onPrimaryButtonTextHsl],
+    ["--secondary", mutedSurfaceHsl],
+    ["--secondary-foreground", mainTextHsl],
+    ["--muted", mutedSurfaceHsl],
+    ["--muted-foreground", mutedTextHsl],
+    ["--accent", mutedSurfaceHsl],
+    ["--accent-foreground", accentBrandHsl],
+    ["--border", borderHsl],
+    ["--input", borderHsl],
+    ["--ring", accentBrandHsl],
   ];
-  return entries.map(([k, v]) => `${k}:${v}`).join(";");
+  return globalUiTokenVariablePairs
+    .map(([cssVariableName, hslTriplet]) => `${cssVariableName}:${hslTriplet}`)
+    .join(";");
 }
 
 export function relativeLuminance(hex: string): number {
-  const [r, g, b] = hexToRgb(hex).map((c) => {
-    const s = c / 255;
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  const [redLinear, greenLinear, blueLinear] = hexToRgb(hex).map((channel0to255) => {
+    const normalized = channel0to255 / 255;
+    return normalized <= 0.03928
+      ? normalized / 12.92
+      : Math.pow((normalized + 0.055) / 1.055, 2.4);
   });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return 0.2126 * redLinear + 0.7152 * greenLinear + 0.0722 * blueLinear;
 }
 
 function darken(hex: string, amount: number): string {
-  const [r, g, b] = hexToRgb(hex);
-  const d = (v: number) =>
-    Math.max(0, Math.round(v * (1 - amount)))
+  const [red255, green255, blue255] = hexToRgb(hex);
+  const channelToDarkenedHexByte = (channel0to255: number) =>
+    Math.max(0, Math.round(channel0to255 * (1 - amount)))
       .toString(16)
       .padStart(2, "0");
-  return `#${d(r)}${d(g)}${d(b)}`;
+  return `#${channelToDarkenedHexByte(red255)}${channelToDarkenedHexByte(green255)}${channelToDarkenedHexByte(blue255)}`;
 }
 
 function lighten(hex: string, amount: number): string {
-  const [r, g, b] = hexToRgb(hex);
-  const l = (v: number) =>
-    Math.min(255, Math.round(v + (255 - v) * amount))
+  const [red255, green255, blue255] = hexToRgb(hex);
+  const channelToLightenedHexByte = (channel0to255: number) =>
+    Math.min(255, Math.round(channel0to255 + (255 - channel0to255) * amount))
       .toString(16)
       .padStart(2, "0");
-  return `#${l(r)}${l(g)}${l(b)}`;
+  return `#${channelToLightenedHexByte(red255)}${channelToLightenedHexByte(green255)}${channelToLightenedHexByte(blue255)}`;
 }
 
 function hexWithAlpha(hex: string, alpha: number): string {
-  const [r, g, b] = hexToRgb(hex);
-  return `rgba(${r},${g},${b},${alpha})`;
+  const [red255, green255, blue255] = hexToRgb(hex);
+  return `rgba(${red255},${green255},${blue255},${alpha})`;
 }
 
-function paletteToCssVars(p: SemanticPalette): Record<string, string> {
+function paletteToCssVars(palette: SemanticPalette): Record<string, string> {
   return {
-    "--pub-page": p.page,
-    "--pub-header-from": p.headerFrom,
-    "--pub-header-to": p.headerTo,
-    "--pub-surface": p.surface,
-    "--pub-surface-muted": p.surfaceMuted,
-    "--pub-cart": p.cart,
-    "--pub-border": p.border,
-    "--pub-text": p.text,
-    "--pub-text-muted": p.textMuted,
-    "--pub-accent": p.accent,
-    "--pub-button": p.button,
-    "--pub-on-button": p.onButton,
-    "--pub-badge-bg": p.badgeBg,
-    "--pub-badge-fg": p.badgeFg,
-    "--pub-section-border": p.sectionBorder,
+    "--pub-page": palette.page,
+    "--pub-header-from": palette.headerFrom,
+    "--pub-header-to": palette.headerTo,
+    "--pub-surface": palette.surface,
+    "--pub-surface-muted": palette.surfaceMuted,
+    "--pub-cart": palette.cart,
+    "--pub-border": palette.border,
+    "--pub-text": palette.text,
+    "--pub-text-muted": palette.textMuted,
+    "--pub-accent": palette.accent,
+    "--pub-button": palette.button,
+    "--pub-on-button": palette.onButton,
+    "--pub-badge-bg": palette.badgeBg,
+    "--pub-badge-fg": palette.badgeFg,
+    "--pub-section-border": palette.sectionBorder,
   };
 }
 
@@ -377,35 +391,35 @@ export function generateCustomThemeTokens(
   _view: PublicView
 ): ResolvedThemeTokens {
   const { primary, secondary } = custom;
-  const lumP = relativeLuminance(primary);
-  const onPrimary = lumP > 0.45 ? "#0A0A0B" : "#FAFAFA";
+  const primaryLuminance = relativeLuminance(primary);
+  const textOnPrimaryButton = primaryLuminance > 0.45 ? "#0A0A0B" : "#FAFAFA";
 
-  const textMain = lumP < 0.35 ? "#18181B" : darken(primary, 0.45);
-  const textSub = lumP < 0.4 ? "#52525B" : darken(secondary, 0.15);
-  const accent = lumP > 0.5 ? darken(primary, 0.1) : secondary;
-  const borderNeutral = "rgba(24, 24, 27, 0.1)";
+  const mainTextHex = primaryLuminance < 0.35 ? "#18181B" : darken(primary, 0.45);
+  const mutedTextHex = primaryLuminance < 0.4 ? "#52525B" : darken(secondary, 0.15);
+  const accentHex = primaryLuminance > 0.5 ? darken(primary, 0.1) : secondary;
+  const neutralBorderRgba = "rgba(24, 24, 27, 0.1)";
 
-  const p: SemanticPalette = {
+  const customPalette: SemanticPalette = {
     page: BG_PAGE,
     headerFrom: "#FFFFFF",
-    headerTo: lumP > 0.6 ? "#F4F4F5" : lighten(primary, 0.92),
+    headerTo: primaryLuminance > 0.6 ? "#F4F4F5" : lighten(primary, 0.92),
     surface: BG_PAGE,
     surfaceMuted: BG_RAIL,
     cart: BG_PAGE,
-    border: borderNeutral,
-    text: textMain,
-    textMuted: textSub,
-    accent,
+    border: neutralBorderRgba,
+    text: mainTextHex,
+    textMuted: mutedTextHex,
+    accent: accentHex,
     button: primary,
-    onButton: onPrimary,
+    onButton: textOnPrimaryButton,
     badgeBg: BG_RAIL,
-    badgeFg: lumP > 0.5 ? darken(primary, 0.35) : darken(secondary, 0.1),
+    badgeFg: primaryLuminance > 0.5 ? darken(primary, 0.35) : darken(secondary, 0.1),
     sectionBorder: hexWithAlpha(primary, 0.2),
   };
 
   return {
     ...THEME_CLASSES,
-    cssVars: paletteToCssVars(p),
+    cssVars: paletteToCssVars(customPalette),
     isCustom: true,
   };
 }

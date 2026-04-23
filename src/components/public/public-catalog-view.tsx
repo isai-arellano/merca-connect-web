@@ -25,7 +25,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import {
-  buildShadcnBridgeCssBlockFromPubVars,
+  buildGlobalUiThemeCssFromPubVars,
   resolveThemeTokens,
   type CatalogThemeApiData,
   type PublicView,
@@ -223,7 +223,7 @@ function buildWhatsAppText(
   return `🛒 *Pedido en ${businessName}*\n\nQuiero pedir estos artículos, por favor:\n\n${lines}${notesLine}\n\n*Total: ${formatPrice(total)}*\n¿Me apoyas validando disponibilidad y siguiente paso para envío o recolección?`;
 }
 
-// ─── CSS Variables (presets + custom) + puente shadcn en :root (Sheet portal) ─
+// ─── CSS Variables (presets + custom) + tokens de UI globales en :root (Sheet portal) ─
 
 const MERCA_PUB_CATALOG_ROOT_CLASS = "merca-pub-catalog-active";
 const MERCA_PUB_CATALOG_STYLE_ID = "merca-pub-catalog-theme";
@@ -232,16 +232,16 @@ function ThemeVarsInjector({ tokens }: { tokens: ResolvedThemeTokens }) {
   const serializedCssVars = JSON.stringify(tokens.cssVars ?? {});
 
   useLayoutEffect(() => {
-    const vars = JSON.parse(serializedCssVars) as Record<string, string>;
-    if (Object.keys(vars).length === 0) return;
+    const pubThemeByKey = JSON.parse(serializedCssVars) as Record<string, string>;
+    if (Object.keys(pubThemeByKey).length === 0) return;
 
-    const pubBlock = Object.entries(vars)
-      .map(([k, v]) => `${k}:${v}`)
+    const scopedPubCatalogCss = Object.entries(pubThemeByKey)
+      .map(([cssVariableName, cssValue]) => `${cssVariableName}:${cssValue}`)
       .join(";");
-    const bridge = buildShadcnBridgeCssBlockFromPubVars(vars);
+    const globalUiThemeCss = buildGlobalUiThemeCssFromPubVars(pubThemeByKey);
     const style = document.createElement("style");
     style.id = MERCA_PUB_CATALOG_STYLE_ID;
-    style.textContent = `:root.${MERCA_PUB_CATALOG_ROOT_CLASS}{${bridge}}[data-pub-catalog]{${pubBlock}}`;
+    style.textContent = `:root.${MERCA_PUB_CATALOG_ROOT_CLASS}{${globalUiThemeCss}}[data-pub-catalog]{${scopedPubCatalogCss}}`;
     document.head.appendChild(style);
     document.documentElement.classList.add(MERCA_PUB_CATALOG_ROOT_CLASS);
     return () => {
