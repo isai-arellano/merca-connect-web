@@ -6,14 +6,13 @@ import { useSWRConfig } from "swr";
 import { useSession } from "next-auth/react";
 import {
     CheckCircle2,
-    AlertCircle,
     Loader2,
     Smartphone,
     Zap,
-    RefreshCw,
     ArrowRight,
     WifiOff,
     AlertTriangle,
+    AlertCircle,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
@@ -284,7 +283,6 @@ export function WhatsAppConnectTab() {
                     {status.connected ? (
                         <ConnectedState
                             status={status}
-                            onReconnect={() => setStep("idle")}
                             onDisconnect={() => setShowDisconnectDialog(true)}
                         />
                     ) : (
@@ -345,11 +343,9 @@ export function WhatsAppConnectTab() {
 
 function ConnectedState({
     status,
-    onReconnect,
     onDisconnect,
 }: {
     status: SignupStatus;
-    onReconnect: () => void;
     onDisconnect: () => void;
 }) {
     return (
@@ -382,19 +378,7 @@ function ConnectedState({
 
             <Separator />
 
-            <div className="flex items-start gap-2 p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg text-sm">
-                <AlertCircle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-muted-foreground">
-                    Si necesitas cambiar el número conectado, reconecta con el nuevo número.
-                    El número anterior dejará de recibir mensajes.
-                </p>
-            </div>
-
             <div className="flex items-center gap-3 flex-wrap">
-                <Button variant="outline" size="sm" onClick={onReconnect} className="gap-2">
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    Reconectar con otro número
-                </Button>
                 <Button
                     variant="ghost"
                     size="sm"
