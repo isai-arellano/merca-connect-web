@@ -83,6 +83,7 @@ interface Customer {
 
 interface Order {
   id: string;
+  order_number?: string;
   status: string;
   total: number;
   delivery_address?: string;
@@ -182,6 +183,61 @@ function shortId(id: string) {
   return id.split("-")[0].toUpperCase();
 }
 
+function orderLabel(order: Order) {
+  return order.order_number ?? shortId(order.id);
+}
+
+const FULFILLMENT_LABELS: Record<string, string> = {
+  delivery: "Entrega a domicilio",
+  pickup: "Recoger en tienda",
+};
+const PAYMENT_LABELS: Record<string, string> = {
+  pendiente: "Por definir",
+  efectivo: "Efectivo",
+  transferencia: "Transferencia",
+  spei: "Transferencia SPEI",
+  tarjeta: "Tarjeta",
+};
+
+function parseOrderNotes(raw: string): { label: string; value: string }[] {
+  const knownKeys: Record<string, string> = {
+    fulfillment_type: "Tipo de entrega",
+    payment_method: "Método de pago",
+    checkout_source: "Origen",
+    delivery_address: "Dirección",
+  };
+  const sourceLabels: Record<string, string> = {
+    chat: "Chat con agente",
+    whatsapp_flow: "WhatsApp Flow",
+  };
+
+  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+  const parsed: { label: string; value: string }[] = [];
+  const usedKeys = new Set<string>();
+
+  for (const line of lines) {
+    const eqIdx = line.indexOf("=");
+    if (eqIdx === -1) {
+      // línea libre sin clave=valor — mostrarla como nota
+      parsed.push({ label: "Nota", value: line });
+      continue;
+    }
+    const key = line.slice(0, eqIdx).trim();
+    const val = line.slice(eqIdx + 1).trim();
+    if (!knownKeys[key]) {
+      parsed.push({ label: key, value: val });
+      continue;
+    }
+    usedKeys.add(key);
+    let display = val;
+    if (key === "fulfillment_type") display = FULFILLMENT_LABELS[val] ?? val;
+    if (key === "payment_method") display = PAYMENT_LABELS[val.toLowerCase()] ?? val;
+    if (key === "checkout_source") display = sourceLabels[val] ?? val;
+    parsed.push({ label: knownKeys[key], value: display });
+  }
+  return parsed;
+}
+
 function customerDisplay(order: Order) {
   return order.customer?.name || formatPhoneDisplay(order.customer?.phone_number) || "Cliente";
 }
@@ -266,7 +322,7 @@ function OrderCard({
         <CardHeader className="p-3 pb-2">
           <div className="flex justify-between items-start">
             <CardTitle className="text-sm font-bold tracking-wide text-[#1A3E35]">
-              #{shortId(order.id)}
+              #{orderLabel(order)}
             </CardTitle>
             <span className="text-[10px] text-muted-foreground flex items-center gap-1">
               <Clock className="h-3 w-3" />
@@ -358,7 +414,7 @@ function OrderDetailDialog({
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#1A3E35]">
-            Pedido #{shortId(order.id)}
+            Pedido #{orderLabel(order)}
             {status && (
               <Badge className={status.badgeClass}>{status.label}</Badge>
             )}
@@ -440,14 +496,22 @@ function OrderDetailDialog({
         </div>
 
         {/* Notes */}
-        {order.notes && (
-          <div className="space-y-1">
-            <h4 className="text-sm font-semibold text-foreground">Notas</h4>
-            <p className="text-sm text-muted-foreground bg-amber-500/10 border border-amber-500/20 rounded p-2">
-              {order.notes}
-            </p>
-          </div>
-        )}
+        {order.notes && (() => {
+          const rows = parseOrderNotes(order.notes!);
+          return (
+            <div className="space-y-1">
+              <h4 className="text-sm font-semibold text-foreground">Detalles del pedido</h4>
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded p-2 space-y-1">
+                {rows.map((r, i) => (
+                  <div key={i} className="flex gap-2 text-sm">
+                    <span className="text-muted-foreground shrink-0">{r.label}:</span>
+                    <span className="text-foreground">{r.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Dates */}
         <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -588,7 +652,7 @@ function OrdersTableView({
                 onClick={() => onOrderClick(order)}
               >
                 <TableCell className="font-mono font-bold text-sm text-[#1A3E35]">
-                  #{shortId(order.id)}
+                  #{orderLabel(order)}
                 </TableCell>
                 <TableCell className="text-sm">
                   {customerDisplay(order)}
