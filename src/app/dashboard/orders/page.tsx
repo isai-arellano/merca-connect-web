@@ -356,11 +356,19 @@ function OrderCard({
           )}
 
           {/* Notes */}
-          {order.notes && (
-            <p className="text-[11px] text-amber-800 dark:text-amber-200 bg-amber-500/10 p-1.5 rounded border border-amber-500/20 line-clamp-2">
-              {order.notes}
-            </p>
-          )}
+          {order.notes && (() => {
+            const rows = parseOrderNotes(order.notes!);
+            if (rows.length === 0) return null;
+            return (
+              <div className="text-[11px] text-amber-800 dark:text-amber-200 bg-amber-500/10 p-1.5 rounded border border-amber-500/20 space-y-0.5">
+                {rows.map((r) => (
+                  <div key={r.label}>
+                    <span className="font-semibold">{r.label}:</span> {r.value}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
 
           {/* Status change dropdown */}
           <div onClick={(e) => e.stopPropagation()}>
