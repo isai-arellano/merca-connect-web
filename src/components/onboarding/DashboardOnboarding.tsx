@@ -9,13 +9,50 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type LucideIcon, CheckCircle2, Circle, ChevronRight, Smartphone, Building2, MapPin, Store, ShoppingBag, Package, UtensilsCrossed, Wrench, Monitor, Bike, ArrowLeftRight, Coffee, Scissors, Stethoscope, PawPrint, BookOpen, Sofa, Globe, BarChart2, ShoppingCart, Pill, Laptop, PlayCircle, GraduationCap, ChefHat, Wifi } from "lucide-react";
 import { motion } from "framer-motion";
-import { type OnboardingState, type OnboardingSettingsLike, INDUSTRIES_BY_CATEGORY } from "@/lib/onboarding";
+import { type OnboardingState, type OnboardingSettingsLike } from "@/lib/onboarding";
+import { useIndustries } from "@/hooks/useIndustries";
 
-const INDUSTRY_ICON_MAP: Record<string, LucideIcon> = {
-  UtensilsCrossed, Coffee, ChefHat, ShoppingBag, Package, ShoppingCart,
-  Wrench, Pill, BookOpen, PawPrint, Laptop, Sofa, BarChart2, Scissors,
-  Stethoscope, Globe, GraduationCap, Monitor, PlayCircle, Wifi,
+/** Ícono por slug de industria (de BD). Fallback: ícono de categoría padre. */
+const INDUSTRY_SLUG_ICON: Record<string, LucideIcon> = {
+  restaurante:   UtensilsCrossed,
+  cafeteria:     Coffee,
+  comida_rapida: ChefHat,
+  taqueria:      ChefHat,
+  pasteleria:    Coffee,
+  dark_kitchen:  ChefHat,
+  abarrotera:    ShoppingCart,
+  ferreteria:    Wrench,
+  farmacia:      Pill,
+  tienda_ropa:   ShoppingBag,
+  papeleria:     BookOpen,
+  mascotas:      PawPrint,
+  muebles:       Sofa,
+  tienda_online: Package,
+  servicios:     Wrench,
+  consultoria:   BarChart2,
+  belleza:       Scissors,
+  veterinaria:   PawPrint,
+  medico:        Stethoscope,
+  tienda_digital: Globe,
+  cursos:        GraduationCap,
+  software:      Laptop,
+  contenido:     PlayCircle,
+  isp:           Wifi,
 };
+
+const CATEGORY_FALLBACK_ICON: Record<string, LucideIcon> = {
+  restaurant:      UtensilsCrossed,
+  physical_store:  Store,
+  online_store:    Package,
+  field_service:   Wrench,
+  digital_service: Monitor,
+};
+
+function resolveIndustryIcon(slug: string, businessCategory?: string): LucideIcon {
+  return INDUSTRY_SLUG_ICON[slug]
+    ?? (businessCategory ? CATEGORY_FALLBACK_ICON[businessCategory] : undefined)
+    ?? Store;
+}
 import { apiClient } from "@/lib/api-client";
 import { endpoints } from "@/lib/api";
 import { mutate } from "swr";
@@ -61,17 +98,21 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
   const [isIndustryPending, startIndustryTransition] = useTransition();
   const [isDeliveryPending, startDeliveryTransition] = useTransition();
 
+  const { orderedRows: apiIndustries } = useIndustries();
+
   const category = selectedCategory as string;
   const isDigitalService = category === "digital_service";
   const isOnlineStore = category === "online_store";
   const isPhysicalOrRestaurant = category === "physical_store" || category === "online_store" || category === "restaurant";
   const isFieldService = category === "field_service";
 
-  // Opciones de industria filtradas por categoría seleccionada
-  const industryOptions = useMemo(
-    () => (category ? (INDUSTRIES_BY_CATEGORY[category] ?? []) : []),
-    [category],
-  );
+  // Opciones de industria filtradas por categoría — vienen de la API (BD), no hardcodeadas
+  const industryOptions = useMemo(() => {
+    if (!category || !apiIndustries?.length) return [];
+    return apiIndustries
+      .filter((row) => row.business_category === category && row.is_active && row.is_selectable !== false)
+      .map((row) => ({ slug: row.slug, label: row.label, business_category: row.business_category }));
+  }, [category, apiIndustries]);
 
   // Limpiar industria si la categoría cambia y la industria ya no aplica
   useEffect(() => {
@@ -291,9 +332,9 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
             </div>
             {step0Done && industryOptions.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {industryOptions.map(({ slug, label, icon }) => {
+                {industryOptions.map(({ slug, label, business_category: bc }) => {
                   const isActive = selectedIndustry === slug;
-                  const IconComp = INDUSTRY_ICON_MAP[icon] ?? Store;
+                  const IconComp = resolveIndustryIcon(slug, bc);
                   return (
                     <button
                       key={slug}
