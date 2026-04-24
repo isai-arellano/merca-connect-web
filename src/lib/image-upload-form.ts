@@ -68,8 +68,8 @@ export async function uploadBusinessBanner(file: File): Promise<void> {
     await apiClient.uploadForm(endpoints.business.bannerUpload, buildImageFormData(file));
 }
 
-export async function uploadProductImageAppend<TResponse>(productId: string, file: File): Promise<TResponse> {
-    return apiClient.uploadForm<TResponse>(
+export async function uploadProductImageAppend(productId: string, file: File): Promise<{ image_url: string; images: string[] }> {
+    return apiClient.uploadForm<{ image_url: string; images: string[] }>(
         endpoints.products.uploadImage(productId),
         buildImageFormData(file),
     );
