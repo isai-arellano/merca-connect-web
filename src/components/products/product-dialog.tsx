@@ -20,7 +20,7 @@ import {
 } from "@/lib/image-upload-form";
 import { Loader2, Plus, Trash2, X, Upload, ImageIcon } from "lucide-react";
 import useSWR from "swr";
-import { type ApiList, type CategoryOption as ApiCategoryOption, type PlanUsage } from "@/types/api";
+import { type ApiList, type CategoryOption as ApiCategoryOption } from "@/types/api";
 import { useToast } from "@/hooks/use-toast";
 
 export interface ProductDialogProduct {
@@ -197,13 +197,7 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
     const { data: unitsResponse } = useSWR<ApiList<UnitOption>>(open ? endpoints.units.list : null, fetcher);
     const { data: productResponse, isLoading: isLoadingProduct } = useSWR<ProductDialogProduct>(productDetailEndpoint, fetcher);
 
-    const { data: planUsageRaw, error: planUsageError } = useSWR<PlanUsage | { data: PlanUsage }>(open ? endpoints.business.planUsage : null, fetcher);
-    const planUsage: PlanUsage | null =
-        (planUsageRaw as { data: PlanUsage } | null)?.data ?? (planUsageRaw as PlanUsage | null) ?? null;
-    const maxImagesAllowed = planUsage
-        ? (planUsage.effective_product_image_limit ??
-            Math.min(3, Math.max(1, planUsage.product_image_limit)))
-        : 3;
+    const maxImagesAllowed = 3;
 
     const currentProduct: ProductDialogProduct | undefined = productResponse ?? product;
     const categoryOptions: CategoryOption[] = categoriesResponse?.data ?? [];
@@ -286,7 +280,7 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
         if (!isReplace && currentUrls.length >= maxImagesAllowed) {
             toast({
                 title: "Límite alcanzado",
-                description: `Tu plan permite hasta ${maxImagesAllowed} imagen(es) por producto.`,
+                description: `Máximo ${maxImagesAllowed} imágenes por producto.`,
                 variant: "destructive",
             });
             return;
@@ -612,15 +606,10 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
                                 <Label className="text-right pt-2">Imágenes</Label>
                                 <div className="col-span-3 space-y-2">
                                     <p className="text-xs text-muted-foreground">
-                                        Hasta {maxImagesAllowed} imagen(es) según tu plan (máx. 3 en la plataforma). La primera es la principal. En el bucket están bajo{" "}
+                                        Hasta 3 imágenes por producto. La primera es la principal. En el bucket están bajo{" "}
                                         <span className="font-mono text-[10px] break-all">{"{slug}/products/{id}/"}</span>
                                         , no junto al logo.
                                     </p>
-                                    {planUsageError && (
-                                        <p className="text-xs text-amber-700 dark:text-amber-500">
-                                            No se pudo cargar el límite del plan. El servidor seguirá aplicando tu cuota al subir.
-                                        </p>
-                                    )}
                                     {replaceTargetIndex !== null && imageFile && (
                                         <p className="text-xs text-primary">
                                             Sustituyendo la imagen {replaceTargetIndex + 1} (misma posición, nuevo archivo en WebP).
