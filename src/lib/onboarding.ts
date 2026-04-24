@@ -24,33 +24,6 @@ export interface OnboardingSettingsLike {
     };
 }
 
-/** Industrias disponibles por business_category (alineado con TIPOS-NEGOCIOS.md).
- *  `icon` corresponde a un nombre de icono Lucide (se resuelve en DashboardOnboarding). */
-export const INDUSTRIES_BY_CATEGORY: Record<string, ReadonlyArray<{ slug: string; label: string; icon: string }>> = {
-    restaurant: [
-        { slug: "restaurante",  label: "Restaurante",                icon: "UtensilsCrossed" },
-        { slug: "cafeteria",    label: "Cafetería / Panadería",      icon: "Coffee" },
-        { slug: "comida_rapida", label: "Comida rápida / Tacos / Pizza", icon: "ChefHat" },
-    ],
-    physical_store: [
-        { slug: "abarrotera",  label: "Abarrotes / Miscelánea", icon: "ShoppingCart" },
-        { slug: "ferreteria",  label: "Ferretería / Materiales", icon: "Wrench" },
-        { slug: "farmacia",    label: "Farmacia",                icon: "Pill" },
-        { slug: "tienda_ropa", label: "Ropa y accesorios",       icon: "ShoppingBag" },
-    ],
-    online_store: [
-        { slug: "tienda_online", label: "Tienda en línea / E-commerce", icon: "Package" },
-        { slug: "tienda_ropa",   label: "Ropa y accesorios",            icon: "ShoppingBag" },
-    ],
-    field_service: [
-        { slug: "servicios",   label: "Servicios generales",    icon: "Wrench" },
-        { slug: "belleza",     label: "Salón de belleza / Spa", icon: "Scissors" },
-        { slug: "medico",      label: "Consultorio médico",     icon: "Stethoscope" },
-    ],
-    digital_service: [
-        { slug: "tienda_digital", label: "Productos o servicios digitales", icon: "Globe" },
-    ],
-};
 
 export function hasValidBusinessHours(hours: OnboardingSettingsLike["hours"]): boolean {
     if (!hours || typeof hours !== "object") {
