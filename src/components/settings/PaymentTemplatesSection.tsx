@@ -41,6 +41,45 @@ interface StructuredFields {
 
 const EMPTY_FIELDS: StructuredFields = {};
 
+function parseContentToFields(method: string, content: string): StructuredFields {
+    const lines = content.split("\n").map((l) => l.trim());
+    const get = (prefix: string) => {
+        const line = lines.find((l) => l.startsWith(prefix));
+        return line ? line.slice(prefix.length).trim() : "";
+    };
+    if (method === "spei") {
+        const nota = lines
+            .filter((l) => l && !l.startsWith("🏦") && !l.startsWith("━") && !l.startsWith("Banco:") && !l.startsWith("CLABE:") && !l.startsWith("Titular:") && !l.startsWith("Envíanos"))
+            .join(" ").trim();
+        return {
+            banco: get("Banco:"),
+            clabe: get("CLABE:"),
+            titular: get("Titular:"),
+            nota: nota || "",
+        };
+    }
+    if (method === "card") {
+        const nota = lines
+            .filter((l) => l && !l.startsWith("💳") && !l.startsWith("━") && !l.startsWith("Terminal:") && !l.startsWith("Acepta"))
+            .join(" ").trim();
+        return {
+            comercio: get("Terminal:"),
+            nota: nota || "",
+        };
+    }
+    if (method === "cash") {
+        const nota = lines
+            .filter((l) => l && !l.startsWith("💵") && !l.startsWith("━") && !l.startsWith("Dirección:") && !l.startsWith("Horario:"))
+            .join(" ").trim();
+        return {
+            direccion: get("Dirección:"),
+            horario: get("Horario:"),
+            nota: nota || "",
+        };
+    }
+    return {};
+}
+
 function buildContent(method: string, fields: StructuredFields): string {
     if (method === "spei") {
         const lines = [
@@ -104,8 +143,14 @@ export function PaymentTemplatesSection() {
     };
 
     const openEdit = (t: PaymentTemplate) => {
-        setForm({ name: t.name, method: t.method ?? "", content: t.content });
-        setStructuredFields(EMPTY_FIELDS);
+        const method = t.method ?? "";
+        setForm({ name: t.name, method, content: t.content });
+        // Parse el content guardado para pre-llenar los campos estructurados
+        if (method && method !== "other") {
+            setStructuredFields(parseContentToFields(method, t.content));
+        } else {
+            setStructuredFields(EMPTY_FIELDS);
+        }
         setEditingId(t.id);
         setShowForm(true);
     };
