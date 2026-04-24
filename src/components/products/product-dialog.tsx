@@ -295,16 +295,18 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
         }
         setIsUploadingImage(true);
         try {
-            const res = isReplace
-                ? await uploadProductImageReplace<ProductDialogProduct>(
+            if (isReplace) {
+                await uploadProductImageReplace<ProductDialogProduct>(
                     productId,
                     replaceTargetIndex!,
                     imageFile,
-                )
-                : await uploadProductImageAppend<ProductDialogProduct>(productId, imageFile);
+                );
+            } else {
+                await uploadProductImageAppend(productId, imageFile);
+            }
             await mutate(productsEndpoint);
             if (productDetailEndpoint) {
-                await mutate(productDetailEndpoint, res, { revalidate: true });
+                await mutate(productDetailEndpoint, undefined, { revalidate: true });
             }
             setImageFile(null);
             setImagePreview(null);
@@ -481,7 +483,7 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
                 const created = await apiClient.post<ProductDialogProduct>(productsEndpoint, payload);
                 if (imageFile) {
                     try {
-                        await uploadProductImageAppend<ProductDialogProduct>(created.id, imageFile);
+                        await uploadProductImageAppend(created.id, imageFile);
                     } catch (uploadErr: unknown) {
                         let detail = "Abre el producto y súbela desde Imágenes.";
                         if (uploadErr instanceof ApiError && uploadErr.message) {
