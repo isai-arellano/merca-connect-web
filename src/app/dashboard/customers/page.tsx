@@ -13,9 +13,10 @@ import { endpoints } from "@/lib/api";
 import { fetcher } from "@/lib/api-client";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { getSessionBusinessPhoneId } from "@/lib/business";
+import { getSessionBusinessId } from "@/lib/business";
 import { CustomerDialog, type Customer } from "@/components/customers/customer-dialog";
 import { type ApiList } from "@/types/api";
+import { formatPhoneDisplay } from "@/lib/phoneUtils";
 
 const TAG_COLORS: Record<string, string> = {
     VIP: "bg-yellow-100 text-yellow-800 border-yellow-200",
@@ -40,10 +41,10 @@ export default function CustomersPage() {
     const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
     const [dialogOpen, setDialogOpen] = useState(false);
 
-    const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
+    const sessionBusinessId = getSessionBusinessId(session);
 
     const { data: response, isLoading, mutate } = useSWR<ApiList<Customer>>(
-        session && sessionBusinessPhoneId ? endpoints.customers.list : null,
+        session && sessionBusinessId ? endpoints.customers.list : null,
         fetcher
     );
 
@@ -126,7 +127,7 @@ export default function CustomersPage() {
                                         {customer.name || <span className="text-muted-foreground italic">Sin nombre</span>}
                                     </TableCell>
                                     <TableCell className="text-muted-foreground">
-                                        +{customer.phone_number}
+                                        {formatPhoneDisplay(customer.phone_number)}
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex flex-wrap gap-1">

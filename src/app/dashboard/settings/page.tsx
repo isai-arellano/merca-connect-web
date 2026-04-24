@@ -26,12 +26,14 @@ import {
   Instagram,
   Facebook,
   AtSign,
+  Lock,
+  AlertTriangle,
+  Link2,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher, ApiError, NetworkError } from "@/lib/api-client";
-import { type WhatsAppProfile, type BusinessSettings, type DashboardStats } from "@/types/api";
-import { getSessionBusinessPhoneId } from "@/lib/business";
+import { type WhatsAppProfile, type BusinessSettings, type DashboardStats, type SignupStatus } from "@/types/api";
 import { computeOnboardingState } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
 import { AgentTab } from "@/components/settings/AgentTab";
@@ -49,8 +51,26 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FALLBACK_INDUSTRIES, FLAT_INDUSTRY_SLUGS_ORDER } from "@/config/industries";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  FALLBACK_INDUSTRIES,
+  FLAT_INDUSTRY_SLUGS_ORDER,
+  BUSINESS_CATEGORIES,
+  isIndustryEligibleForBusinessType,
+  catalogModuleLower,
+  catalogModuleTitle,
+  getIndustryConfig,
+  pluralProductLabel,
+} from "@/config/industries";
 import { useIndustries } from "@/hooks/useIndustries";
 
 const COUNTRY_CODE_MX = "+52";
@@ -59,6 +79,26 @@ interface BusinessFormErrors {
   name?: string;
   type?: string;
   hours?: string;
+}
+
+const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+function slugifyInput(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100);
+}
+
+function validateSlug(slug: string): string | null {
+  if (!slug) return null; // vacío es válido (se auto-genera)
+  if (slug.length < 3) return "El slug debe tener al menos 3 caracteres.";
+  if (slug.length > 100) return "El slug debe tener máximo 100 caracteres.";
+  if (!SLUG_RE.test(slug)) return "Solo letras minúsculas, números y guiones. Sin espacios ni caracteres especiales.";
+  return null;
 }
 
 function getPhoneDigits(value: string): string {
@@ -105,7 +145,6 @@ function isSettingsTabValue(v: string | null): v is SettingsTabValue {
 
 function SettingsPageInner() {
   const { data: session } = useSession();
-  const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
@@ -142,12 +181,22 @@ function SettingsPageInner() {
     isLoading: waLoading,
     mutate: mutateWaProfile,
   } = useSWR<WhatsAppProfile | { data: WhatsAppProfile }>(
-    session
-      && sessionBusinessPhoneId
-      ? endpoints.business.whatsappProfile
-      : null,
+    session ? endpoints.business.whatsappProfile : null,
     fetcher
   );
+
+  const { data: signupStatusRes } = useSWR<SignupStatus | { data: SignupStatus }>(
+    session ? endpoints.business.whatsappSignupStatus : null,
+    fetcher,
+  );
+  const signupStatus: SignupStatus = useMemo(
+    () =>
+      (signupStatusRes as { data: SignupStatus } | null)?.data ??
+      (signupStatusRes as SignupStatus | null) ??
+      { connected: false },
+    [signupStatusRes]
+  );
+
 
   const settings: BusinessSettings = useMemo(
     () =>
@@ -174,9 +223,9 @@ function SettingsPageInner() {
       computeOnboardingState({
         settings,
         activeProducts: statsRaw?.active_products ?? 0,
-        hasWhatsAppSession: Boolean(sessionBusinessPhoneId),
+        hasWhatsAppConnected: signupStatus.connected === true,
       }),
-    [settings, statsRaw?.active_products, sessionBusinessPhoneId],
+    [settings, statsRaw?.active_products, signupStatus.connected],
   );
 
   const canUseConnectTab = onboardingState.canStartWhatsApp;
@@ -246,11 +295,19 @@ function SettingsPageInner() {
     router.replace(`${pathname}?tab=${value}`, { scroll: false });
   };
 
-  const { orderedRows } = useIndustries();
+  const { orderedRows, industriesMap } = useIndustries();
+
+  const industryConfig = useMemo(
+    () => getIndustryConfig(settings.type, industriesMap),
+    [settings.type, industriesMap],
+  );
+  const moduleTitle = catalogModuleTitle(industryConfig);
+  const moduleLower = catalogModuleLower(industryConfig);
+  const itemsPluralLower = pluralProductLabel(industryConfig.productLabel).toLowerCase();
   const industrySelectOptions = useMemo(() => {
     if (orderedRows?.length) {
       return orderedRows
-        .filter((r) => r.is_active && r.is_selectable !== false)
+        .filter(isIndustryEligibleForBusinessType)
         .map((r) => ({ value: r.slug, label: r.label }));
     }
     return FLAT_INDUSTRY_SLUGS_ORDER.filter((slug) => FALLBACK_INDUSTRIES[slug]).map((value) => ({
@@ -266,7 +323,9 @@ function SettingsPageInner() {
     address: "",
     phone: "",
     description: "",
+    slug: "",
   });
+  const [slugError, setSlugError] = useState<string | null>(null);
 
   // Social links state
   const [socialForm, setSocialForm] = useState({
@@ -280,9 +339,13 @@ function SettingsPageInner() {
 
   const PAYMENT_OPTIONS = ["Efectivo", "Transferencia SPEI", "Tarjeta débito", "Tarjeta crédito"];
   const [paymentMethods, setPaymentMethods] = useState<string[]>([]);
+  const [fulfillmentOptions, setFulfillmentOptions] = useState<string[]>(["delivery", "pickup"]);
   const [deliveryZone, setDeliveryZone] = useState("");
   const [contactPhoneNumber, setContactPhoneNumber] = useState("");
   const [allowOrdersOutsideHours, setAllowOrdersOutsideHours] = useState(false);
+
+  // Modal de advertencia por cambio de vista (catalogo ↔ menu)
+  const [industryWarning, setIndustryWarning] = useState<{ pendingType: string; pendingLabel: string } | null>(null);
 
   // WhatsApp form state
   const [waForm, setWaForm] = useState({
@@ -300,6 +363,7 @@ function SettingsPageInner() {
         address: settings.address || "",
         phone: settings.phone || "",
         description: settings.description || "",
+        slug: settings.slug || "",
       });
       if (settings.hours && typeof settings.hours === "object") {
         setWeekSchedule({ ...EMPTY_WEEK_SCHEDULE, ...settings.hours });
@@ -307,6 +371,9 @@ function SettingsPageInner() {
       const cfg = settings.config || {};
       if (Array.isArray(cfg.payment_methods)) {
         setPaymentMethods(cfg.payment_methods);
+      }
+      if (Array.isArray(cfg.fulfillment_options) && cfg.fulfillment_options.length > 0) {
+        setFulfillmentOptions(cfg.fulfillment_options);
       }
       if (cfg.delivery_zone) {
         setDeliveryZone(cfg.delivery_zone);
@@ -336,10 +403,36 @@ function SettingsPageInner() {
     }
   }, [waProfile]);
 
+  /** Intercepta cambio de industria: si cambia el view (catalogo↔menu), muestra advertencia. */
+  function handleTypeChange(val: string) {
+    const currentView = getIndustryConfig(settings.type, industriesMap).view;
+    const newView = getIndustryConfig(val, industriesMap).view;
+    if (settings.type && val !== settings.type && currentView !== newView) {
+      const newLabel = industrySelectOptions.find((o) => o.value === val)?.label ?? val;
+      setIndustryWarning({ pendingType: val, pendingLabel: newLabel });
+    } else {
+      setBusinessForm((prev) => ({ ...prev, type: val }));
+    }
+  }
+
+  function confirmIndustryChange() {
+    if (!industryWarning) return;
+    setBusinessForm((prev) => ({ ...prev, type: industryWarning.pendingType }));
+    setIndustryWarning(null);
+  }
+
   const handleSaveSettings = async () => {
     const nextErrors: BusinessFormErrors = {};
     const trimmedName = businessForm.name.trim();
     const trimmedType = businessForm.type.trim();
+    const trimmedSlug = businessForm.slug.trim();
+    const slugValidErr = validateSlug(trimmedSlug);
+    if (slugValidErr) {
+      setSlugError(slugValidErr);
+      toast({ title: "Slug inválido", description: slugValidErr, variant: "destructive" });
+      return;
+    }
+    setSlugError(null);
     const hasAtLeastOneOpenDay = Object.values(weekSchedule).some((day) => day.open); // para validar horas incompletas si hay días activos
 
     if (!trimmedName) {
@@ -371,10 +464,12 @@ function SettingsPageInner() {
           ...businessForm,
           name: trimmedName,
           type: trimmedType,
+          slug: trimmedSlug || undefined,
           phone: buildPhoneForApi(contactPhoneNumber),
           hours: weekSchedule,
           config: {
             payment_methods: paymentMethods,
+            fulfillment_options: fulfillmentOptions,
             delivery_zone: deliveryZone.trim() || null,
           },
           allow_orders_outside_hours: allowOrdersOutsideHours,
@@ -397,7 +492,6 @@ function SettingsPageInner() {
         description: "Los datos del negocio se actualizaron correctamente.",
       });
     } catch (error: unknown) {
-      console.error("Error al guardar configuración:", error);
       if (error instanceof NetworkError) {
         setSaveError(error.message);
         toast({
@@ -448,7 +542,6 @@ function SettingsPageInner() {
         description: "El perfil de WhatsApp se actualizó correctamente.",
       });
     } catch (error) {
-      console.error("Error al guardar perfil de WhatsApp:", error);
       setSaveError("No se pudo guardar el perfil de WhatsApp. Inténtalo de nuevo.");
       toast({
         title: "Error al guardar",
@@ -606,6 +699,36 @@ function SettingsPageInner() {
                           )}
                         </div>
 
+                        {/* Categoría de negocio — readonly después de completar onboarding */}
+                        {settings.business_category && (
+                          <div className="space-y-2">
+                            <Label className="flex items-center gap-2">
+                              <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
+                              Categoría de negocio
+                              {onboardingState.allComplete && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 border border-border/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                  <Lock className="h-3 w-3" />
+                                  Fija
+                                </span>
+                              )}
+                            </Label>
+                            <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                              <span className="text-sm font-medium text-foreground">
+                                {BUSINESS_CATEGORIES.find(c => c.value === settings.business_category)?.label ?? settings.business_category}
+                              </span>
+                              {onboardingState.allComplete ? (
+                                <p className="ml-auto text-xs text-muted-foreground">
+                                  Para cambiarla contacta a soporte.
+                                </p>
+                              ) : (
+                                <p className="ml-auto text-xs text-muted-foreground">
+                                  Cámbiala en el onboarding.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         <div className="space-y-2">
                           <Label className="flex items-center gap-2">
                             <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
@@ -613,33 +736,50 @@ function SettingsPageInner() {
                             <span className="text-destructive" aria-hidden>
                               *
                             </span>
+                            {onboardingState.allComplete && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 border border-border/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                <Lock className="h-3 w-3" />
+                                Fija
+                              </span>
+                            )}
                           </Label>
-                          <Select
-                            value={businessForm.type}
-                            onValueChange={(val) =>
-                              setBusinessForm((prev) => ({ ...prev, type: val }))
-                            }
-                          >
-                            <SelectTrigger className={formErrors.type ? "border-destructive focus-visible:ring-destructive" : ""}>
-                              <SelectValue placeholder="Selecciona tu industria" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {industrySelectOptions.map(({ value, label }) => (
-                                <SelectItem key={value} value={value}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {onboardingState.allComplete ? (
+                            <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                              <span className="text-sm font-medium text-foreground">
+                                {industrySelectOptions.find(o => o.value === businessForm.type)?.label ?? businessForm.type}
+                              </span>
+                              <p className="ml-auto text-xs text-muted-foreground">
+                                Para cambiarla contacta a soporte.
+                              </p>
+                            </div>
+                          ) : (
+                            <Select
+                              value={businessForm.type}
+                              onValueChange={handleTypeChange}
+                            >
+                              <SelectTrigger className={formErrors.type ? "border-destructive focus-visible:ring-destructive" : ""}>
+                                <SelectValue placeholder="Selecciona tu industria" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {industrySelectOptions.map(({ value, label }) => (
+                                  <SelectItem key={value} value={value}>
+                                    {label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                           {formErrors.type && (
                             <p className="text-xs text-destructive flex items-center gap-1.5">
                               <AlertCircle className="h-3.5 w-3.5" />
                               {formErrors.type}
                             </p>
                           )}
-                          <p className="text-xs text-muted-foreground">
-                            Define el giro para adaptar formularios de productos y unidades.
-                          </p>
+                          {!onboardingState.allComplete && (
+                            <p className="text-xs text-muted-foreground">
+                              Define el giro para adaptar formularios de {itemsPluralLower} y unidades.
+                            </p>
+                          )}
                         </div>
 
                         <div className="space-y-2">
@@ -712,23 +852,18 @@ function SettingsPageInner() {
                               {formErrors.hours}
                             </p>
                           )}
-                          <div className="mt-3">
-                            <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-amber-50/40 px-3 py-2.5">
-                              <Checkbox
-                                id="allow-orders-outside-hours"
-                                checked={allowOrdersOutsideHours}
-                                onCheckedChange={(v) => setAllowOrdersOutsideHours(!!v)}
-                                className="mt-0.5"
-                              />
-                              <div className="space-y-0.5">
-                                <label htmlFor="allow-orders-outside-hours" className="text-sm font-medium cursor-pointer leading-tight">
-                                  Levantar pedidos fuera de horario
-                                </label>
-                                <p className="text-xs text-muted-foreground leading-snug">
-                                  Si está desactivado, el agente se apaga automáticamente fuera del horario configurado. Actívalo para que siga atendiendo aunque el negocio esté cerrado.
-                                </p>
-                              </div>
+                          <div className="mt-3 flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                            <div className="space-y-0.5">
+                              <p className="text-sm font-medium">Atender fuera de horario</p>
+                              <p className="text-xs text-muted-foreground leading-snug">
+                                Si está activo, el agente seguirá respondiendo aunque el negocio esté cerrado.
+                              </p>
                             </div>
+                            <Switch
+                              checked={allowOrdersOutsideHours}
+                              onCheckedChange={setAllowOrdersOutsideHours}
+                              aria-label="Atender fuera de horario"
+                            />
                           </div>
                         </div>
 
@@ -749,6 +884,44 @@ function SettingsPageInner() {
                             placeholder="Describe tu negocio brevemente..."
                             rows={3}
                           />
+                        </div>
+
+                        {/* Slug del catálogo público */}
+                        <div className="space-y-2">
+                          <Label htmlFor="biz-slug" className="flex items-center gap-2">
+                            <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
+                            Slug del catálogo público
+                            <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
+                          </Label>
+                          <div className="flex items-center gap-0 rounded-lg border border-border/80 overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1">
+                            <span className="bg-muted/50 px-3 py-2 text-xs text-muted-foreground select-none border-r border-border/60">
+                              /c/
+                            </span>
+                            <input
+                              id="biz-slug"
+                              type="text"
+                              value={businessForm.slug}
+                              onChange={(e) => {
+                                const raw = slugifyInput(e.target.value);
+                                setBusinessForm((prev) => ({ ...prev, slug: raw }));
+                                setSlugError(validateSlug(raw));
+                              }}
+                              placeholder="mi-negocio"
+                              className="flex-1 bg-transparent px-3 py-2 text-sm outline-none"
+                            />
+                          </div>
+                          {slugError ? (
+                            <p className="text-xs text-destructive flex items-center gap-1.5">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              {slugError}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">
+                              {businessForm.slug
+                                ? <>URL pública: <span className="font-mono text-foreground">/c/{businessForm.slug}</span></>
+                                : "Si lo dejas vacío, se genera automáticamente desde el nombre del negocio."}
+                            </p>
+                          )}
                         </div>
 
                         <Separator />
@@ -790,6 +963,39 @@ function SettingsPageInner() {
                         {/* Plantillas de pago */}
                         <PaymentTemplatesSection />
 
+                        {/* Opciones de entrega */}
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-2">
+                            <Truck className="h-3.5 w-3.5 text-muted-foreground" />
+                            Opciones de entrega
+                          </Label>
+                          <p className="text-xs text-muted-foreground">
+                            El agente solo ofrecerá las opciones que habilites aquí.
+                          </p>
+                          <div className="flex flex-col gap-2">
+                            {[
+                              { value: "delivery", label: "Entrega a domicilio" },
+                              { value: "pickup", label: "Recoger en tienda" },
+                            ].map(({ value, label }) => (
+                              <label key={value} className="flex items-center gap-2 cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  className="h-4 w-4 rounded border-input accent-primary"
+                                  checked={fulfillmentOptions.includes(value)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setFulfillmentOptions((prev) => [...prev, value]);
+                                    } else {
+                                      setFulfillmentOptions((prev) => prev.filter((v) => v !== value));
+                                    }
+                                  }}
+                                />
+                                <span className="text-sm">{label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
                         {/* Zona de entrega */}
                         <div className="space-y-2">
                           <Label htmlFor="delivery-zone" className="flex items-center gap-2">
@@ -818,7 +1024,7 @@ function SettingsPageInner() {
                               <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
                             </Label>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              Se mostrarán en el catálogo público de tu negocio.
+                              Se mostrarán en el {moduleLower} público de tu negocio.
                             </p>
                           </div>
                           <div className="grid gap-3 sm:grid-cols-2">
@@ -1149,6 +1355,31 @@ function SettingsPageInner() {
             </TabsContent>
         </Tabs>
       </motion.div>
+
+      {/* Modal de advertencia: cambio de industria con distinto view (catalogo ↔ menu) */}
+      <Dialog open={!!industryWarning} onOpenChange={(open) => { if (!open) setIndustryWarning(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Cambio de tipo de catálogo
+            </DialogTitle>
+            <DialogDescription className="text-sm leading-relaxed">
+              Estás cambiando a <strong>{industryWarning?.pendingLabel}</strong>, que usa una vista diferente a la actual.
+              <br /><br />
+              Tus productos y categorías <strong>no se borrarán</strong>, pero la vista pública cambiará entre &ldquo;Catálogo&rdquo; y &ldquo;Menú&rdquo;. Puedes ajustar tus productos después.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setIndustryWarning(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={confirmIndustryChange}>
+              Sí, cambiar industria
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import useSWR from "swr";
-import { Bot, Loader2 } from "lucide-react";
+import { Bot, Loader2, MessageSquare, Save } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
-import { getSessionBusinessContext } from "@/lib/business";
+import { getSessionBusinessId } from "@/lib/business";
 import { useToast } from "@/hooks/use-toast";
 import {
   Card,
@@ -17,11 +17,17 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useSession } from "next-auth/react";
+import { KnowledgeSection } from "@/components/settings/KnowledgeSection";
+
+const WELCOME_MAX_CHARS = 300;
 
 interface BusinessSettings {
   config?: {
     agent_enabled?: boolean;
+    welcome_message?: string;
   };
 }
 
@@ -77,21 +83,51 @@ function ToggleSwitch({
 
 export function AgentTab() {
   const { data: session } = useSession();
-  const { businessPhoneId: sessionBusinessPhoneId } = getSessionBusinessContext(session);
+  const sessionBusinessId = getSessionBusinessId(session);
   const { toast } = useToast();
   const [toggling, setToggling] = useState(false);
+  const [welcomeMessage, setWelcomeMessage] = useState("");
+  const [savingWelcome, setSavingWelcome] = useState(false);
 
   const {
     data: settingsRes,
     isLoading: settingsLoading,
     mutate: mutateSettings,
   } = useSWR<SettingsResponse>(
-    sessionBusinessPhoneId ? endpoints.business.settings : null,
+    sessionBusinessId ? endpoints.business.settings : null,
     fetcher
   );
 
   const settings = normalizeBusinessSettings(settingsRes);
   const agentEnabled: boolean = settings?.config?.agent_enabled ?? false;
+
+  useEffect(() => {
+    const saved = settings?.config?.welcome_message;
+    if (saved !== undefined) {
+      setWelcomeMessage(saved ?? "");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings?.config?.welcome_message]);
+
+  const handleSaveWelcome = async () => {
+    if (savingWelcome) return;
+    setSavingWelcome(true);
+    try {
+      await apiClient.patch(endpoints.business.agentConfig, {
+        welcome_message: welcomeMessage.trim() || null,
+      });
+      mutateSettings();
+      toast({ title: "Mensaje de bienvenida guardado" });
+    } catch {
+      toast({
+        title: "Error al guardar",
+        description: "No se pudo actualizar el mensaje. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingWelcome(false);
+    }
+  };
 
   const handleToggle = async () => {
     if (toggling) return;
@@ -134,41 +170,99 @@ export function AgentTab() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Bot className="h-5 w-5 text-emerald-500" />
-          Agente IA
-        </CardTitle>
-        <CardDescription>
-          Activa el agente de inteligencia artificial para atender conversaciones automáticamente.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {settingsLoading ? (
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-6 w-11 rounded-full" />
-            <Skeleton className="h-4 w-40" />
-          </div>
-        ) : (
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label className="text-base">
-                {agentEnabled ? "Activo" : "Inactivo"}
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                {agentEnabled
-                  ? "El agente IA está respondiendo conversaciones."
-                  : "Las conversaciones se atienden manualmente."}
+    <div className="space-y-8">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bot className="h-5 w-5 text-emerald-500" />
+            Agente IA
+          </CardTitle>
+          <CardDescription>
+            Activa el agente de inteligencia artificial para atender conversaciones automáticamente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {settingsLoading ? (
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-6 w-11 rounded-full" />
+              <Skeleton className="h-4 w-40" />
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-base">
+                  {agentEnabled ? "Activo" : "Inactivo"}
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  {agentEnabled
+                    ? "El agente IA está respondiendo conversaciones."
+                    : "Las conversaciones se atienden manualmente."}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {toggling && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                <ToggleSwitch checked={agentEnabled} onToggle={handleToggle} disabled={toggling} />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Mensaje de bienvenida */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-emerald-500" />
+            Mensaje de bienvenida
+          </CardTitle>
+          <CardDescription>
+            El texto que el agente envía al cliente cuando inicia una nueva conversación.
+            Si lo dejas vacío, usará el saludo predeterminado.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {settingsLoading ? (
+            <Skeleton className="h-20 w-full" />
+          ) : (
+            <>
+              <div className="relative">
+                <Textarea
+                  placeholder="Ej: Hola, bienvenido a Las Burguers. ¿En qué te puedo ayudar?"
+                  value={welcomeMessage}
+                  onChange={(e) => {
+                    if (e.target.value.length <= WELCOME_MAX_CHARS) {
+                      setWelcomeMessage(e.target.value);
+                    }
+                  }}
+                  rows={3}
+                  className="resize-none pr-2"
+                />
+                <span className="absolute bottom-2 right-3 text-xs text-muted-foreground">
+                  {welcomeMessage.length}/{WELCOME_MAX_CHARS}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Sin emojis — el agente los ignorará de todas formas. Mantén el mensaje corto y natural.
               </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {toggling && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-              <ToggleSwitch checked={agentEnabled} onToggle={handleToggle} disabled={toggling} />
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              <Button
+                size="sm"
+                onClick={handleSaveWelcome}
+                disabled={savingWelcome}
+                className="gap-1.5"
+              >
+                {savingWelcome ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                Guardar mensaje
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <KnowledgeSection />
+    </div>
   );
 }

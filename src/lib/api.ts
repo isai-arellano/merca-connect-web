@@ -1,12 +1,21 @@
+/**
+ * URL del API en el **navegador** (panel, SWR, etc.). En desarrollo local, usa el API
+ * en tu máquina para evitar CORS y depurar sin depender del entorno remoto:
+ * `NEXT_PUBLIC_API_URL=http://localhost:8001` en `.env.local`.
+ * Si apuntas a dev/prod (`https://dev-api…`) desde `http://localhost:3000`, el servidor
+ * remoto debe incluir `http://localhost:3000` (y `http://127.0.0.1:3000`) en
+ * `CORS_ALLOWED_ORIGINS`; un **500** sin respuesta CORS suele mostrarse en consola como error de CORS.
+ */
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+export const CLIENT_BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID || "local-dev";
 
-function withBusinessPhoneId(path: string, businessPhoneId?: string | null) {
-    if (!businessPhoneId) {
-        return path;
-    }
-
-    const separator = path.includes("?") ? "&" : "?";
-    return `${path}${separator}business_phone_id=${encodeURIComponent(businessPhoneId)}`;
+/**
+ * URL base del API para fetch en el servidor (páginas públicas de catálogo/menú).
+ * En Docker u otros despliegues, el servidor Next puede necesitar un host distinto al del navegador.
+ * Prioridad: API_URL (solo servidor) → NEXT_PUBLIC_API_URL → localhost.
+ */
+export function getServerApiBaseUrl(): string {
+    return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 }
 
 export const endpoints = {
@@ -15,9 +24,8 @@ export const endpoints = {
         changePassword: `${API_URL}/api/v1/auth/change-password`,
     },
     categories: {
-        list: (businessPhoneId: string) => withBusinessPhoneId(`${API_URL}/api/v1/categories`, businessPhoneId),
-        create: (businessPhoneId: string) =>
-            withBusinessPhoneId(`${API_URL}/api/v1/categories`, businessPhoneId),
+        list: `${API_URL}/api/v1/categories`,
+        create: `${API_URL}/api/v1/categories`,
         delete: (id: string) => `${API_URL}/api/v1/categories/${id}`,
     },
     catalog: {
@@ -34,11 +42,19 @@ export const endpoints = {
             `${API_URL}/api/v1/admin/plan-definitions/${encodeURIComponent(planKey)}`,
     },
     products: {
-        list: (businessPhoneId: string, includeInactive = false) => withBusinessPhoneId(`${API_URL}/api/v1/products${includeInactive ? "?include_inactive=true" : ""}`, businessPhoneId),
-        detail: (id: string, businessPhoneId?: string | null) => withBusinessPhoneId(`${API_URL}/api/v1/products/${id}`, businessPhoneId),
+        list: (includeInactive = false) =>
+            includeInactive
+                ? `${API_URL}/api/v1/products?include_inactive=true`
+                : `${API_URL}/api/v1/products`,
+        detail: (id: string) => `${API_URL}/api/v1/products/${id}`,
         disable: (id: string) => `${API_URL}/api/v1/products/${id}`,
         hardDelete: (id: string) => `${API_URL}/api/v1/products/${id}/permanent`,
         uploadImage: (id: string) => `${API_URL}/api/v1/products/${id}/image`,
+        /** Misma ruta: PUT reemplaza, DELETE quita. */
+        productImageAtIndex: (id: string, imageIndex: number) =>
+            `${API_URL}/api/v1/products/${id}/image/${imageIndex}`,
+        deleteImage: (id: string, imageIndex: number) =>
+            `${API_URL}/api/v1/products/${id}/image/${imageIndex}`,
     },
     units: {
         list: `${API_URL}/api/v1/units`,
@@ -81,10 +97,13 @@ export const endpoints = {
     business: {
         settings: `${API_URL}/api/v1/business/settings`,
         logoUpload: `${API_URL}/api/v1/business/logo`,
+        bannerUpload: `${API_URL}/api/v1/business/banner`,
         whatsappProfile: `${API_URL}/api/v1/business/whatsapp-profile`,
         agentToggle: `${API_URL}/api/v1/business/agent-toggle`,
+        agentConfig: `${API_URL}/api/v1/business/agent-config`,
         whatsappSignupComplete: `${API_URL}/api/v1/business/whatsapp-signup/complete`,
         whatsappSignupStatus: `${API_URL}/api/v1/business/whatsapp-signup/status`,
+        whatsappDisconnect: `${API_URL}/api/v1/business/whatsapp-signup/disconnect`,
         planUsage: `${API_URL}/api/v1/business/plan/usage`,
         planAllowExtra: `${API_URL}/api/v1/business/plan/allow-extra`,
     },

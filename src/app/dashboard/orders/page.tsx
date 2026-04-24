@@ -5,9 +5,11 @@ import useSWR from "swr";
 import { format, formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { endpoints } from "@/lib/api";
-import { apiClient } from "@/lib/api-client";
-import { getSessionBusinessPhoneId } from "@/lib/business";
-import { type ApiList } from "@/types/api";
+import { apiClient, fetcher } from "@/lib/api-client";
+import { getSessionBusinessId } from "@/lib/business";
+import { type ApiList, type BusinessSettings } from "@/types/api";
+import { getIndustryConfig, pluralProductLabel } from "@/config/industries";
+import { useIndustries } from "@/hooks/useIndustries";
 import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -59,6 +61,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
+import { formatPhoneDisplay } from "@/lib/phoneUtils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -80,6 +83,7 @@ interface Customer {
 
 interface Order {
   id: string;
+  order_number?: string;
   status: string;
   total: number;
   delivery_address?: string;
@@ -179,8 +183,63 @@ function shortId(id: string) {
   return id.split("-")[0].toUpperCase();
 }
 
+function orderLabel(order: Order) {
+  return order.order_number ?? shortId(order.id);
+}
+
+const FULFILLMENT_LABELS: Record<string, string> = {
+  delivery: "Entrega a domicilio",
+  pickup: "Recoger en tienda",
+};
+const PAYMENT_LABELS: Record<string, string> = {
+  pendiente: "Por definir",
+  efectivo: "Efectivo",
+  transferencia: "Transferencia",
+  spei: "Transferencia SPEI",
+  tarjeta: "Tarjeta",
+};
+
+function parseOrderNotes(raw: string): { label: string; value: string }[] {
+  const knownKeys: Record<string, string> = {
+    fulfillment_type: "Tipo de entrega",
+    payment_method: "Método de pago",
+    checkout_source: "Origen",
+    delivery_address: "Dirección",
+  };
+  const sourceLabels: Record<string, string> = {
+    chat: "Chat con agente",
+    whatsapp_flow: "WhatsApp Flow",
+  };
+
+  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+  const parsed: { label: string; value: string }[] = [];
+  const usedKeys = new Set<string>();
+
+  for (const line of lines) {
+    const eqIdx = line.indexOf("=");
+    if (eqIdx === -1) {
+      // línea libre sin clave=valor — mostrarla como nota
+      parsed.push({ label: "Nota", value: line });
+      continue;
+    }
+    const key = line.slice(0, eqIdx).trim();
+    const val = line.slice(eqIdx + 1).trim();
+    if (!knownKeys[key]) {
+      parsed.push({ label: key, value: val });
+      continue;
+    }
+    usedKeys.add(key);
+    let display = val;
+    if (key === "fulfillment_type") display = FULFILLMENT_LABELS[val] ?? val;
+    if (key === "payment_method") display = PAYMENT_LABELS[val.toLowerCase()] ?? val;
+    if (key === "checkout_source") display = sourceLabels[val] ?? val;
+    parsed.push({ label: knownKeys[key], value: display });
+  }
+  return parsed;
+}
+
 function customerDisplay(order: Order) {
-  return order.customer?.name || order.customer?.phone_number || "Cliente";
+  return order.customer?.name || formatPhoneDisplay(order.customer?.phone_number) || "Cliente";
 }
 
 function timeAgo(dateStr: string) {
@@ -237,10 +296,14 @@ function OrderCard({
   order,
   onStatusChange,
   onClick,
+  productLabel,
+  itemsPluralLower,
 }: {
   order: Order;
   onStatusChange: (id: string, status: string) => void;
   onClick: (order: Order) => void;
+  productLabel: string;
+  itemsPluralLower: string;
 }) {
   const itemCount = order.items?.length || 0;
 
@@ -259,7 +322,7 @@ function OrderCard({
         <CardHeader className="p-3 pb-2">
           <div className="flex justify-between items-start">
             <CardTitle className="text-sm font-bold tracking-wide text-[#1A3E35]">
-              #{shortId(order.id)}
+              #{orderLabel(order)}
             </CardTitle>
             <span className="text-[10px] text-muted-foreground flex items-center gap-1">
               <Clock className="h-3 w-3" />
@@ -276,7 +339,8 @@ function OrderCard({
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <ShoppingCart className="h-3 w-3" />
-              {itemCount} {itemCount === 1 ? "producto" : "productos"}
+              {itemCount}{" "}
+              {itemCount === 1 ? productLabel.toLowerCase() : itemsPluralLower}
             </span>
             <span className="font-bold text-sm text-foreground">
               {formatMXN(order.total)}
@@ -292,11 +356,19 @@ function OrderCard({
           )}
 
           {/* Notes */}
-          {order.notes && (
-            <p className="text-[11px] text-amber-800 dark:text-amber-200 bg-amber-500/10 p-1.5 rounded border border-amber-500/20 line-clamp-2">
-              {order.notes}
-            </p>
-          )}
+          {order.notes && (() => {
+            const rows = parseOrderNotes(order.notes!);
+            if (rows.length === 0) return null;
+            return (
+              <div className="text-[11px] text-amber-800 dark:text-amber-200 bg-amber-500/10 p-1.5 rounded border border-amber-500/20 space-y-0.5">
+                {rows.map((r) => (
+                  <div key={r.label}>
+                    <span className="font-semibold">{r.label}:</span> {r.value}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
 
           {/* Status change dropdown */}
           <div onClick={(e) => e.stopPropagation()}>
@@ -331,11 +403,15 @@ function OrderDetailDialog({
   open,
   onOpenChange,
   onStatusChange,
+  itemsPlural,
+  productLabel,
 }: {
   order: Order | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onStatusChange: (id: string, status: string) => void;
+  itemsPlural: string;
+  productLabel: string;
 }) {
   if (!order) return null;
 
@@ -346,7 +422,7 @@ function OrderDetailDialog({
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#1A3E35]">
-            Pedido #{shortId(order.id)}
+            Pedido #{orderLabel(order)}
             {status && (
               <Badge className={status.badgeClass}>{status.label}</Badge>
             )}
@@ -362,7 +438,7 @@ function OrderDetailDialog({
           <p className="text-sm">{order.customer?.name || "Sin nombre"}</p>
           {order.customer?.phone_number && (
             <p className="text-xs text-muted-foreground">
-              {order.customer.phone_number}
+              {formatPhoneDisplay(order.customer.phone_number)}
             </p>
           )}
         </div>
@@ -384,12 +460,12 @@ function OrderDetailDialog({
 
         {/* Items */}
         <div className="space-y-2">
-          <h4 className="text-sm font-semibold text-foreground">Productos</h4>
+          <h4 className="text-sm font-semibold text-foreground">{itemsPlural}</h4>
           <div className="bg-muted/40 rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-xs">Producto</TableHead>
+                  <TableHead className="text-xs">{productLabel}</TableHead>
                   <TableHead className="text-xs text-center">Cant.</TableHead>
                   <TableHead className="text-xs text-right">
                     P. Unit.
@@ -428,14 +504,22 @@ function OrderDetailDialog({
         </div>
 
         {/* Notes */}
-        {order.notes && (
-          <div className="space-y-1">
-            <h4 className="text-sm font-semibold text-foreground">Notas</h4>
-            <p className="text-sm text-muted-foreground bg-amber-500/10 border border-amber-500/20 rounded p-2">
-              {order.notes}
-            </p>
-          </div>
-        )}
+        {order.notes && (() => {
+          const rows = parseOrderNotes(order.notes!);
+          return (
+            <div className="space-y-1">
+              <h4 className="text-sm font-semibold text-foreground">Detalles del pedido</h4>
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded p-2 space-y-1">
+                {rows.map((r, i) => (
+                  <div key={i} className="flex gap-2 text-sm">
+                    <span className="text-muted-foreground shrink-0">{r.label}:</span>
+                    <span className="text-foreground">{r.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Dates */}
         <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -524,12 +608,14 @@ function OrdersTableView({
   onOrderClick,
   sortKey,
   onSort,
+  itemsPlural,
 }: {
   orders: Order[];
   onStatusChange: (id: string, status: string) => void;
   onOrderClick: (order: Order) => void;
   sortKey: string;
   onSort: (key: string) => void;
+  itemsPlural: string;
 }) {
   return (
     <div className="flex-1 overflow-auto rounded-2xl border border-border/60 bg-background">
@@ -544,7 +630,7 @@ function OrdersTableView({
                 Total
               </SortButton>
             </TableHead>
-            <TableHead>Items</TableHead>
+            <TableHead>{itemsPlural}</TableHead>
             <TableHead>Estado</TableHead>
             <TableHead>
               <SortButton field="date" activeField={sortKey} onSort={onSort}>
@@ -574,7 +660,7 @@ function OrdersTableView({
                 onClick={() => onOrderClick(order)}
               >
                 <TableCell className="font-mono font-bold text-sm text-[#1A3E35]">
-                  #{shortId(order.id)}
+                  #{orderLabel(order)}
                 </TableCell>
                 <TableCell className="text-sm">
                   {customerDisplay(order)}
@@ -646,9 +732,26 @@ export default function OrdersPage() {
   const [sortKey, setSortKey] = useState("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
+  const sessionBusinessId = getSessionBusinessId(session);
+  const { industriesMap } = useIndustries();
 
-  const swrKey = session && sessionBusinessPhoneId
+  const { data: settingsRes } = useSWR<BusinessSettings | { data: BusinessSettings }>(
+    session ? endpoints.business.settings : null,
+    fetcher,
+  );
+  const settings: BusinessSettings =
+    (settingsRes as { data: BusinessSettings } | null)?.data ??
+    (settingsRes as BusinessSettings | null) ??
+    {};
+  const industryConfig = useMemo(
+    () => getIndustryConfig(settings.type, industriesMap),
+    [settings.type, industriesMap],
+  );
+  const productLabel = industryConfig.productLabel;
+  const itemsPlural = pluralProductLabel(productLabel);
+  const itemsPluralLower = itemsPlural.toLowerCase();
+
+  const swrKey = session && sessionBusinessId
     ? endpoints.orders.list
     : null;
 
@@ -709,7 +812,6 @@ export default function OrdersPage() {
 
         mutate();
       } catch (error) {
-        console.error("Error al actualizar estado del pedido:", error);
         mutate();
       }
     },
@@ -837,6 +939,8 @@ export default function OrdersPage() {
                         order={order}
                         onStatusChange={handleStatusChange}
                         onClick={handleOrderClick}
+                        productLabel={productLabel}
+                        itemsPluralLower={itemsPluralLower}
                       />
                     ))}
                   </AnimatePresence>
@@ -860,6 +964,7 @@ export default function OrdersPage() {
             onOrderClick={handleOrderClick}
             sortKey={sortKey}
             onSort={handleSort}
+            itemsPlural={itemsPlural}
           />
       )}
 
@@ -869,6 +974,8 @@ export default function OrdersPage() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onStatusChange={handleStatusChange}
+        itemsPlural={itemsPlural}
+        productLabel={productLabel}
       />
     </div>
   );

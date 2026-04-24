@@ -42,12 +42,16 @@ export interface IndustryApiRow {
     product_fields: IndustryConfig["productFields"];
     relevant_units: string[];
     features: IndustryConfig["features"];
-    sort_order: number;
     is_active: boolean;
     parent_slug?: string | null;
     /** false = grupo padre (no se guarda en negocio); omitido en despliegues antiguos = elegible */
     is_selectable?: boolean;
     business_category?: BusinessCategory;
+}
+
+/** Misma regla que Configuración > Tipo de negocio / Industria y GET .../catalog/industries. */
+export function isIndustryEligibleForBusinessType(row: IndustryApiRow): boolean {
+    return row.is_active && row.is_selectable !== false;
 }
 
 export function industryApiRowToConfig(row: IndustryApiRow): IndustryConfig {
@@ -65,7 +69,7 @@ export function industryApiRowToConfig(row: IndustryApiRow): IndustryConfig {
 export function buildIndustryMapFromApi(rows: IndustryApiRow[]): Record<string, IndustryConfig> {
     const m: Record<string, IndustryConfig> = {};
     for (const row of rows) {
-        if (row.is_active && row.is_selectable !== false) {
+        if (isIndustryEligibleForBusinessType(row)) {
             m[row.slug] = industryApiRowToConfig(row);
         }
     }
@@ -74,9 +78,8 @@ export function buildIndustryMapFromApi(rows: IndustryApiRow[]): Record<string, 
 
 /** Slugs antiguos → slug canónico para etiquetas y campos de producto. */
 const LEGACY_INDUSTRY_SLUG_ALIASES: Record<string, string> = {
-    tienda_online: "tienda_digital",
-    tienda_electronica: "tienda_digital",
-    tienda_ropa: "tienda_digital",
+    tienda_electronica: "tienda_online",
+    // tienda_online y tienda_ropa ahora son slugs canónicos propios
 };
 
 export function canonicalIndustrySlug(slug: string | undefined | null): string {
@@ -86,6 +89,7 @@ export function canonicalIndustrySlug(slug: string | undefined | null): string {
 
 /** Semilla alineada con migraciones `industries` (lista plana MVP). */
 export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
+    // ── Tiendas físicas ────────────────────────────────────────────────────
     abarrotera: {
         view: "catalogo",
         label: "Abarrotes / miscelánea",
@@ -103,6 +107,58 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
         features: { hasTables: false, hasPrescriptions: false },
         business_category: "physical_store",
     },
+    ferreteria: {
+        view: "catalogo",
+        label: "Ferretería / materiales",
+        productLabel: "Producto",
+        productFields: {
+            showStock: true,
+            showBarcode: true,
+            showIngredients: false,
+            showActiveSubstance: false,
+            showPreparationTime: false,
+            showDimensions: true,
+            showSKU: true,
+        },
+        relevantUnits: ["pza", "und", "m", "cm", "kg"],
+        features: { hasTables: false, hasPrescriptions: false },
+        business_category: "physical_store",
+    },
+    farmacia: {
+        view: "catalogo",
+        label: "Farmacia",
+        productLabel: "Medicamento",
+        productFields: {
+            showStock: true,
+            showBarcode: true,
+            showIngredients: false,
+            showActiveSubstance: true,
+            showPreparationTime: false,
+            showDimensions: false,
+            showSKU: true,
+        },
+        relevantUnits: ["pza", "und", "g", "L"],
+        features: { hasTables: false, hasPrescriptions: true },
+        business_category: "physical_store",
+    },
+    tienda_ropa: {
+        view: "catalogo",
+        label: "Ropa y accesorios",
+        productLabel: "Prenda",
+        productFields: {
+            showStock: true,
+            showBarcode: true,
+            showIngredients: false,
+            showActiveSubstance: false,
+            showPreparationTime: false,
+            showDimensions: false,
+            showSKU: true,
+        },
+        relevantUnits: ["pza", "und"],
+        features: { hasTables: false, hasPrescriptions: false },
+        business_category: "physical_store",
+    },
+    // ── Comida y bebidas ───────────────────────────────────────────────────
     restaurante: {
         view: "menu",
         label: "Restaurante",
@@ -122,7 +178,7 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
     },
     cafeteria: {
         view: "menu",
-        label: "Cafetería",
+        label: "Cafetería / panadería",
         productLabel: "Producto",
         productFields: {
             showStock: false,
@@ -137,60 +193,27 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
         features: { hasTables: true, hasPrescriptions: false },
         business_category: "restaurant",
     },
-    ferreteria: {
-        view: "catalogo",
-        label: "Ferretería",
-        productLabel: "Producto",
+    comida_rapida: {
+        view: "menu",
+        label: "Comida rápida / tacos / pizza",
+        productLabel: "Platillo",
         productFields: {
-            showStock: true,
-            showBarcode: true,
-            showIngredients: false,
+            showStock: false,
+            showBarcode: false,
+            showIngredients: true,
             showActiveSubstance: false,
-            showPreparationTime: false,
-            showDimensions: true,
-            showSKU: true,
-        },
-        relevantUnits: ["pza", "und", "m", "cm", "kg"],
-        features: { hasTables: false, hasPrescriptions: false },
-        business_category: "physical_store",
-    },
-    tienda_digital: {
-        view: "catalogo",
-        label: "Tienda digital",
-        productLabel: "Producto",
-        productFields: {
-            showStock: true,
-            showBarcode: true,
-            showIngredients: false,
-            showActiveSubstance: false,
-            showPreparationTime: false,
+            showPreparationTime: true,
             showDimensions: false,
-            showSKU: true,
+            showSKU: false,
         },
-        relevantUnits: ["pza", "und"],
+        relevantUnits: ["por", "und", "pza"],
         features: { hasTables: false, hasPrescriptions: false },
-        business_category: "digital_service",
+        business_category: "restaurant",
     },
-    tienda_ropa: {
+    // ── Tiendas en línea ───────────────────────────────────────────────────
+    tienda_online: {
         view: "catalogo",
-        label: "Tienda de Ropa",
-        productLabel: "Prenda",
-        productFields: {
-            showStock: true,
-            showBarcode: true,
-            showIngredients: false,
-            showActiveSubstance: false,
-            showPreparationTime: false,
-            showDimensions: false,
-            showSKU: true,
-        },
-        relevantUnits: ["pza", "und"],
-        features: { hasTables: false, hasPrescriptions: false },
-        business_category: "online_store",
-    },
-    tienda_electronica: {
-        view: "catalogo",
-        label: "Tienda en línea (electrónicos)",
+        label: "Tienda en línea / e-commerce",
         productLabel: "Producto",
         productFields: {
             showStock: true,
@@ -205,9 +228,10 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
         features: { hasTables: false, hasPrescriptions: false },
         business_category: "online_store",
     },
+    // ── Servicios ──────────────────────────────────────────────────────────
     servicios: {
         view: "catalogo",
-        label: "Servicios",
+        label: "Servicios a domicilio",
         productLabel: "Servicio",
         productFields: {
             showStock: false,
@@ -222,49 +246,31 @@ export const FALLBACK_INDUSTRIES: Record<string, IndustryConfig> = {
         features: { hasTables: false, hasPrescriptions: false },
         business_category: "field_service",
     },
-    farmacia: {
+    tienda_digital: {
         view: "catalogo",
-        label: "Farmacia",
-        productLabel: "Medicamento",
-        productFields: {
-            showStock: true,
-            showBarcode: true,
-            showIngredients: false,
-            showActiveSubstance: true,
-            showPreparationTime: false,
-            showDimensions: false,
-            showSKU: true,
-        },
-        relevantUnits: ["pza", "und", "g", "L"],
-        features: { hasTables: false, hasPrescriptions: true },
-        business_category: "physical_store",
-    },
-    tienda_online: {
-        view: "catalogo",
-        label: "Tienda en línea",
+        label: "Productos o servicios digitales",
         productLabel: "Producto",
         productFields: {
-            showStock: true,
-            showBarcode: true,
+            showStock: false,
+            showBarcode: false,
             showIngredients: false,
             showActiveSubstance: false,
             showPreparationTime: false,
             showDimensions: false,
             showSKU: true,
         },
-        relevantUnits: ["pza", "und"],
+        relevantUnits: ["pza", "und", "ses"],
         features: { hasTables: false, hasPrescriptions: false },
-        business_category: "online_store",
+        business_category: "digital_service",
     },
 };
 
 export const BUSINESS_CATEGORIES = [
-    { value: "physical_store",   label: "Tienda física",              icon: "Store",          description: "Productos físicos con pickup o entrega local" },
-    { value: "physical_digital", label: "Tienda física y en línea",   icon: "ShoppingBag",    description: "Vendes en local y también haces envíos" },
-    { value: "online_store",     label: "Tienda en línea",            icon: "Package",        description: "Ventas con envío nacional o paquetería" },
-    { value: "restaurant",       label: "Comida",                     icon: "UtensilsCrossed", description: "Menú, pedidos, delivery o pickup" },
-    { value: "field_service",    label: "Servicio a domicilio",       icon: "Wrench",         description: "Instalaciones, visitas técnicas, servicios en sitio" },
-    { value: "digital_service",  label: "Servicio o producto digital", icon: "Monitor",      description: "Sin entrega física: cursos, software, consultoría" },
+    { value: "physical_store",  label: "Tienda física",         icon: "Store",           description: "Vendes productos en local con entrega o pickup" },
+    { value: "restaurant",      label: "Comida y bebidas",       icon: "UtensilsCrossed", description: "Restaurantes, cafeterías, taquerías, dark kitchens" },
+    { value: "online_store",    label: "Tienda en línea",        icon: "Package",         description: "Ventas con envío a todo el país o paquetería" },
+    { value: "field_service",   label: "Servicio a domicilio",   icon: "Wrench",          description: "Instalaciones, visitas técnicas, servicios en sitio" },
+    { value: "digital_service", label: "Producto o servicio digital", icon: "Monitor",    description: "Cursos, software, consultoría — sin entrega física" },
 ] as const satisfies ReadonlyArray<{ value: BusinessCategory; label: string; icon: string; description: string }>;
 
 /** Orden del onboarding cuando la API no está disponible (lista plana). */
@@ -272,8 +278,11 @@ export const FLAT_INDUSTRY_SLUGS_ORDER: readonly string[] = [
     "abarrotera",
     "ferreteria",
     "farmacia",
+    "tienda_ropa",
     "restaurante",
     "cafeteria",
+    "comida_rapida",
+    "tienda_online",
     "servicios",
     "tienda_digital",
 ];
@@ -292,6 +301,26 @@ export function getPublicCatalogRoute(
 ): PublicCatalogRoute {
     const industry = getIndustryConfig(type, map);
     return industry.view === "menu" ? "menu" : "catalogo";
+}
+
+/** Título del módulo en panel (sidebar, h1): Menú vs Catálogo. */
+export function catalogModuleTitle(config: IndustryConfig): "Menú" | "Catálogo" {
+    return config.view === "menu" ? "Menú" : "Catálogo";
+}
+
+/** Misma distinción en minúsculas para frases (“tu menú”, “tu catálogo”). */
+export function catalogModuleLower(config: IndustryConfig): "menú" | "catálogo" {
+    return config.view === "menu" ? "menú" : "catálogo";
+}
+
+/**
+ * Plural en español del sustantivo de ítem (productLabel).
+ * Por defecto añade “s” (Producto→Productos, Servicio→Servicios, Platillo→Platillos).
+ */
+export function pluralProductLabel(productLabel: string): string {
+    const t = productLabel.trim();
+    if (!t) return "ítems";
+    return `${t}s`;
 }
 
 /** @deprecated Usar `IndustrySlug` o `string` */

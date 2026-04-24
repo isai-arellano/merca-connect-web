@@ -13,15 +13,13 @@ import {
   FileText,
   BarChart3,
   Settings,
-  BookOpen,
   ShieldAlert,
   Lock,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getSessionBusinessPhoneId } from "@/lib/business";
-import { getIndustryConfig } from "@/config/industries";
+import { catalogModuleTitle, getIndustryConfig } from "@/config/industries";
 import { useIndustries } from "@/hooks/useIndustries";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { createContext, useContext, useState } from "react";
@@ -125,17 +123,16 @@ export function SidebarContent({
 }) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
   const isAdmin = session?.role === "admin";
 
   const { settings, state: onboardingState } = useOnboardingState();
   const { industriesMap } = useIndustries();
   const businessType: string = settings.type || "abarrotera";
   const industryConfig = getIndustryConfig(businessType, industriesMap);
-  const catalogLabel = industryConfig.view === "menu" ? "Menú" : "Catálogo";
+  const catalogLabel = catalogModuleTitle(industryConfig);
 
   const hasIndustry = Boolean(settings.type);
-  const hasWhatsApp = Boolean(sessionBusinessPhoneId);
+  const hasWhatsApp = onboardingState.hasWhatsApp;
   const canAccessSettings =
     onboardingState.hasIndustry && onboardingState.hasBusinessProfile;
 
@@ -186,15 +183,6 @@ export function SidebarContent({
               isActive={isActive("/dashboard/analytics")}
               locked={!hasWhatsApp}
               lockReason="Conecta WhatsApp Business para ver analíticas"
-              {...lp}
-            />
-            <NavLink
-              href="/dashboard/knowledge"
-              label="Conocimiento IA"
-              icon={BookOpen}
-              isActive={isActive("/dashboard/knowledge")}
-              locked={!hasWhatsApp}
-              lockReason="Conecta WhatsApp Business para gestionar conocimiento del agente"
               {...lp}
             />
             <NavLink

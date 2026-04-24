@@ -12,11 +12,12 @@ import { endpoints } from "@/lib/api";
 import { apiClient } from "@/lib/api-client";
 import { type ApiList } from "@/types/api";
 import { useSession } from "next-auth/react";
-import { getSessionBusinessPhoneId } from "@/lib/business";
+import { getSessionBusinessId } from "@/lib/business";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { formatPhoneDisplay } from "@/lib/phoneUtils";
 
 interface ConversationMessage {
     id: string;
@@ -43,7 +44,7 @@ interface ActiveConversation {
 
 export default function InboxPage() {
     const { data: session } = useSession();
-    const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
+    const sessionBusinessId = getSessionBusinessId(session);
 
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [replyText, setReplyText] = useState("");
@@ -52,13 +53,13 @@ export default function InboxPage() {
     const { mutate } = useSWRConfig();
 
     const { data: conversationsResponse, isLoading: isLoadingList } = useSWR<ApiList<ConversationSummary>>(
-        session && sessionBusinessPhoneId ? endpoints.conversations.list : null,
+        session && sessionBusinessId ? endpoints.conversations.list : null,
         { refreshInterval: 15000 } // Polling cada 15 segundos para nuevos mensajes
     );
     const conversations: ConversationSummary[] = conversationsResponse?.data ?? [];
 
     const { data: activeConversationData, isLoading: isLoadingChat } = useSWR<ActiveConversation>(
-        selectedId && session && sessionBusinessPhoneId ? endpoints.conversations.detail(selectedId) : null,
+        selectedId && session && sessionBusinessId ? endpoints.conversations.detail(selectedId) : null,
         { refreshInterval: 8000 } // Polling cuando estamos leyendo un chat
     );
 
@@ -76,7 +77,6 @@ export default function InboxPage() {
             mutate(endpoints.conversations.detail(selectedId));
             mutate(endpoints.conversations.list);
         } catch (error) {
-            console.error("Error al enviar el mensaje:", error);
         } finally {
             setIsSending(false);
         }
@@ -182,7 +182,7 @@ export default function InboxPage() {
                                     {activeConversationData.customer?.name || "Cliente"}
                                 </h2>
                                 <p className="text-xs text-muted-foreground">
-                                    +{activeConversationData.customer?.phone_number}
+                                    {formatPhoneDisplay(activeConversationData.customer?.phone_number)}
                                 </p>
                             </div>
                         </div>

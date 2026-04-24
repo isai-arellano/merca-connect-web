@@ -1,5 +1,5 @@
 import { getSession } from "next-auth/react";
-import { API_URL } from "./api";
+import { API_URL, CLIENT_BUILD_ID } from "./api";
 
 export class ApiError extends Error {
     status: number;
@@ -48,6 +48,8 @@ async function parseResponseBody(response: Response): Promise<unknown> {
 async function getAuthHeaders(optionsHeaders: HeadersInit = {}): Promise<Headers> {
     const headers = new Headers(optionsHeaders);
     headers.set("Content-Type", "application/json");
+    headers.set("X-Client-App", "merca-connect-web");
+    headers.set("X-Client-Build", CLIENT_BUILD_ID);
 
     if (typeof window !== "undefined") {
         const session = await getSession() as SessionWithAccessToken | null;
@@ -138,13 +140,20 @@ export const apiClient = {
         });
     },
 
-    uploadForm: async <TResponse = unknown>(url: string, formData: FormData) => {
+    uploadForm: async <TResponse = unknown>(
+        url: string,
+        formData: FormData,
+        options: { method?: "POST" | "PUT" } = {},
+    ) => {
         // No incluir Content-Type — el browser lo establece con el boundary correcto
+        const method = options.method ?? "POST";
         const session = typeof window !== "undefined" ? await getSession() as SessionWithAccessToken | null : null;
         const token = session?.accessToken;
         const headers = new Headers();
         if (token) headers.set("Authorization", `Bearer ${token}`);
-        return requestJson<TResponse>(url, { method: "POST", headers, body: formData });
+        // Sin X-Client-*: headers extra forzan un preflight distinto; algunos proxies/CDN
+        // no reflejan bien Access-Control-Allow-Headers y el browser muestra "CORS" aunque OPTIONS básico funcione.
+        return requestJson<TResponse>(url, { method, headers, body: formData });
     },
 };
 

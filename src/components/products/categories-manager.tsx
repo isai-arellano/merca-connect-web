@@ -20,26 +20,28 @@ interface Category {
 }
 
 interface CategoriesManagerProps {
-    businessPhoneId: string | null;
+    /** Plural en minúsculas (p. ej. productos, servicios, platillos). */
+    itemsPluralLower: string;
+    /** menú | catálogo */
+    moduleLower: string;
 }
 
-export function CategoriesManager({ businessPhoneId }: CategoriesManagerProps) {
+export function CategoriesManager({ itemsPluralLower, moduleLower }: CategoriesManagerProps) {
     const { toast } = useToast();
     const [newName, setNewName] = useState("");
     const [newDesc, setNewDesc] = useState("");
     const [isCreating, setIsCreating] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
-    const endpoint = businessPhoneId ? endpoints.categories.list(businessPhoneId) : null;
-    const { data, isLoading, mutate } = useSWR<ApiList<Category>>(endpoint, fetcher);
+    const { data, isLoading, mutate } = useSWR<ApiList<Category>>(endpoints.categories.list, fetcher);
     const categories: Category[] = data?.data ?? [];
 
     async function handleCreate() {
         const name = newName.trim();
-        if (!name || !endpoint || !businessPhoneId) return;
+        if (!name) return;
         setIsCreating(true);
         try {
-            await apiClient.post(endpoints.categories.create(businessPhoneId), {
+            await apiClient.post(endpoints.categories.create, {
                 name,
                 description: newDesc.trim() || null,
             });
@@ -70,7 +72,7 @@ export function CategoriesManager({ businessPhoneId }: CategoriesManagerProps) {
             toast({
                 title: "No se puede eliminar",
                 description: msg.includes("409")
-                    ? `"${category.name}" tiene productos activos. Muévelos o elimínalos primero.`
+                    ? `"${category.name}" tiene ${itemsPluralLower} activos. Muévelos o elimínalos primero.`
                     : "Error al eliminar la categoría",
                 variant: "destructive",
             });
@@ -84,7 +86,7 @@ export function CategoriesManager({ businessPhoneId }: CategoriesManagerProps) {
             <CardHeader>
                 <CardTitle>Gestión de Categorías</CardTitle>
                 <CardDescription>
-                    Organiza tus productos en categorías para facilitar la navegación en el catálogo.
+                    Organiza tus {itemsPluralLower} en categorías para facilitar la navegación en el {moduleLower}.
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

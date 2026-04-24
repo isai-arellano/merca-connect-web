@@ -23,7 +23,13 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getIndustryConfig, getPublicCatalogRoute } from "@/config/industries";
+import {
+    catalogModuleLower,
+    catalogModuleTitle,
+    getIndustryConfig,
+    getPublicCatalogRoute,
+    pluralProductLabel,
+} from "@/config/industries";
 import {
     CATALOG_THEME_PRESETS,
     type CatalogThemePreset,
@@ -38,15 +44,19 @@ import { motion, Variants } from "framer-motion";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher, ApiError, NetworkError } from "@/lib/api-client";
-import { getSessionBusinessPhoneId } from "@/lib/business";
+import {
+    CLIENT_IMAGE_MAX_BYTES,
+    uploadBusinessBanner,
+    uploadBusinessLogo,
+    validateClientCatalogImage,
+} from "@/lib/image-upload-form";
+import { getSessionBusinessId } from "@/lib/business";
 import { type ApiList, type BusinessSettings } from "@/types/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ProductsTableSkeleton } from "@/components/skeletons/dashboard-skeletons";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-
-const MAX_LOGO_BYTES = 5 * 1024 * 1024;
-const ALLOWED_LOGO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 interface Product {
     id: string;
@@ -63,6 +73,7 @@ interface Product {
     is_visible?: boolean | null;
     is_optional_offer?: boolean | null;
     image_url?: string | null;
+    images?: string[];
     barcode?: string | null;
     ingredients?: string | null;
     preparation_time_min?: number | null;
@@ -105,6 +116,17 @@ function formatValidationDetail(error: ApiError): string {
     return "";
 }
 
+function getRequestErrorMessage(error: unknown): string {
+    if (error instanceof NetworkError) return error.message;
+    if (error instanceof ApiError) {
+        if (error.status >= 500) {
+            return "El servidor no pudo procesar la solicitud. Intenta nuevamente en unos segundos.";
+        }
+        return formatValidationDetail(error) || error.message || "No se pudo completar la solicitud.";
+    }
+    return "Ocurrió un error inesperado. Intenta nuevamente.";
+}
+
 export default function ProductsPage() {
     const { data: session } = useSession();
     const { toast } = useToast();
@@ -113,7 +135,7 @@ export default function ProductsPage() {
     const [selectedProduct, setSelectedProduct] = useState<ProductDialogProduct | undefined>(undefined);
     const [actingProductId, setActingProductId] = useState<string | null>(null);
 
-    const sessionBusinessPhoneId = getSessionBusinessPhoneId(session);
+    const sessionBusinessId = getSessionBusinessId(session);
     const { industriesMap } = useIndustries();
 
     const {
@@ -126,7 +148,7 @@ export default function ProductsPage() {
     const [catalogSlug, setCatalogSlug] = useState("");
     const [themePreset, setThemePreset] = useState<CatalogThemePreset>("default");
     const [themeCustom, setThemeCustom] = useState<CatalogThemeCustom>({ primary: "#1A3E35", secondary: "#74E79C" });
-    const [catalogPublic, setCatalogPublic] = useState(true);
+    const [catalogPublic, setCatalogPublic] = useState(false);
     const [catalogMetaSaving, setCatalogMetaSaving] = useState(false);
     const [catalogSlugApiError, setCatalogSlugApiError] = useState<string | null>(null);
     const [catalogSlugValidationError, setCatalogSlugValidationError] = useState<string | null>(null);
@@ -134,6 +156,10 @@ export default function ProductsPage() {
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const [isUploadingLogo, setIsUploadingLogo] = useState(false);
     const logoInputRef = useRef<HTMLInputElement>(null);
+    const [bannerFile, setBannerFile] = useState<File | null>(null);
+    const [bannerPreview, setBannerPreview] = useState<string | null>(null);
+    const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+    const bannerInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         setCatalogSlug(settingsData.slug ?? "");
@@ -147,7 +173,7 @@ export default function ProductsPage() {
         if (rawTheme?.custom?.primary && rawTheme?.custom?.secondary) {
             setThemeCustom({ primary: rawTheme.custom.primary, secondary: rawTheme.custom.secondary });
         }
-        setCatalogPublic(settingsData.config?.catalog_public !== false);
+        setCatalogPublic(settingsData.config?.catalog_public === true);
     }, [settingsData.slug, settingsData.config?.catalog_theme, settingsData.config?.catalog_public]);
 
     useEffect(() => {
@@ -155,8 +181,17 @@ export default function ProductsPage() {
             if (logoPreview?.startsWith("blob:")) URL.revokeObjectURL(logoPreview);
         };
     }, [logoPreview]);
-    const productsEndpoint = sessionBusinessPhoneId ? endpoints.products.list(sessionBusinessPhoneId, true) : null;
-    const { data: response, isLoading, mutate: mutateProducts } = useSWR<ApiList<Product>>(session && productsEndpoint ? productsEndpoint : null, fetcher);
+
+    useEffect(() => {
+        return () => {
+            if (bannerPreview?.startsWith("blob:")) URL.revokeObjectURL(bannerPreview);
+        };
+    }, [bannerPreview]);
+    const productsEndpoint = endpoints.products.list(true);
+    const { data: response, isLoading, error: productsError, mutate: mutateProducts } = useSWR<ApiList<Product>>(
+        session && sessionBusinessId ? productsEndpoint : null,
+        fetcher,
+    );
 
     const businessType: string = settingsData?.type ?? "";
     const previewSlug: string | null = (() => {
@@ -186,22 +221,33 @@ export default function ProductsPage() {
         )
         : disabledProducts;
 
-    const moduleTitle = config.view === "menu" ? "Menú" : "Catálogo";
+    const moduleTitle = catalogModuleTitle(config);
+    const moduleLower = catalogModuleLower(config);
+    const itemsPlural = pluralProductLabel(config.productLabel);
+    const itemsPluralLower = itemsPlural.toLowerCase();
     const publicRouteSegment = getPublicCatalogRoute(settingsData?.type, industriesMap);
+    const tableColSpan = config.productFields.showStock ? 9 : 8;
 
     function openCreate() { setSelectedProduct(undefined); setDialogOpen(true); }
     function openEdit(product: Product) { setSelectedProduct(product as ProductDialogProduct); setDialogOpen(true); }
 
     async function handleDisableProduct(product: Product) {
-        const confirmed = window.confirm(`¿Deseas deshabilitar "${product.name}"? Dejará de mostrarse en ${moduleTitle.toLowerCase()}.`);
+        const confirmed = window.confirm(`¿Deseas deshabilitar "${product.name}"? Dejará de mostrarse en tu ${moduleLower}.`);
         if (!confirmed) return;
         setActingProductId(product.id);
         try {
             await apiClient.delete(endpoints.products.disable(product.id));
             await mutateProducts();
-            toast({ title: "Producto deshabilitado", description: "Ya no se mostrará en tu catálogo/menú." });
-        } catch {
-            toast({ title: "No se pudo deshabilitar", description: "Intenta de nuevo en unos segundos.", variant: "destructive" });
+            toast({
+                title: `${config.productLabel} deshabilitado`,
+                description: `Ya no se mostrará en tu ${moduleLower}.`,
+            });
+        } catch (error: unknown) {
+            toast({
+                title: "No se pudo deshabilitar",
+                description: getRequestErrorMessage(error),
+                variant: "destructive",
+            });
         } finally {
             setActingProductId(null);
         }
@@ -214,9 +260,13 @@ export default function ProductsPage() {
         try {
             await apiClient.delete(endpoints.products.hardDelete(product.id));
             await mutateProducts();
-            toast({ title: "Producto eliminado", description: "Se eliminó de forma definitiva." });
-        } catch {
-            toast({ title: "No se pudo eliminar", description: "Intenta nuevamente.", variant: "destructive" });
+            toast({ title: `${config.productLabel} eliminado`, description: "Se eliminó de forma definitiva." });
+        } catch (error: unknown) {
+            toast({
+                title: "No se pudo eliminar",
+                description: getRequestErrorMessage(error),
+                variant: "destructive",
+            });
         } finally {
             setActingProductId(null);
         }
@@ -225,11 +275,18 @@ export default function ProductsPage() {
     async function handleEnableProduct(product: Product) {
         setActingProductId(product.id);
         try {
-            await apiClient.patch(endpoints.products.detail(product.id, sessionBusinessPhoneId), { is_active: true });
+            await apiClient.patch(endpoints.products.detail(product.id), { is_active: true });
             await mutateProducts();
-            toast({ title: "Producto habilitado", description: "Ya vuelve a estar disponible en tu catálogo/menú." });
-        } catch {
-            toast({ title: "No se pudo habilitar", description: "Intenta nuevamente.", variant: "destructive" });
+            toast({
+                title: `${config.productLabel} habilitado`,
+                description: `Ya vuelve a estar disponible en tu ${moduleLower}.`,
+            });
+        } catch (error: unknown) {
+            toast({
+                title: "No se pudo habilitar",
+                description: getRequestErrorMessage(error),
+                variant: "destructive",
+            });
         } finally {
             setActingProductId(null);
         }
@@ -241,20 +298,12 @@ export default function ProductsPage() {
     function handleLogoFileChange(event: React.ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0];
         if (!file) return;
-        if (!ALLOWED_LOGO_TYPES.has(file.type)) {
-            toast({
-                title: "Formato no permitido",
-                description: "Usa JPG, PNG o WEBP.",
-                variant: "destructive",
-            });
-            return;
-        }
-        if (file.size > MAX_LOGO_BYTES) {
-            toast({
-                title: "Archivo demasiado grande",
-                description: "El logo debe ser menor a 5 MB.",
-                variant: "destructive",
-            });
+        const check = validateClientCatalogImage(file, {
+            maxBytes: CLIENT_IMAGE_MAX_BYTES.logo,
+            sizeLabel: "El logo",
+        });
+        if (!check.ok) {
+            toast({ title: check.title, description: check.description, variant: "destructive" });
             return;
         }
         if (logoPreview?.startsWith("blob:")) URL.revokeObjectURL(logoPreview);
@@ -267,9 +316,7 @@ export default function ProductsPage() {
         if (!logoFile) return;
         setIsUploadingLogo(true);
         try {
-            const formData = new FormData();
-            formData.append("file", logoFile);
-            await apiClient.uploadForm(endpoints.business.logoUpload, formData);
+            await uploadBusinessLogo(logoFile);
             await mutateSettings();
             setLogoFile(null);
             setLogoPreview(null);
@@ -284,13 +331,49 @@ export default function ProductsPage() {
         }
     }
 
+    function handleBannerFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        const check = validateClientCatalogImage(file, {
+            maxBytes: CLIENT_IMAGE_MAX_BYTES.banner,
+            sizeLabel: "El banner",
+        });
+        if (!check.ok) {
+            toast({ title: check.title, description: check.description, variant: "destructive" });
+            return;
+        }
+        if (bannerPreview?.startsWith("blob:")) URL.revokeObjectURL(bannerPreview);
+        setBannerFile(file);
+        setBannerPreview(URL.createObjectURL(file));
+        event.target.value = "";
+    }
+
+    async function handleUploadBanner() {
+        if (!bannerFile) return;
+        setIsUploadingBanner(true);
+        try {
+            await uploadBusinessBanner(bannerFile);
+            await mutateSettings();
+            setBannerFile(null);
+            setBannerPreview(null);
+            toast({ title: "Portada actualizada" });
+        } catch (error: unknown) {
+            let description = "No se pudo subir la portada.";
+            if (error instanceof NetworkError) description = error.message;
+            else if (error instanceof ApiError && error.message) description = error.message;
+            toast({ title: "Error", description, variant: "destructive" });
+        } finally {
+            setIsUploadingBanner(false);
+        }
+    }
+
     async function handleSaveCatalogPublic() {
         const trimmed = catalogSlug.trim();
         setCatalogSlugValidationError(null);
         setCatalogSlugApiError(null);
         if (catalogPublic) {
             if (!trimmed) {
-                setCatalogSlugValidationError("Define una URL (slug) para el catálogo público.");
+                setCatalogSlugValidationError(`Define una URL (slug) para el ${moduleLower} público.`);
                 return;
             }
             if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmed)) {
@@ -319,7 +402,7 @@ export default function ProductsPage() {
             await mutateSettings();
             toast({
                 title: "Guardado",
-                description: "Ajustes del catálogo público actualizados.",
+                description: `Ajustes del ${moduleLower} público actualizados.`,
             });
         } catch (error: unknown) {
             if (error instanceof ApiError && error.status === 409) {
@@ -347,7 +430,7 @@ export default function ProductsPage() {
                 <motion.div variants={itemVariants} className="rounded-2xl border border-border/60 bg-background p-6 shadow-sm space-y-4">
                     <h1 className="text-2xl font-bold tracking-tight">Primero configura tu tipo de negocio</h1>
                     <p className="text-sm text-muted-foreground">
-                        Para habilitar catálogo/menú, categorías y unidades, necesitas seleccionar tu industria en configuración.
+                        Para habilitar {moduleLower}, categorías y unidades, necesitas seleccionar tu industria en configuración.
                     </p>
                     <Button asChild>
                         <a href="/dashboard">Ir al tablero</a>
@@ -377,7 +460,7 @@ export default function ProductsPage() {
                             </a>
                         </Button>
                     ) : (
-                        <Button variant="outline" size="sm" disabled className="justify-center" title={!catalogPublic ? "Activa el catálogo público abajo" : "Define la URL abajo"}>
+                        <Button variant="outline" size="sm" disabled className="justify-center" title={!catalogPublic ? `Activa el ${moduleLower} público abajo` : "Define la URL abajo"}>
                             <ExternalLink className="mr-2 h-4 w-4" /> Ver público
                         </Button>
                     )}
@@ -401,10 +484,18 @@ export default function ProductsPage() {
                                 <p className="text-sm font-medium">Visible públicamente</p>
                                 <p className="text-xs text-muted-foreground">Controla si el enlace público responde o no.</p>
                             </div>
-                            <Switch checked={catalogPublic} onCheckedChange={setCatalogPublic} aria-label="Catálogo público activo" />
+                            <Switch checked={catalogPublic} onCheckedChange={setCatalogPublic} aria-label={`${moduleTitle} público activo`} />
                         </div>
 
-                        <div className={`space-y-2 ${!catalogPublic ? "opacity-50 pointer-events-none" : ""}`}>
+                        {!catalogPublic && (
+                            <p className="text-sm text-muted-foreground rounded-lg border border-dashed border-border/60 bg-muted/30 px-3 py-3">
+                                Activa esta opción para configurar la URL, el tema, el logo y la portada del {moduleTitle.toLowerCase()} público. Mientras esté desactivado, el enlace no mostrará tu negocio.
+                            </p>
+                        )}
+
+                        {catalogPublic && (
+                        <div className="space-y-5">
+                        <div className="space-y-2">
                             <Label htmlFor="catalog-public-slug" className="text-xs font-medium flex items-center gap-1.5">
                                 <LinkIcon className="h-3.5 w-3.5" /> URL ({publicRouteSegment})
                             </Label>
@@ -419,7 +510,6 @@ export default function ProductsPage() {
                                         setCatalogSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
                                     }}
                                     placeholder="mi-tienda"
-                                    disabled={!catalogPublic}
                                     className={
                                         catalogSlugValidationError || catalogSlugApiError
                                             ? "border-destructive"
@@ -442,7 +532,7 @@ export default function ProductsPage() {
                         </div>
 
                         <div className="space-y-3">
-                            <Label className="text-xs font-medium">Tema del catálogo</Label>
+                            <Label className="text-xs font-medium">Tema del {moduleLower}</Label>
                             <p className="text-xs text-muted-foreground">Elige la paleta visual que verán tus clientes.</p>
                             {/* Picker de temas preset */}
                             <div className="grid grid-cols-3 gap-2">
@@ -555,8 +645,45 @@ export default function ProductsPage() {
                                     )}
                                 </div>
                             </div>
-                            <p className="text-[11px] text-muted-foreground">Se optimiza para el catálogo o menú público.</p>
+                            <p className="text-[11px] text-muted-foreground">Se optimiza para el catálogo o menú público. Se convierte a WebP automáticamente.</p>
                         </div>
+
+                        {/* Banner / portada */}
+                        <div className="space-y-2">
+                            <Label className="text-xs font-medium flex items-center gap-1.5">
+                                <ImageIcon className="h-3.5 w-3.5" /> Imagen de portada
+                                <span className="text-[10px] font-normal text-muted-foreground">(header del {moduleLower})</span>
+                            </Label>
+                            {/* Preview del banner actual */}
+                            {(bannerPreview ?? settingsData.config?.catalog_banner_url) && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                    src={bannerPreview ?? (settingsData.config?.catalog_banner_url as string)}
+                                    alt="Banner"
+                                    className="w-full max-h-24 rounded-md border object-cover"
+                                />
+                            )}
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className="flex flex-col gap-1.5">
+                                    <Input
+                                        ref={bannerInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="max-w-[220px] text-xs h-8"
+                                        onChange={handleBannerFileChange}
+                                    />
+                                    {bannerFile && (
+                                        <Button type="button" size="sm" variant="secondary" disabled={isUploadingBanner} onClick={handleUploadBanner}>
+                                            {isUploadingBanner ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Upload className="h-3.5 w-3.5 mr-1" />}
+                                            Subir portada
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">Imagen ancha que aparece como fondo del header. Se convierte a WebP automáticamente.</p>
+                        </div>
+                        </div>
+                        )}
 
                         <Button
                             type="button"
@@ -575,19 +702,24 @@ export default function ProductsPage() {
             <motion.div variants={itemVariants}>
                 <Tabs defaultValue="products">
                     <TabsList className="mb-4">
-                        <TabsTrigger value="products">{config.productLabel}s</TabsTrigger>
+                        <TabsTrigger value="products">{itemsPlural}</TabsTrigger>
                         <TabsTrigger value="disabled">Deshabilitados</TabsTrigger>
                         <TabsTrigger value="categories">Categorías</TabsTrigger>
                         <TabsTrigger value="units">Unidades</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="products" className="space-y-4">
+                        {productsError && (
+                            <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                                No se pudo cargar la lista de productos. {getRequestErrorMessage(productsError)}
+                            </div>
+                        )}
                         <div className="flex items-center gap-2">
                             <div className="relative flex-1 max-w-sm">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
                                     type="search"
-                                    placeholder={`Buscar ${config.productLabel.toLowerCase()}s...`}
+                                    placeholder={`Buscar ${itemsPluralLower}...`}
                                     className="pl-9 bg-background focus-visible:ring-primary"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -600,6 +732,13 @@ export default function ProductsPage() {
 
                         <div className="rounded-2xl border border-border/60 bg-background overflow-hidden shadow-sm">
                             <div className="overflow-x-auto">
+                            {isLoading ? (
+                                <ProductsTableSkeleton
+                                    rows={6}
+                                    showStockColumn={config.productFields.showStock}
+                                    className="border-0 rounded-none shadow-none"
+                                />
+                            ) : (
                             <Table>
                                 <TableHeader className="bg-muted/50">
                                     <TableRow className="border-border">
@@ -617,20 +756,12 @@ export default function ProductsPage() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {isLoading ? (
+                                    {filteredProducts.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <Loader2 className="h-4 w-4 animate-spin" /> Cargando...
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ) : filteredProducts.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                                            <TableCell colSpan={tableColSpan} className="h-24 text-center text-muted-foreground">
                                                 {searchTerm
                                                     ? "Sin resultados para tu búsqueda."
-                                                    : `No hay ${config.productLabel.toLowerCase()}s en tu ${moduleTitle.toLowerCase()}.`
+                                                    : `No hay ${itemsPluralLower} en tu ${moduleLower}.`
                                                 }
                                             </TableCell>
                                         </TableRow>
@@ -722,6 +853,7 @@ export default function ProductsPage() {
                                     )}
                                 </TableBody>
                             </Table>
+                            )}
                             </div>
                         </div>
                     </TabsContent>
@@ -742,7 +874,7 @@ export default function ProductsPage() {
                                     {filteredDisabledProducts.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={4} className="h-20 text-center text-muted-foreground">
-                                                No tienes productos deshabilitados.
+                                                No tienes {itemsPluralLower} deshabilitados.
                                             </TableCell>
                                         </TableRow>
                                     ) : (
@@ -776,7 +908,10 @@ export default function ProductsPage() {
                     </TabsContent>
 
                     <TabsContent value="categories">
-                        <CategoriesManager businessPhoneId={sessionBusinessPhoneId} />
+                        <CategoriesManager
+                            itemsPluralLower={itemsPluralLower}
+                            moduleLower={moduleLower}
+                        />
                     </TabsContent>
 
                     <TabsContent value="units">
@@ -789,7 +924,6 @@ export default function ProductsPage() {
                 open={dialogOpen}
                 onOpenChange={setDialogOpen}
                 config={config}
-                businessPhoneId={sessionBusinessPhoneId}
                 product={selectedProduct}
             />
         </motion.div>

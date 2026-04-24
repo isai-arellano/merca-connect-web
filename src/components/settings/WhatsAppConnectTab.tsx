@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
+import { useSWRConfig } from "swr";
 import { useSession } from "next-auth/react";
 import {
     CheckCircle2,
@@ -11,6 +12,8 @@ import {
     Zap,
     RefreshCw,
     ArrowRight,
+    WifiOff,
+    AlertTriangle,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
@@ -20,6 +23,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 // ─── Tipos del SDK de Facebook ────────────────────────────────────────────────
 
@@ -49,7 +60,6 @@ interface SignupStatus {
     connected: boolean;
     waba_id?: string;
     display_phone?: string;
-    phone_number?: string;
     meta_app_id?: string;
 }
 
@@ -58,9 +68,12 @@ interface SignupStatus {
 export function WhatsAppConnectTab() {
     const { data: session } = useSession();
     const { toast } = useToast();
+    const { mutate } = useSWRConfig();
     const [step, setStep] = useState<Step>("idle");
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const sdkLoaded = useRef(false);
+    const [disconnecting, setDisconnecting] = useState(false);
+    const [showDisconnectDialog, setShowDisconnectDialog] = useState(false);
 
     // Acumula los datos que llegan por postMessage (pueden llegar antes del callback de FB.login)
     const pendingSignupData = useRef<{ phone_number_id?: string; waba_id?: string }>({});
@@ -195,6 +208,8 @@ export function WhatsAppConnectTab() {
                 waba_id,
             });
             await mutateStatus();
+            await mutate(endpoints.business.whatsappSignupStatus);
+            await mutate(endpoints.business.settings);
             setStep("done");
             toast({
                 title: "¡WhatsApp conectado!",
@@ -212,6 +227,32 @@ export function WhatsAppConnectTab() {
         }
     }
 
+    // ── Desconectar WhatsApp ─────────────────────────────────────────────────
+    async function handleDisconnect() {
+        setDisconnecting(true);
+        try {
+            await apiClient.delete(endpoints.business.whatsappDisconnect);
+            await mutateStatus();
+            await mutate(endpoints.business.whatsappSignupStatus);
+            await mutate(endpoints.business.settings);
+            setShowDisconnectDialog(false);
+            setStep("idle");
+            toast({
+                title: "WhatsApp desconectado",
+                description: "Tu número quedó desvinculado correctamente.",
+            });
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : "Error desconocido";
+            toast({
+                title: "Error al desconectar",
+                description: msg,
+                variant: "destructive",
+            });
+        } finally {
+            setDisconnecting(false);
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
 
     if (statusLoading) {
@@ -225,33 +266,78 @@ export function WhatsAppConnectTab() {
     }
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Smartphone className="h-5 w-5 text-emerald-500" />
-                    Conectar Número de WhatsApp
-                </CardTitle>
-                <CardDescription>
-                    Vincula el número de WhatsApp Business de tu cliente con Merca-Connect
-                    en menos de 2 minutos, sin tocar ninguna consola de Meta.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
+        <>
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Smartphone className="h-5 w-5 text-emerald-500" />
+                        Conectar Número de WhatsApp
+                    </CardTitle>
+                    <CardDescription>
+                        Vincula el número de WhatsApp Business de tu cliente con Merca-Connect
+                        en menos de 2 minutos, sin tocar ninguna consola de Meta.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
 
-                {/* Estado actual */}
-                {status.connected ? (
-                    <ConnectedState status={status} onReconnect={() => setStep("idle")} />
-                ) : (
-                    <DisconnectedState
-                        step={step}
-                        errorMsg={errorMsg}
-                        onStart={startEmbeddedSignup}
-                        onRetry={() => { setStep("idle"); setErrorMsg(null); }}
-                    />
-                )}
+                    {/* Estado actual */}
+                    {status.connected ? (
+                        <ConnectedState
+                            status={status}
+                            onReconnect={() => setStep("idle")}
+                            onDisconnect={() => setShowDisconnectDialog(true)}
+                        />
+                    ) : (
+                        <DisconnectedState
+                            step={step}
+                            errorMsg={errorMsg}
+                            onStart={startEmbeddedSignup}
+                            onRetry={() => { setStep("idle"); setErrorMsg(null); }}
+                        />
+                    )}
 
-            </CardContent>
-        </Card>
+                </CardContent>
+            </Card>
+
+            {/* Dialog de confirmación de desconexión */}
+            <Dialog open={showDisconnectDialog} onOpenChange={(open) => { if (!open && !disconnecting) setShowDisconnectDialog(false); }}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-destructive" />
+                            Desconectar WhatsApp
+                        </DialogTitle>
+                        <DialogDescription className="text-sm leading-relaxed">
+                            Esta acción desvinculará tu número de WhatsApp Business de Merca-Connect.
+                            <br /><br />
+                            <strong>El agente dejará de responder mensajes</strong> y tendrás que volver a conectar para reactivarlo. Tus datos (productos, clientes, pedidos) no se eliminarán.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => setShowDisconnectDialog(false)}
+                            disabled={disconnecting}
+                        >
+                            Cancelar
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDisconnect}
+                            disabled={disconnecting}
+                            className="gap-2"
+                        >
+                            {disconnecting ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <WifiOff className="h-4 w-4" />
+                            )}
+                            Sí, desconectar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }
 
@@ -260,9 +346,11 @@ export function WhatsAppConnectTab() {
 function ConnectedState({
     status,
     onReconnect,
+    onDisconnect,
 }: {
     status: SignupStatus;
     onReconnect: () => void;
+    onDisconnect: () => void;
 }) {
     return (
         <div className="space-y-5">
@@ -288,7 +376,7 @@ function ConnectedState({
             <Separator />
 
             <div className="grid gap-3 sm:grid-cols-2">
-                <InfoRow label="Número de WhatsApp" value={status.display_phone || status.phone_number || "—"} />
+                <InfoRow label="Número de WhatsApp" value={status.display_phone || "—"} />
                 <InfoRow label="WABA ID" value={status.waba_id || "—"} mono />
             </div>
 
@@ -302,10 +390,21 @@ function ConnectedState({
                 </p>
             </div>
 
-            <Button variant="outline" size="sm" onClick={onReconnect} className="gap-2">
-                <RefreshCw className="h-3.5 w-3.5" />
-                Reconectar con otro número
-            </Button>
+            <div className="flex items-center gap-3 flex-wrap">
+                <Button variant="outline" size="sm" onClick={onReconnect} className="gap-2">
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Reconectar con otro número
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onDisconnect}
+                    className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                    <WifiOff className="h-3.5 w-3.5" />
+                    Desconectar WhatsApp
+                </Button>
+            </div>
         </div>
     );
 }

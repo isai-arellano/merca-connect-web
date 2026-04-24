@@ -7,9 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { type LucideIcon, CheckCircle2, Circle, ChevronRight, Smartphone, Building2, MapPin, Store, ShoppingBag, Package, UtensilsCrossed, Wrench, Monitor, Bike, ArrowLeftRight } from "lucide-react";
+import { type LucideIcon, CheckCircle2, Circle, ChevronRight, Smartphone, Building2, MapPin, Store, ShoppingBag, Package, UtensilsCrossed, Wrench, Monitor, Bike, ArrowLeftRight, Coffee, Scissors, Stethoscope, PawPrint, BookOpen, Sofa, Globe, BarChart2, ShoppingCart, Pill, Laptop, PlayCircle, GraduationCap, ChefHat, Wifi } from "lucide-react";
 import { motion } from "framer-motion";
-import { type OnboardingState, type OnboardingSettingsLike } from "@/lib/onboarding";
+import { type OnboardingState, type OnboardingSettingsLike, INDUSTRIES_BY_CATEGORY } from "@/lib/onboarding";
+
+const INDUSTRY_ICON_MAP: Record<string, LucideIcon> = {
+  UtensilsCrossed, Coffee, ChefHat, ShoppingBag, Package, ShoppingCart,
+  Wrench, Pill, BookOpen, PawPrint, Laptop, Sofa, BarChart2, Scissors,
+  Stethoscope, Globe, GraduationCap, Monitor, PlayCircle, Wifi,
+};
 import { apiClient } from "@/lib/api-client";
 import { endpoints } from "@/lib/api";
 import { mutate } from "swr";
@@ -20,12 +26,11 @@ const BUSINESS_CATEGORIES: Array<{
   Icon: LucideIcon;
   description: string;
 }> = [
-  { value: "physical_store",   Icon: Store,           label: "Tienda física",             description: "Productos físicos con pickup o entrega local" },
-  { value: "physical_digital", Icon: ShoppingBag,     label: "Tienda física y en línea",  description: "Vendes en local y también haces envíos" },
-  { value: "online_store",     Icon: Package,         label: "Tienda en línea",           description: "Ventas con envío nacional o paquetería" },
-  { value: "restaurant",       Icon: UtensilsCrossed, label: "Comida",                    description: "Menú, pedidos, delivery o pickup" },
-  { value: "field_service",    Icon: Wrench,          label: "Servicio a domicilio",      description: "Instalaciones, visitas técnicas, servicios en sitio" },
-  { value: "digital_service",  Icon: Monitor,         label: "Servicio o producto digital", description: "Sin entrega física: cursos, software, consultoría" },
+  { value: "physical_store",  Icon: Store,           label: "Tienda física",                    description: "Vendes productos en local con entrega o pickup" },
+  { value: "restaurant",      Icon: UtensilsCrossed, label: "Comida y bebidas",                  description: "Restaurantes, cafeterías, taquerías, dark kitchens" },
+  { value: "online_store",    Icon: Package,         label: "Tienda en línea",                  description: "Ventas con envío a todo el país o paquetería" },
+  { value: "field_service",   Icon: Wrench,          label: "Servicio a domicilio",             description: "Instalaciones, visitas técnicas, servicios en sitio" },
+  { value: "digital_service", Icon: Monitor,         label: "Producto o servicio digital",      description: "Cursos, software, consultoría — sin entrega física" },
 ];
 
 const itemVariants = {
@@ -43,6 +48,9 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
   const [selectedCategory, setSelectedCategory] = useState<string>(
     settings.business_category ?? "",
   );
+  const [selectedIndustry, setSelectedIndustry] = useState<string>(
+    settings.type ?? "",
+  );
   const [selectedDeliveryMode, setSelectedDeliveryMode] = useState<string>(
     settings.delivery_mode ?? "",
   );
@@ -50,51 +58,65 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
     (settings.config as Record<string, unknown> & { delivery_zone?: string })?.delivery_zone ?? "",
   );
   const [isPending, startTransition] = useTransition();
+  const [isIndustryPending, startIndustryTransition] = useTransition();
   const [isDeliveryPending, startDeliveryTransition] = useTransition();
 
   const category = selectedCategory as string;
   const isDigitalService = category === "digital_service";
   const isOnlineStore = category === "online_store";
-  // physical_digital: tiene delivery local + envíos, se trata como physical para el paso de entrega
-  const isPhysicalOrRestaurant = category === "physical_store" || category === "physical_digital" || category === "restaurant";
+  const isPhysicalOrRestaurant = category === "physical_store" || category === "online_store" || category === "restaurant";
   const isFieldService = category === "field_service";
 
-  // Paso de entrega visible solo si la categoría no es digital_service
+  // Opciones de industria filtradas por categoría seleccionada
+  const industryOptions = useMemo(
+    () => (category ? (INDUSTRIES_BY_CATEGORY[category] ?? []) : []),
+    [category],
+  );
+
+  // Limpiar industria si la categoría cambia y la industria ya no aplica
+  useEffect(() => {
+    if (!category || !selectedIndustry) return;
+    const stillValid = industryOptions.some((i) => i.slug === selectedIndustry);
+    if (!stillValid) {
+      setSelectedIndustry("");
+    }
+  }, [category, industryOptions, selectedIndustry]);
+
   const showDeliveryStep = Boolean(category) && !isDigitalService;
 
-  // Número total de pasos efectivos en el progreso
-  const totalSteps = isDigitalService ? 3 : 4;
+  // Pasos: categoría, industria, datos, (entrega), whatsapp
+  const totalSteps = isDigitalService ? 4 : 5;
 
-  // Usar estado local para desbloqueo inmediato (optimista) — el servidor confirma vía SWR
   const step0Done = onboarding.hasCategory || Boolean(selectedCategory);
-  const step1Done = onboarding.hasBusinessProfile && step0Done;
-  const step2Done = onboarding.hasDeliveryConfig || Boolean(selectedDeliveryMode);
-  const step3Done = onboarding.hasWhatsApp;
+  const step1Done = step0Done && (onboarding.hasIndustry || Boolean(selectedIndustry));
+  const step2Done = onboarding.hasBusinessProfile && step1Done;
+  const step3Done = onboarding.hasDeliveryConfig || Boolean(selectedDeliveryMode);
+  const step4Done = onboarding.hasWhatsApp;
 
   const stepsComplete = useMemo(() => {
     if (isDigitalService) {
-      return [step0Done, step1Done, step3Done].filter(Boolean).length;
+      return [step0Done, step1Done, step2Done, step4Done].filter(Boolean).length;
     }
-    return [step0Done, step1Done, step2Done, step3Done].filter(Boolean).length;
-  }, [isDigitalService, step0Done, step1Done, step2Done, step3Done]);
+    return [step0Done, step1Done, step2Done, step3Done, step4Done].filter(Boolean).length;
+  }, [isDigitalService, step0Done, step1Done, step2Done, step3Done, step4Done]);
 
   const progress = Math.round((stepsComplete / totalSteps) * 100);
 
-  // Auto-advance online_store: set delivery_mode = "shipping" automatically when step1 is done
+  // Auto-advance online_store: set delivery_mode = "shipping" automatically when step2 is done
   useEffect(() => {
-    if (isOnlineStore && step1Done && !step2Done && !isDeliveryPending) {
+    if (isOnlineStore && step2Done && !step3Done && !isDeliveryPending) {
       startDeliveryTransition(async () => {
         try {
           await apiClient.patch(endpoints.business.settings, { delivery_mode: "shipping" });
           setSelectedDeliveryMode("shipping");
           await mutate(endpoints.business.settings);
         } catch {
-          // silencioso — el usuario puede reintentar desde el paso
+          // silencioso
         }
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOnlineStore, step1Done, step2Done]);
+  }, [isOnlineStore, step2Done, step3Done]);
 
   async function handleCategorySelect(value: string) {
     if (isPending) return;
@@ -104,8 +126,20 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
         await apiClient.patch(endpoints.business.settings, { business_category: value });
         await mutate(endpoints.business.settings);
       } catch {
-        // Si falla el PATCH, revertir la selección local
         setSelectedCategory(settings.business_category ?? "");
+      }
+    });
+  }
+
+  async function handleIndustrySelect(slug: string) {
+    if (isIndustryPending) return;
+    setSelectedIndustry(slug);
+    startIndustryTransition(async () => {
+      try {
+        await apiClient.patch(endpoints.business.settings, { type: slug });
+        await mutate(endpoints.business.settings);
+      } catch {
+        setSelectedIndustry(settings.type ?? "");
       }
     });
   }
@@ -137,10 +171,13 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
         });
         await mutate(endpoints.business.settings);
       } catch {
-        // silencioso — los valores locales se mantienen
+        // silencioso
       }
     });
   }
+
+  const whatsAppStepNumber = isDigitalService ? "4." : "5.";
+  const canStartWhatsApp = onboarding.canStartWhatsApp || (step2Done && (isDigitalService || step3Done));
 
   return (
     <motion.div variants={itemVariants}>
@@ -152,8 +189,8 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
                 Configura tu negocio
               </CardTitle>
               <CardDescription className="mt-0.5 text-sm">
-                {stepsComplete} de {totalSteps} pasos — categoría, datos del negocio
-                {showDeliveryStep ? ", entrega" : ""} y conexión WhatsApp
+                {stepsComplete} de {totalSteps} pasos — tipo, industria, datos
+                {showDeliveryStep ? ", entrega" : ""} y WhatsApp
               </CardDescription>
             </div>
             <Badge
@@ -173,7 +210,8 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Paso 0 — Selección de categoría */}
+
+          {/* Paso 0 — Tipo de negocio (business_category) */}
           <section
             className="rounded-xl border border-border/60 p-3 bg-background"
             aria-labelledby="onboarding-step-category"
@@ -186,11 +224,11 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
               )}
               <div>
                 <h3 id="onboarding-step-category" className="text-sm font-medium text-foreground">
-                  1. Tipo de negocio
+                  1. ¿Cómo vende tu negocio?
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {step0Done
-                    ? "Puedes cambiarlo cuando quieras."
+                    ? "Categoría guardada."
                     : "Elige la categoría que mejor describe tu negocio."}
                 </p>
               </div>
@@ -226,14 +264,70 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
             </div>
           </section>
 
-          {/* Paso 1 — Datos del negocio (Configuración → Negocio) */}
+          {/* Paso 1 — Industria / giro específico (type) — dinámico por categoría */}
           <section
             className="rounded-xl border border-border/60 p-3 bg-background transition-opacity"
             style={{ opacity: step0Done ? 1 : 0.55 }}
+            aria-labelledby="onboarding-step-industry"
+          >
+            <div className="flex items-start gap-3 mb-3">
+              {step1Done ? (
+                <CheckCircle2 className="h-5 w-5 text-brand-spring shrink-0 mt-0.5" aria-hidden />
+              ) : (
+                <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" aria-hidden />
+              )}
+              <div>
+                <h3 id="onboarding-step-industry" className="text-sm font-medium text-foreground">
+                  2. ¿Qué tipo de negocio tienes?
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {!step0Done
+                    ? "Primero elige cómo vendes arriba."
+                    : step1Done
+                      ? "Industria guardada."
+                      : "Elige el giro específico para personalizar tu experiencia."}
+                </p>
+              </div>
+            </div>
+            {step0Done && industryOptions.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {industryOptions.map(({ slug, label, icon }) => {
+                  const isActive = selectedIndustry === slug;
+                  const IconComp = INDUSTRY_ICON_MAP[icon] ?? Store;
+                  return (
+                    <button
+                      key={slug}
+                      type="button"
+                      disabled={isIndustryPending}
+                      onClick={() => handleIndustrySelect(slug)}
+                      className={[
+                        "flex items-center gap-2 rounded-lg border p-2.5 text-left transition-all",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        "disabled:opacity-60 disabled:cursor-not-allowed",
+                        isActive
+                          ? "border-brand-spring bg-brand-mint/40 ring-2 ring-brand-spring"
+                          : "border-border/60 bg-background hover:border-brand-spring/50 hover:bg-brand-mint/20",
+                      ].join(" ")}
+                    >
+                      <IconComp className={["h-4 w-4 shrink-0", isActive ? "text-brand-forest" : "text-muted-foreground"].join(" ")} aria-hidden />
+                      <span className="text-xs font-medium text-foreground leading-tight">
+                        {label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* Paso 2 — Datos del negocio */}
+          <section
+            className="rounded-xl border border-border/60 p-3 bg-background transition-opacity"
+            style={{ opacity: step1Done ? 1 : 0.55 }}
             aria-labelledby="onboarding-step-business"
           >
             <div className="flex items-start gap-3">
-              {step1Done ? (
+              {step2Done ? (
                 <CheckCircle2 className="h-5 w-5 text-brand-spring shrink-0 mt-0.5" aria-hidden />
               ) : (
                 <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" aria-hidden />
@@ -241,11 +335,11 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
               <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0">
                 <div>
                   <h3 id="onboarding-step-business" className="text-sm font-medium text-foreground">
-                    2. Datos del negocio
+                    3. Datos del negocio
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {!step0Done
-                      ? "Primero elige la categoría de tu negocio arriba."
+                    {!step1Done
+                      ? "Elige primero el tipo de negocio e industria."
                       : "Agrega el nombre de tu negocio en Configuración."}
                   </p>
                 </div>
@@ -254,13 +348,13 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
                   size="sm"
                   variant="outline"
                   className="shrink-0 border-brand-forest/30 text-brand-forest"
-                  disabled={!step0Done}
-                  asChild={step0Done}
+                  disabled={!step1Done}
+                  asChild={step1Done}
                 >
-                  {step0Done ? (
+                  {step1Done ? (
                     <Link href="/dashboard/settings?tab=negocio">
                       <Building2 className="h-3.5 w-3.5 mr-1" />
-                      {step1Done ? "Revisar" : "Completar"}
+                      {step2Done ? "Revisar" : "Completar"}
                       <ChevronRight className="h-3.5 w-3.5 ml-1" />
                     </Link>
                   ) : (
@@ -274,25 +368,25 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
             </div>
           </section>
 
-          {/* Paso 2 — Entrega / Cobertura (condicional por categoría) */}
+          {/* Paso 3 — Entrega / Cobertura (condicional por categoría) */}
           {showDeliveryStep && (
             <section
               className="rounded-xl border border-border/60 p-3 bg-background transition-opacity"
-              style={{ opacity: step1Done ? 1 : 0.55 }}
+              style={{ opacity: step2Done ? 1 : 0.55 }}
               aria-labelledby="onboarding-step-delivery"
             >
               <div className="flex items-start gap-3 mb-3">
-                {step2Done ? (
+                {step3Done ? (
                   <CheckCircle2 className="h-5 w-5 text-brand-spring shrink-0 mt-0.5" aria-hidden />
                 ) : (
                   <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" aria-hidden />
                 )}
                 <div>
                   <h3 id="onboarding-step-delivery" className="text-sm font-medium text-foreground">
-                    3. {isFieldService ? "Área de cobertura" : "Entrega"}
+                    4. {isFieldService ? "Área de cobertura" : "Entrega"}
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {!step1Done
+                    {!step2Done
                       ? "Completa primero los datos de tu negocio."
                       : isFieldService
                         ? "Indica las zonas donde prestas tu servicio."
@@ -303,15 +397,14 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
                 </div>
               </div>
 
-              {step1Done && (
+              {step2Done && (
                 <div className="pl-8 space-y-3">
-                  {/* physical_store / restaurant — cards de modo de entrega */}
                   {isPhysicalOrRestaurant && (
                     <>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         {([
-                          { value: "delivery",        label: "Solo delivery",    Icon: Bike },
-                          { value: "pickup",          label: "Solo pickup",      Icon: Store },
+                          { value: "delivery",        label: "Solo delivery",     Icon: Bike },
+                          { value: "pickup",          label: "Solo pickup",       Icon: Store },
                           { value: "delivery_pickup", label: "Delivery y pickup", Icon: ArrowLeftRight },
                         ] as Array<{ value: string; label: string; Icon: LucideIcon }>).map((opt) => {
                           const isActive = selectedDeliveryMode === opt.value;
@@ -367,13 +460,12 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
                     </>
                   )}
 
-                  {/* online_store — informativo, auto-selecciona shipping */}
                   {isOnlineStore && (
                     <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/30 p-3">
                       <MapPin className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden />
                       <p className="text-xs text-muted-foreground">
                         Tus pedidos se envían por paquetería nacional.
-                        {step2Done
+                        {step3Done
                           ? " Configuración lista."
                           : isDeliveryPending
                             ? " Configurando..."
@@ -382,7 +474,6 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
                     </div>
                   )}
 
-                  {/* field_service — campo de texto para zona de cobertura */}
                   {isFieldService && (
                     <div className="space-y-1.5">
                       <Label htmlFor="coverage-zone" className="text-xs text-muted-foreground">
@@ -414,14 +505,14 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
             </section>
           )}
 
-          {/* Paso 3 (o 2 para digital_service) — WhatsApp */}
+          {/* Paso final — WhatsApp */}
           <section
             className="rounded-xl border border-border/60 p-3 bg-background transition-opacity"
-            style={{ opacity: onboarding.canStartWhatsApp ? 1 : 0.55 }}
+            style={{ opacity: canStartWhatsApp ? 1 : 0.55 }}
             aria-labelledby="onboarding-step-wa"
           >
             <div className="flex items-start gap-3">
-              {step3Done ? (
+              {step4Done ? (
                 <CheckCircle2 className="h-5 w-5 text-brand-spring shrink-0 mt-0.5" aria-hidden />
               ) : (
                 <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0 mt-0.5" aria-hidden />
@@ -429,10 +520,10 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
               <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 min-w-0">
                 <div>
                   <h3 id="onboarding-step-wa" className="text-sm font-medium text-foreground">
-                    {isDigitalService ? "3." : "4."} WhatsApp Business
+                    {whatsAppStepNumber} WhatsApp Business
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {!onboarding.canStartWhatsApp
+                    {!canStartWhatsApp
                       ? showDeliveryStep
                         ? "Completa primero la configuración de entrega."
                         : "Completa primero los datos de tu negocio."
@@ -440,9 +531,9 @@ export function DashboardOnboarding({ onboarding, settings, catalogLabel }: Dash
                   </p>
                 </div>
                 <div className="flex flex-col items-stretch sm:items-end gap-1">
-                  {step3Done ? (
+                  {step4Done ? (
                     <span className="text-xs text-brand-forest font-medium">Conectado</span>
-                  ) : onboarding.canStartWhatsApp ? (
+                  ) : canStartWhatsApp ? (
                     <Button
                       type="button"
                       size="sm"

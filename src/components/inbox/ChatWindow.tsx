@@ -15,6 +15,7 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
+import { formatPhoneDisplay } from "@/lib/phoneUtils";
 
 interface ChatWindowProps {
     conversationId: string;
@@ -317,13 +318,14 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                         <p className="font-semibold text-sm truncate leading-tight">{customerName}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
                             <Phone className="h-3 w-3 text-muted-foreground" />
-                            <p className="text-xs text-muted-foreground truncate">{detailData.customer?.phone_number}</p>
+                            <p className="text-xs text-muted-foreground truncate">
+                                {formatPhoneDisplay(detailData.customer?.phone_number)}
+                            </p>
                         </div>
                     </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                    {detailData.agent_enabled && (
-                        <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2">
                             <span
                                 className={`flex items-center gap-1 max-w-[7.5rem] sm:max-w-none ${isHandoff ? "text-muted-foreground" : "text-emerald-700"}`}
                                 title="Zafer Agent"
@@ -366,7 +368,6 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                                 Tú
                             </span>
                         </div>
-                    )}
                     {/* Badge de estado */}
                     <span className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full font-medium transition-colors duration-200 ${
                         isHandoff
