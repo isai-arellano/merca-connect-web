@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import {
     CheckCircle2,
     Loader2,
+    RefreshCw,
     Smartphone,
     Zap,
     ArrowRight,
