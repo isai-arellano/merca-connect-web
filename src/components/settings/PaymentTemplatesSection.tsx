@@ -29,6 +29,96 @@ const METHOD_LABELS: Record<string, string> = {
 
 const EMPTY_FORM = { name: "", method: "", content: "" };
 
+interface StructuredFields {
+    banco?: string;
+    clabe?: string;
+    titular?: string;
+    nota?: string;
+    comercio?: string;
+    direccion?: string;
+    horario?: string;
+}
+
+const EMPTY_FIELDS: StructuredFields = {};
+
+function parseContentToFields(method: string, content: string): StructuredFields {
+    const lines = content.split("\n").map((l) => l.trim());
+    const get = (prefix: string) => {
+        const line = lines.find((l) => l.startsWith(prefix));
+        return line ? line.slice(prefix.length).trim() : "";
+    };
+    if (method === "spei") {
+        const nota = lines
+            .filter((l) => l && !l.startsWith("🏦") && !l.startsWith("━") && !l.startsWith("Banco:") && !l.startsWith("CLABE:") && !l.startsWith("Titular:") && !l.startsWith("Envíanos"))
+            .join(" ").trim();
+        return {
+            banco: get("Banco:"),
+            clabe: get("CLABE:"),
+            titular: get("Titular:"),
+            nota: nota || "",
+        };
+    }
+    if (method === "card") {
+        const nota = lines
+            .filter((l) => l && !l.startsWith("💳") && !l.startsWith("━") && !l.startsWith("Terminal:") && !l.startsWith("Acepta"))
+            .join(" ").trim();
+        return {
+            comercio: get("Terminal:"),
+            nota: nota || "",
+        };
+    }
+    if (method === "cash") {
+        const nota = lines
+            .filter((l) => l && !l.startsWith("💵") && !l.startsWith("━") && !l.startsWith("Dirección:") && !l.startsWith("Horario:"))
+            .join(" ").trim();
+        return {
+            direccion: get("Dirección:"),
+            horario: get("Horario:"),
+            nota: nota || "",
+        };
+    }
+    return {};
+}
+
+function buildContent(method: string, fields: StructuredFields): string {
+    if (method === "spei") {
+        const lines = [
+            "🏦 *Transferencia SPEI*",
+            "━━━━━━━━━━━━━━━━━",
+            `Banco: ${fields.banco || ""}`,
+            `CLABE: ${fields.clabe || ""}`,
+            `Titular: ${fields.titular || ""}`,
+            "━━━━━━━━━━━━━━━━━",
+        ];
+        if (fields.nota?.trim()) lines.push(fields.nota.trim());
+        lines.push("Envíanos tu comprobante al terminar ✅");
+        return lines.join("\n");
+    }
+    if (method === "card") {
+        const lines = [
+            "💳 *Pago con Tarjeta*",
+            "━━━━━━━━━━━━━━━━━",
+            `Terminal: ${fields.comercio || ""}`,
+            "Acepta Visa / Mastercard / AMEX",
+            "━━━━━━━━━━━━━━━━━",
+        ];
+        if (fields.nota?.trim()) lines.push(fields.nota.trim());
+        return lines.join("\n");
+    }
+    if (method === "cash") {
+        const lines = [
+            "💵 *Pago en Efectivo*",
+            "━━━━━━━━━━━━━━━━━",
+            `Dirección: ${fields.direccion || ""}`,
+        ];
+        if (fields.horario?.trim()) lines.push(`Horario: ${fields.horario.trim()}`);
+        lines.push("━━━━━━━━━━━━━━━━━");
+        if (fields.nota?.trim()) lines.push(fields.nota.trim());
+        return lines.join("\n");
+    }
+    return "";
+}
+
 export function PaymentTemplatesSection() {
     const { data: templates, isLoading, mutate } = useSWR<PaymentTemplate[]>(
         endpoints.paymentTemplates.list,
@@ -38,17 +128,29 @@ export function PaymentTemplatesSection() {
     const [showForm, setShowForm] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState(EMPTY_FORM);
+    const [structuredFields, setStructuredFields] = useState<StructuredFields>(EMPTY_FIELDS);
     const [saving, setSaving] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
+    const isStructured = form.method && form.method !== "other";
+    const generatedContent = isStructured ? buildContent(form.method, structuredFields) : form.content;
+
     const openCreate = () => {
         setForm(EMPTY_FORM);
+        setStructuredFields(EMPTY_FIELDS);
         setEditingId(null);
         setShowForm(true);
     };
 
     const openEdit = (t: PaymentTemplate) => {
-        setForm({ name: t.name, method: t.method ?? "", content: t.content });
+        const method = t.method ?? "";
+        setForm({ name: t.name, method, content: t.content });
+        // Parse el content guardado para pre-llenar los campos estructurados
+        if (method && method !== "other") {
+            setStructuredFields(parseContentToFields(method, t.content));
+        } else {
+            setStructuredFields(EMPTY_FIELDS);
+        }
         setEditingId(t.id);
         setShowForm(true);
     };
@@ -57,16 +159,23 @@ export function PaymentTemplatesSection() {
         setShowForm(false);
         setEditingId(null);
         setForm(EMPTY_FORM);
+        setStructuredFields(EMPTY_FIELDS);
+    };
+
+    const handleMethodChange = (v: string) => {
+        setForm((f) => ({ ...f, method: v }));
+        setStructuredFields(EMPTY_FIELDS);
     };
 
     const handleSave = async () => {
-        if (!form.name.trim() || !form.content.trim()) return;
+        const finalContent = isStructured ? generatedContent : form.content;
+        if (!form.name.trim() || !finalContent.trim()) return;
         setSaving(true);
         try {
             const body = {
                 name: form.name.trim(),
                 method: form.method || null,
-                content: form.content.trim(),
+                content: finalContent.trim(),
                 is_active: true,
             };
             if (editingId) {
@@ -144,7 +253,7 @@ export function PaymentTemplatesSection() {
                         <Label htmlFor="pt-method" className="text-xs">Método (opcional)</Label>
                         <Select
                             value={form.method}
-                            onValueChange={(v) => setForm((f) => ({ ...f, method: v }))}
+                            onValueChange={handleMethodChange}
                         >
                             <SelectTrigger id="pt-method" className="h-8 text-sm">
                                 <SelectValue placeholder="Selecciona método" />
@@ -157,17 +266,130 @@ export function PaymentTemplatesSection() {
                         </Select>
                     </div>
 
-                    <div className="space-y-2">
-                        <Label htmlFor="pt-content" className="text-xs">Texto que se enviará al cliente</Label>
-                        <Textarea
-                            id="pt-content"
-                            placeholder={"Banco: BBVA\nCLABE: 012345678912345678\nNombre: Juan Pérez\n\nEnvíanos tu comprobante 🙌"}
-                            value={form.content}
-                            onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
-                            rows={4}
-                            className="text-sm resize-none"
-                        />
-                    </div>
+                    {/* Structured fields for SPEI */}
+                    {form.method === "spei" && (
+                        <div className="space-y-2">
+                            <div className="space-y-1.5">
+                                <Label className="text-xs">Banco</Label>
+                                <Input
+                                    placeholder="Ej: BBVA"
+                                    value={structuredFields.banco ?? ""}
+                                    onChange={(e) => setStructuredFields((f) => ({ ...f, banco: e.target.value }))}
+                                    className="h-8 text-sm"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs">CLABE (18 dígitos)</Label>
+                                <Input
+                                    placeholder="012345678901234567"
+                                    maxLength={18}
+                                    value={structuredFields.clabe ?? ""}
+                                    onChange={(e) => setStructuredFields((f) => ({ ...f, clabe: e.target.value }))}
+                                    className="h-8 text-sm"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs">Titular</Label>
+                                <Input
+                                    placeholder="Nombre del titular"
+                                    value={structuredFields.titular ?? ""}
+                                    onChange={(e) => setStructuredFields((f) => ({ ...f, titular: e.target.value }))}
+                                    className="h-8 text-sm"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs">Nota opcional</Label>
+                                <Input
+                                    placeholder="Ej: Referencia: pedido #123"
+                                    value={structuredFields.nota ?? ""}
+                                    onChange={(e) => setStructuredFields((f) => ({ ...f, nota: e.target.value }))}
+                                    className="h-8 text-sm"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Structured fields for Tarjeta */}
+                    {form.method === "card" && (
+                        <div className="space-y-2">
+                            <div className="space-y-1.5">
+                                <Label className="text-xs">Nombre del comercio / terminal</Label>
+                                <Input
+                                    placeholder="Ej: Tienda Principal"
+                                    value={structuredFields.comercio ?? ""}
+                                    onChange={(e) => setStructuredFields((f) => ({ ...f, comercio: e.target.value }))}
+                                    className="h-8 text-sm"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs">Nota opcional</Label>
+                                <Input
+                                    placeholder="Instrucciones adicionales"
+                                    value={structuredFields.nota ?? ""}
+                                    onChange={(e) => setStructuredFields((f) => ({ ...f, nota: e.target.value }))}
+                                    className="h-8 text-sm"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Structured fields for Efectivo */}
+                    {form.method === "cash" && (
+                        <div className="space-y-2">
+                            <div className="space-y-1.5">
+                                <Label className="text-xs">Dirección o punto de pago</Label>
+                                <Input
+                                    placeholder="Ej: Av. Insurgentes 123, CDMX"
+                                    value={structuredFields.direccion ?? ""}
+                                    onChange={(e) => setStructuredFields((f) => ({ ...f, direccion: e.target.value }))}
+                                    className="h-8 text-sm"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs">Horario (opcional)</Label>
+                                <Input
+                                    placeholder="Ej: Lun–Vie 9am–6pm"
+                                    value={structuredFields.horario ?? ""}
+                                    onChange={(e) => setStructuredFields((f) => ({ ...f, horario: e.target.value }))}
+                                    className="h-8 text-sm"
+                                />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label className="text-xs">Nota opcional</Label>
+                                <Input
+                                    placeholder="Instrucciones adicionales"
+                                    value={structuredFields.nota ?? ""}
+                                    onChange={(e) => setStructuredFields((f) => ({ ...f, nota: e.target.value }))}
+                                    className="h-8 text-sm"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Free textarea for "Otro" or no method */}
+                    {(!form.method || form.method === "other") && (
+                        <div className="space-y-2">
+                            <Label htmlFor="pt-content" className="text-xs">Texto que se enviará al cliente</Label>
+                            <Textarea
+                                id="pt-content"
+                                placeholder={"Escribe el mensaje de pago..."}
+                                value={form.content}
+                                onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
+                                rows={4}
+                                className="text-sm resize-none"
+                            />
+                        </div>
+                    )}
+
+                    {/* Preview */}
+                    {isStructured && generatedContent && (
+                        <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Vista previa del mensaje</Label>
+                            <div className="rounded-lg border border-border bg-background p-3 font-mono text-xs whitespace-pre-line leading-relaxed text-foreground">
+                                {generatedContent}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="flex justify-end gap-2">
                         <Button type="button" size="sm" variant="ghost" className="h-7 text-xs" onClick={closeForm}>
@@ -178,7 +400,7 @@ export function PaymentTemplatesSection() {
                             size="sm"
                             className="h-7 text-xs"
                             onClick={handleSave}
-                            disabled={saving || !form.name.trim() || !form.content.trim()}
+                            disabled={saving || !form.name.trim() || !generatedContent.trim()}
                         >
                             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Check className="h-3.5 w-3.5 mr-1" />}
                             Guardar

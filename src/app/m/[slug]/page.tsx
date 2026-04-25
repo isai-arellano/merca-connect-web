@@ -1,8 +1,8 @@
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { fetchPublicCatalogResult } from "@/lib/public-catalog-fetch";
 import { normalizePublicCatalogSlug } from "@/lib/public-catalog-slug";
-import { PublicCatalogView } from "@/components/public/public-catalog-view";
+import { PublicMenuView } from "@/components/public/public-menu-view";
 import { CatalogNotPublished } from "@/components/public/catalog-not-published";
 
 export async function generateMetadata(
@@ -10,22 +10,22 @@ export async function generateMetadata(
 ): Promise<Metadata> {
     const { slug: raw } = await params;
     if (!normalizePublicCatalogSlug(raw)) {
-        return { title: "Catálogo no encontrado" };
+        return { title: "Menú no encontrado" };
     }
     const result = await fetchPublicCatalogResult(raw);
     if (result.status === "ok") {
         return {
-            title: `${result.data.business_name} — Catálogo`,
-            description: `Explora los productos de ${result.data.business_name}.`,
+            title: `${result.data.business_name} — Menú`,
+            description: `Explora el menú de ${result.data.business_name}.`,
         };
     }
     if (result.status === "forbidden") {
-        return { title: "Catálogo no publicado" };
+        return { title: "Menú no publicado" };
     }
-    return { title: "Catálogo no encontrado" };
+    return { title: "Menú no encontrado" };
 }
 
-async function CSlugContent({ params }: { params: Promise<{ slug: string }> }) {
+async function MSlugContent({ params }: { params: Promise<{ slug: string }> }) {
     const { slug: raw } = await params;
     const slugNorm = normalizePublicCatalogSlug(raw);
     if (!slugNorm) notFound();
@@ -34,13 +34,9 @@ async function CSlugContent({ params }: { params: Promise<{ slug: string }> }) {
 
     switch (result.status) {
         case "ok":
-            // Negocios de comida que tenían URL /c/slug son redirigidos permanentemente a /m/slug.
-            if (result.data.public_view === "menu") {
-                permanentRedirect(`/m/${slugNorm}`);
-            }
-            return <PublicCatalogView catalog={result.data} />;
+            return <PublicMenuView catalog={result.data} />;
         case "forbidden":
-            return <CatalogNotPublished kind="catalogo" />;
+            return <CatalogNotPublished kind="menu" />;
         case "not_found":
         case "invalid_body":
         case "error":
@@ -49,5 +45,5 @@ async function CSlugContent({ params }: { params: Promise<{ slug: string }> }) {
 }
 
 export default function Page(props: { params: Promise<{ slug: string }> }) {
-    return <CSlugContent params={props.params} />;
+    return <MSlugContent params={props.params} />;
 }

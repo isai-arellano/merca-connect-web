@@ -271,6 +271,30 @@ export interface PlanUsage {
   effective_product_image_limit?: number;
 }
 
+// ── Seats ──
+export interface SeatUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+// ── Billing Cycles ──
+export interface BillingCycle {
+  id: string;
+  plan: string;
+  period_start: string;
+  period_end: string;
+  conversations_included: number;
+  conversations_used: number;
+  extra_conversations: number;
+  extra_amount_mxn: number;
+  extra_conv_price_mxn: number;
+  closed_at: string;
+}
+
 // ── WhatsApp Profile ──
 export interface WhatsAppProfile {
     verified_name?: string;

@@ -4,11 +4,10 @@ import { useState, useRef, useEffect } from "react";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
-import { type ConversationDetail, type ApiList, type MessageTemplate, type ConversationMessage, type PaymentTemplate } from "@/types/api";
+import { type ConversationDetail, type ConversationMessage, type PaymentTemplate } from "@/types/api";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, Send, FileText, Check, Download, Image as ImageIcon, Bot, User, Phone, CreditCard } from "lucide-react";
+import { Loader2, Send, Check, Download, Image as ImageIcon, Bot, User, Phone, CreditCard, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Popover,
@@ -20,24 +19,6 @@ import { formatPhoneDisplay } from "@/lib/phoneUtils";
 interface ChatWindowProps {
     conversationId: string;
 }
-
-const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-    APPROVED: { label: "Aprobado", variant: "default" },
-    approved: { label: "Aprobado", variant: "default" },
-    PENDING: { label: "Pendiente", variant: "secondary" },
-    pending: { label: "Pendiente", variant: "secondary" },
-    REJECTED: { label: "Rechazado", variant: "destructive" },
-    rejected: { label: "Rechazado", variant: "destructive" },
-};
-
-const categoryLabels: Record<string, string> = {
-    MARKETING: "Marketing",
-    UTILITY: "Utilidad",
-    AUTHENTICATION: "Autenticación",
-    marketing: "Marketing",
-    utility: "Utilidad",
-    authentication: "Autenticación",
-};
 
 /** Renders the media attachment for a message based on its type */
 function MessageMedia({ msg }: { msg: ConversationMessage }) {
@@ -153,9 +134,6 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     const [inputValue, setInputValue] = useState("");
     const [isSending, setIsSending] = useState(false);
     const [isTogglingHandoff, setIsTogglingHandoff] = useState(false);
-    const [templatePopoverOpen, setTemplatePopoverOpen] = useState(false);
-    const [sendingTemplate, setSendingTemplate] = useState<string | null>(null);
-    const [sentTemplate, setSentTemplate] = useState<string | null>(null);
     const [paymentPopoverOpen, setPaymentPopoverOpen] = useState(false);
     const [sendingPaymentId, setSendingPaymentId] = useState<string | null>(null);
     const [sentPaymentId, setSentPaymentId] = useState<string | null>(null);
@@ -168,21 +146,12 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
         { refreshInterval: 8000 }
     );
 
-    const { data: templatesResponse, isLoading: templatesLoading } = useSWR<ApiList<MessageTemplate> | MessageTemplate[]>(
-        templatePopoverOpen ? endpoints.templates.list : null,
-        fetcher
-    );
-
     const { data: paymentTemplates, isLoading: paymentTemplatesLoading } = useSWR<PaymentTemplate[]>(
         paymentPopoverOpen ? endpoints.paymentTemplates.list : null,
         fetcher
     );
 
-    const templates: MessageTemplate[] =
-        (templatesResponse as ApiList<MessageTemplate> | null)?.data ??
-        (Array.isArray(templatesResponse) ? templatesResponse : []);
     const messages: ConversationMessage[] = detailData?.messages ?? [];
-    const customerPhone = detailData?.customer?.phone_number;
     const customerName = detailData?.customer?.name || detailData?.customer?.phone_number || "Cliente";
     const initials = customerName.substring(0, 2).toUpperCase();
     const isHandoff = detailData?.status === "handoff";
@@ -262,28 +231,6 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             // noop
         } finally {
             setSendingPaymentId(null);
-        }
-    };
-
-    const handleSendTemplate = async (templateName: string, language: string) => {
-        if (!customerPhone) return;
-        setSendingTemplate(templateName);
-        try {
-            await apiClient.post(endpoints.templates.send, {
-                template_name: templateName,
-                phone_number: customerPhone,
-                language: language || "es_MX",
-            });
-            setSentTemplate(templateName);
-            setTimeout(() => {
-                setSentTemplate(null);
-                setTemplatePopoverOpen(false);
-            }, 1200);
-            await mutate();
-        } catch {
-            // noop
-        } finally {
-            setSendingTemplate(null);
         }
     };
 
@@ -431,96 +378,8 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
             {/* ── Input ── */}
             <div className="px-3 py-3 bg-white border-t border-border/50 shrink-0">
                 <div className="flex items-end gap-2">
-                    {/* Template button */}
-                    <Popover open={templatePopoverOpen} onOpenChange={setTemplatePopoverOpen}>
-                        <PopoverTrigger asChild>
-                            <Button
-                                size="icon"
-                                variant="ghost"
-                                className="shrink-0 h-9 w-9 rounded-full text-muted-foreground hover:text-[#1A3E35] hover:bg-[#EEFAEE] transition-colors"
-                                title="Enviar plantilla"
-                            >
-                                <FileText className="h-4 w-4" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent align="start" side="top" className="w-80 p-0 rounded-2xl shadow-xl border border-border/50 overflow-hidden">
-                            <div className="px-4 py-3 bg-gradient-to-b from-[#f6fdf6] to-white border-b border-border/40">
-                                <div className="flex items-center gap-2">
-                                    <div className="h-6 w-6 rounded-lg bg-[#1A3E35]/10 flex items-center justify-center">
-                                        <FileText className="h-3.5 w-3.5 text-[#1A3E35]" />
-                                    </div>
-                                    <h4 className="font-semibold text-sm text-[#1A3E35]">Plantillas de mensaje</h4>
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-1.5 ml-8">
-                                    Solo las aprobadas por Meta pueden enviarse.
-                                </p>
-                            </div>
-                            <ScrollArea className="max-h-60">
-                                {templatesLoading ? (
-                                    <div className="flex items-center justify-center py-8">
-                                        <Loader2 className="h-5 w-5 animate-spin text-[#1A3E35]" />
-                                    </div>
-                                ) : Array.isArray(templates) && templates.length > 0 ? (
-                                    <div className="p-2 flex flex-col gap-1">
-                                        {templates.map((template) => {
-                                            const isApproved = template.status?.toUpperCase() === "APPROVED";
-                                            const status = (template.status ? statusConfig[template.status] : undefined) || statusConfig["PENDING"];
-                                            const category = (template.category ? categoryLabels[template.category] : undefined) || template.category;
-                                            const isSendingThis = sendingTemplate === template.name;
-                                            const isSentThis = sentTemplate === template.name;
-                                            return (
-                                                <button
-                                                    key={template.id || template.name}
-                                                    disabled={!isApproved || isSendingThis}
-                                                    onClick={() => handleSendTemplate(template.name, template.language ?? "es_MX")}
-                                                    className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-3 transition-all duration-150 ${
-                                                        isApproved
-                                                            ? "hover:bg-[#EEFAEE] cursor-pointer"
-                                                            : "opacity-40 cursor-not-allowed"
-                                                    }`}
-                                                >
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-sm font-medium truncate text-foreground">
-                                                                {template.name}
-                                                            </span>
-                                                            <Badge variant={status.variant} className="text-[10px] px-1.5 py-0 shrink-0">
-                                                                {status.label}
-                                                            </Badge>
-                                                        </div>
-                                                        <span className="text-xs text-muted-foreground">
-                                                            {category} · {template.language || "es_MX"}
-                                                        </span>
-                                                    </div>
-                                                    <div className="shrink-0">
-                                                        {isSendingThis ? (
-                                                            <Loader2 className="h-4 w-4 animate-spin text-[#1A3E35]" />
-                                                        ) : isSentThis ? (
-                                                            <Check className="h-4 w-4 text-emerald-500" />
-                                                        ) : isApproved ? (
-                                                            <Send className="h-3.5 w-3.5 text-muted-foreground" />
-                                                        ) : null}
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center py-10 px-4">
-                                        <div className="h-10 w-10 rounded-2xl bg-muted flex items-center justify-center mb-3">
-                                            <FileText className="h-5 w-5 text-muted-foreground" />
-                                        </div>
-                                        <p className="text-sm font-medium text-foreground">Sin plantillas</p>
-                                        <p className="text-xs text-muted-foreground text-center mt-1">Crea una en la sección Templates.</p>
-                                    </div>
-                                )}
-                            </ScrollArea>
-                        </PopoverContent>
-                    </Popover>
-
-                    {/* Payment templates button — solo en handoff */}
-                    {isHandoff && (
-                        <Popover open={paymentPopoverOpen} onOpenChange={setPaymentPopoverOpen}>
+                    {/* Payment templates button */}
+                    <Popover open={paymentPopoverOpen} onOpenChange={setPaymentPopoverOpen}>
                             <PopoverTrigger asChild>
                                 <Button
                                     size="icon"
@@ -602,7 +461,6 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                                 </ScrollArea>
                             </PopoverContent>
                         </Popover>
-                    )}
 
                     {/* Text input */}
                     <div className="flex-1 flex items-end bg-[#F0F2F5] rounded-2xl px-4 py-2 min-h-[40px]">
