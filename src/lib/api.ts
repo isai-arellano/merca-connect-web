@@ -106,6 +106,12 @@ export const endpoints = {
         whatsappDisconnect: `${API_URL}/api/v1/business/whatsapp-signup/disconnect`,
         planUsage: `${API_URL}/api/v1/business/plan/usage`,
         planAllowExtra: `${API_URL}/api/v1/business/plan/allow-extra`,
+        billingCycles: `${API_URL}/api/v1/business/billing/cycles`,
+    },
+    seats: {
+        list: `${API_URL}/api/v1/seats`,
+        invite: `${API_URL}/api/v1/seats/invite`,
+        deactivate: (userId: string) => `${API_URL}/api/v1/seats/${userId}`,
     },
     paymentTemplates: {
         list: `${API_URL}/api/v1/payment-templates`,
