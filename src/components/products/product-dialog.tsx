@@ -607,11 +607,6 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
                             <div className="grid grid-cols-4 items-start gap-4">
                                 <Label className="text-right pt-2">Imágenes</Label>
                                 <div className="col-span-3 space-y-2">
-                                    <p className="text-xs text-muted-foreground">
-                                        Hasta 3 imágenes por producto. La primera es la principal. En el bucket están bajo{" "}
-                                        <span className="font-mono text-[10px] break-all">{"{slug}/products/{id}/"}</span>
-                                        , no junto al logo.
-                                    </p>
                                     {replaceTargetIndex !== null && imageFile && (
                                         <p className="text-xs text-primary">
                                             Sustituyendo la imagen {replaceTargetIndex + 1} (misma posición, nuevo archivo en WebP).
