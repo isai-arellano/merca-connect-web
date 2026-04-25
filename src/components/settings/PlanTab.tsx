@@ -31,17 +31,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { fetcher, apiClient } from "@/lib/api-client";
 import { endpoints } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -58,6 +47,9 @@ export function PlanTab() {
   const [inviteForm, setInviteForm] = useState({ name: "", email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [inviting, setInviting] = useState(false);
+
+  // ── Deactivate confirm dialog state ──
+  const [confirmDeactivate, setConfirmDeactivate] = useState<SeatUser | null>(null);
 
   const {
     data: planRaw,
@@ -355,31 +347,14 @@ export function PlanTab() {
                       {seat.role}
                     </Badge>
                     {seat.id !== currentUserId && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>¿Desactivar usuario?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              {seat.name} perderá acceso al panel. Esta acción no elimina al usuario
-                              permanentemente.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                            <AlertDialogAction
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              onClick={() => handleDeactivate(seat.id)}
-                            >
-                              Desactivar
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => setConfirmDeactivate(seat)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -478,6 +453,33 @@ export function PlanTab() {
           </CardContent>
         )}
       </Card>
+
+      {/* ── Confirm deactivate dialog ── */}
+      <Dialog open={!!confirmDeactivate} onOpenChange={(open) => !open && setConfirmDeactivate(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>¿Desactivar usuario?</DialogTitle>
+            <DialogDescription>
+              {confirmDeactivate?.name} perderá acceso al panel. Esta acción no elimina al usuario
+              permanentemente.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeactivate(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (confirmDeactivate) handleDeactivate(confirmDeactivate.id);
+                setConfirmDeactivate(null);
+              }}
+            >
+              Desactivar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Invite dialog ── */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
