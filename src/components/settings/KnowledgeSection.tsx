@@ -12,7 +12,6 @@ import {
     Loader2,
     AlertCircle,
     FileText,
-    Clock,
     ShieldCheck,
     HelpCircle,
     Sparkles,
@@ -58,15 +57,13 @@ interface KnowledgeDoc {
 
 const DOC_TYPE_META: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
     faq:    { label: "Preguntas frecuentes", icon: <HelpCircle className="h-3.5 w-3.5" />,  color: "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/20" },
-    policy: { label: "Política",           icon: <ShieldCheck className="h-3.5 w-3.5" />, color: "bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20" },
-    hours:  { label: "Horarios",           icon: <Clock className="h-3.5 w-3.5" />,       color: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20" },
-    custom: { label: "General",            icon: <FileText className="h-3.5 w-3.5" />,    color: "bg-muted text-muted-foreground border-border" },
+    policy: { label: "Política",            icon: <ShieldCheck className="h-3.5 w-3.5" />, color: "bg-violet-500/10 text-violet-700 dark:text-violet-400 border-violet-500/20" },
+    custom: { label: "General",             icon: <FileText className="h-3.5 w-3.5" />,    color: "bg-muted text-muted-foreground border-border" },
 };
 
 const DOC_TYPE_EXAMPLES: Record<string, string> = {
     faq:    "¿Hacen entregas a domicilio? Sí, entregamos en un radio de 5km. El costo de envío es $30 MXN.",
     policy: "Política de devoluciones: Aceptamos devoluciones dentro de los 3 días posteriores a la compra, con ticket de compra.",
-    hours:  "Lunes a Viernes: 8:00am - 8:00pm\nSábado: 9:00am - 6:00pm\nDomingo: Cerrado",
     custom: "Métodos de pago aceptados: Efectivo, transferencia SPEI, tarjeta débito/crédito con terminal.",
 };
 
@@ -171,7 +168,7 @@ export function KnowledgeSection() {
                         <span className="font-medium text-foreground">¿Cómo funciona?</span>{" "}
                         Cuando un cliente pregunte «¿tienen estacionamiento?» o «¿hacen envíos a Zapopan?»,
                         el agente consultará esta sección antes de responder. Agrega preguntas frecuentes,
-                        políticas y horarios para mantener respuestas claras y correctas.
+                        políticas y cualquier información relevante para mantener respuestas claras y correctas.
                     </div>
                 </div>
             </motion.div>
@@ -294,7 +291,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
                 </div>
                 <p className="font-semibold text-foreground mb-1 text-justify">Todavía no hay documentos</p>
                 <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-                    Agrega preguntas frecuentes, horarios y políticas para que el agente
+                    Agrega preguntas frecuentes, políticas y otra información para que el agente
                     responda preguntas de tu negocio.
                 </p>
                 <Button onClick={onAdd} className="gap-2">
@@ -386,7 +383,7 @@ function DocDialog({
                         <Input
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            placeholder={`Ej: ${docType === "faq" ? "¿Hacen envíos?" : docType === "hours" ? "Horario de atención" : docType === "policy" ? "Política de devoluciones" : "Métodos de pago"}`}
+                            placeholder={`Ej: ${docType === "faq" ? "¿Hacen envíos?" : docType === "policy" ? "Política de devoluciones" : "Métodos de pago"}`}
                         />
                     </div>
 
