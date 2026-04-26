@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import useSWR from "swr";
-import { Bot, Loader2, MessageSquare, Save } from "lucide-react";
+import { Bot, Loader2, MessageSquare, Package, Save } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
@@ -18,6 +18,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useSession } from "next-auth/react";
 import { KnowledgeSection } from "@/components/settings/KnowledgeSection";
@@ -28,6 +29,8 @@ interface BusinessSettings {
   config?: {
     agent_enabled?: boolean;
     welcome_message?: string;
+    min_order_amount?: number | null;
+    delivery_fee?: number | null;
   };
 }
 
@@ -88,6 +91,9 @@ export function AgentTab() {
   const [toggling, setToggling] = useState(false);
   const [welcomeMessage, setWelcomeMessage] = useState("");
   const [savingWelcome, setSavingWelcome] = useState(false);
+  const [minOrderAmount, setMinOrderAmount] = useState<string>("");
+  const [deliveryFee, setDeliveryFee] = useState<string>("");
+  const [savingDelivery, setSavingDelivery] = useState(false);
 
   const {
     data: settingsRes,
@@ -109,6 +115,14 @@ export function AgentTab() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings?.config?.welcome_message]);
 
+  useEffect(() => {
+    const min = settings?.config?.min_order_amount;
+    const fee = settings?.config?.delivery_fee;
+    setMinOrderAmount(min != null ? String(min) : "");
+    setDeliveryFee(fee != null ? String(fee) : "");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings?.config?.min_order_amount, settings?.config?.delivery_fee]);
+
   const handleSaveWelcome = async () => {
     if (savingWelcome) return;
     setSavingWelcome(true);
@@ -126,6 +140,33 @@ export function AgentTab() {
       });
     } finally {
       setSavingWelcome(false);
+    }
+  };
+
+  const handleSaveDelivery = async () => {
+    if (savingDelivery) return;
+    setSavingDelivery(true);
+    try {
+      const minVal = minOrderAmount.trim() ? parseFloat(minOrderAmount) : null;
+      const feeVal = deliveryFee.trim() ? parseFloat(deliveryFee) : null;
+      if ((minOrderAmount.trim() && isNaN(minVal!)) || (deliveryFee.trim() && isNaN(feeVal!))) {
+        toast({ title: "Valores inválidos", description: "Ingresa números válidos.", variant: "destructive" });
+        return;
+      }
+      await apiClient.patch(endpoints.business.agentConfig, {
+        min_order_amount: minVal,
+        delivery_fee: feeVal,
+      });
+      mutateSettings();
+      toast({ title: "Configuración de entrega guardada" });
+    } catch {
+      toast({
+        title: "Error al guardar",
+        description: "No se pudo actualizar. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingDelivery(false);
     }
   };
 
@@ -256,6 +297,68 @@ export function AgentTab() {
                   <Save className="h-3.5 w-3.5" />
                 )}
                 Guardar mensaje
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Entrega y pedidos */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5 text-emerald-500" />
+            Entrega y pedidos
+          </CardTitle>
+          <CardDescription>
+            El agente usará estos valores para informar al cliente y validar pedidos antes de confirmarlos.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {settingsLoading ? (
+            <Skeleton className="h-20 w-full" />
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="min-order">Monto mínimo de pedido ($)</Label>
+                  <Input
+                    id="min-order"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="Ej: 150"
+                    value={minOrderAmount}
+                    onChange={(e) => setMinOrderAmount(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Dejar vacío si no hay mínimo</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="delivery-fee">Costo de envío ($)</Label>
+                  <Input
+                    id="delivery-fee"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="Ej: 30"
+                    value={deliveryFee}
+                    onChange={(e) => setDeliveryFee(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Dejar vacío si el envío es gratis</p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={handleSaveDelivery}
+                disabled={savingDelivery}
+                className="gap-1.5"
+              >
+                {savingDelivery ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                Guardar configuración
               </Button>
             </>
           )}
