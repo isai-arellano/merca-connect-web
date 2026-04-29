@@ -98,9 +98,9 @@ export function PremiumHeader({
   const sched = getTodaySchedule();
 
   return (
-    <div className="relative rounded-t-[2.5rem] overflow-hidden">
-      {/* Top Banner Area */}
-      <div className="relative h-64 sm:h-72 w-full overflow-hidden bg-muted">
+    <div className="relative">
+      {/* Top Banner Area - Taller and more rounded at bottom */}
+      <div className="relative h-72 sm:h-[26rem] w-full overflow-hidden bg-muted rounded-b-[3rem] shadow-xl z-10">
         {bannerUrl ? (
           <Image
             src={bannerUrl}
@@ -152,12 +152,10 @@ export function PremiumHeader({
             <Share2 className="h-4 w-4" />
           </button>
         </div>
-        {/* Gradient fade at the bottom of banner - more pronounced */}
-        <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[var(--pub-surface)] via-[var(--pub-surface)]/90 via-[var(--pub-surface)]/50 to-transparent pointer-events-none z-10" />
       </div>
 
-      {/* Business card — sits right below banner, no top rounding */}
-      <div className="relative w-full -mt-16 z-20">
+      {/* Business card area — flat top, sits slightly lower to show the banner curve */}
+      <div className="relative -mt-10 w-full z-20">
         <div className="bg-[var(--pub-surface)] px-8 pb-6 pt-0">
           <div className="flex flex-col items-center text-center space-y-6">
             {/* Centered Logo */}
@@ -180,9 +178,9 @@ export function PremiumHeader({
               </div>
               <div className={cn(
                 "absolute -bottom-2 -right-2 h-10 w-10 rounded-full flex items-center justify-center border-4 border-[var(--pub-surface)] shadow-lg",
-                sched?.open ? "bg-green-500" : "bg-red-500"
+                sched?.open ? "bg-[var(--pub-accent)]" : "bg-red-500"
               )}>
-                <div className="h-3 w-3 rounded-full bg-white animate-pulse" />
+                <div className="h-3 w-3 rounded-full bg-white/80 animate-ping opacity-75" />
               </div>
             </div>
 

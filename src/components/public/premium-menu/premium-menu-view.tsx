@@ -95,24 +95,28 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
               variant="horizontal"
             />
 
-            <div className="flex items-center bg-[var(--pub-surface-muted)]/30 p-1 rounded-xl border border-[var(--pub-border)] self-end">
+            <div className="flex items-center bg-[var(--pub-surface-muted)]/30 p-1.5 rounded-2xl border-2 border-muted/20 self-end shadow-sm">
               <Button
-                variant={viewMode === "grid" ? "secondary" : "ghost"}
+                variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-10 px-4 rounded-lg font-black gap-2 uppercase text-[10px] tracking-widest", 
-                  viewMode === "grid" ? cn("bg-[var(--pub-surface)] shadow-sm", tokens.accent) : "text-muted-foreground"
+                  "h-10 px-4 rounded-xl font-black gap-2 uppercase text-[10px] tracking-widest transition-all", 
+                  viewMode === "grid" 
+                    ? "bg-[var(--pub-surface)] border border-muted/20 shadow-sm " + tokens.accent
+                    : "text-muted-foreground hover:bg-[var(--pub-accent)]/5 hover:text-[var(--pub-accent)]"
                 )}
                 onClick={() => setViewMode("grid")}
               >
                 <LayoutGrid className="h-4 w-4" />
               </Button>
               <Button
-                variant={viewMode === "list" ? "secondary" : "ghost"}
+                variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-10 px-4 rounded-lg font-black gap-2 uppercase text-[10px] tracking-widest", 
-                  viewMode === "list" ? cn("bg-[var(--pub-surface)] shadow-sm", tokens.accent) : "text-muted-foreground"
+                  "h-10 px-4 rounded-xl font-black gap-2 uppercase text-[10px] tracking-widest transition-all", 
+                  viewMode === "list" 
+                    ? "bg-[var(--pub-surface)] border border-muted/20 shadow-sm " + tokens.accent
+                    : "text-muted-foreground hover:bg-[var(--pub-accent)]/5 hover:text-[var(--pub-accent)]"
                 )}
                 onClick={() => setViewMode("list")}
               >
@@ -202,7 +206,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
       </div>
 
       <Dialog open={!!selectedProduct} onOpenChange={(open) => !open && setSelectedProduct(null)}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-[var(--pub-surface)]" style={tokens.cssVars as React.CSSProperties}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-[4.5rem] border-none shadow-2xl bg-[var(--pub-surface)]" style={tokens.cssVars as React.CSSProperties}>
           <DialogHeader className="sr-only">
             <DialogTitle>{selectedProduct?.name}</DialogTitle>
             <DialogDescription>Detalles</DialogDescription>
@@ -220,11 +224,13 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                     </div>
                   )}
                 </motion.div>
-                <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5">
-                  <div className={cn("h-1.5 w-6 rounded-full", tokens.buttonBg)} />
-                  <div className="h-1.5 w-1.5 rounded-full bg-[var(--pub-on-button)]/50" />
-                  <div className="h-1.5 w-1.5 rounded-full bg-[var(--pub-on-button)]/50" />
+                <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-1.5 z-10">
+                  <div className={cn("h-1.5 w-8 rounded-full shadow-lg", tokens.buttonBg)} />
+                  <div className="h-1.5 w-1.5 rounded-full bg-white/50 shadow-md" />
+                  <div className="h-1.5 w-1.5 rounded-full bg-white/50 shadow-md" />
                 </div>
+                {/* Subtle overlay to soften the bottom edge of image */}
+                <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[var(--pub-surface)] to-transparent pointer-events-none" />
               </div>
 
               <div className="p-8 pb-10 space-y-6">
@@ -249,11 +255,11 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                 )}
 
                 <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-6">
-                  <div className="flex items-center gap-4 bg-[var(--pub-surface-muted)]/40 p-1.5 rounded-2xl border border-[var(--pub-border)] w-full sm:w-auto justify-between sm:justify-start">
+                  <div className="flex items-center gap-4 bg-[var(--pub-surface-muted)]/40 p-2 rounded-[1.5rem] border-2 border-muted/20 w-full sm:w-auto justify-between sm:justify-start">
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-12 w-12 rounded-xl hover:bg-[var(--pub-surface)]"
+                      className="h-12 w-12 rounded-xl hover:bg-[var(--pub-accent)]/5 hover:text-[var(--pub-accent)]"
                       onClick={() => {
                         const inCart = cart.items.find(i => i.id === selectedProduct.id)?.quantity || 0;
                         cart.updateQty(selectedProduct.id, inCart - 1);
@@ -266,7 +272,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                     </span>
                     <Button
                       size="icon"
-                      className={cn("h-12 w-12 rounded-xl", tokens.buttonBg, tokens.buttonText)}
+                      className={cn("h-12 w-12 rounded-xl shadow-lg transition-transform active:scale-95", tokens.buttonBg, tokens.buttonText)}
                       onClick={() => {
                         const inCart = cart.items.find(i => i.id === selectedProduct.id)?.quantity || 0;
                         if (inCart === 0) {
@@ -281,10 +287,10 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                   </div>
 
                   <Button 
-                    className={cn("w-full sm:flex-1 h-16 rounded-2xl font-black uppercase tracking-widest gap-3 text-sm shadow-xl", tokens.buttonBg, tokens.buttonText)}
+                    className={cn("w-full sm:flex-1 h-16 rounded-[1.8rem] font-black uppercase tracking-widest gap-3 text-sm shadow-xl transition-all active:scale-[0.98] bg-[var(--pub-accent)] text-white hover:brightness-95")}
                     onClick={() => setSelectedProduct(null)}
                   >
-                    Confirmar
+                    Confirmar pedido
                     <ArrowRight className="h-5 w-5" />
                   </Button>
                 </div>

@@ -70,7 +70,7 @@ export function PremiumCategoryNav({
 
   const renderIcon = (iconName: string | null | undefined, isActive: boolean) => {
     const Icon = (iconName && FOOD_ICONS[iconName]) ? FOOD_ICONS[iconName] : Utensils;
-    return <Icon className={cn("h-4 w-4 sm:h-5 sm:w-5", isActive ? "" : "opacity-60")} />;
+    return <Icon className={cn("h-4 w-4 sm:h-5 sm:w-5", isActive ? "" : "opacity-60", tokens.accent)} />;
   };
 
   if (variant === "vertical") {
@@ -81,8 +81,8 @@ export function PremiumCategoryNav({
           className={cn(
             "flex items-center gap-3 p-3 rounded-xl transition-all duration-300 text-left group",
             activeCategoryId === null
-              ? cn(tokens.buttonBg, tokens.buttonText, "shadow-md scale-[1.02]")
-              : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+              ? "bg-[var(--pub-accent)]/10 border-2 border-[var(--pub-accent)] text-[var(--pub-accent)]"
+              : "hover:bg-muted/50 border-2 border-transparent text-muted-foreground hover:text-foreground"
           )}
         >
           <LayoutGrid className="h-4 w-4" />
@@ -119,10 +119,10 @@ export function PremiumCategoryNav({
         className="flex flex-col items-center gap-2 shrink-0 group"
       >
         <div className={cn(
-          "h-12 w-12 sm:h-14 sm:w-14 rounded-xl flex items-center justify-center transition-all duration-300 border",
+          "h-12 w-12 sm:h-14 sm:w-14 rounded-xl flex items-center justify-center transition-all duration-300 border-2",
           activeCategoryId === null
-            ? cn(tokens.buttonBg, tokens.buttonText, "border-transparent shadow-lg scale-105")
-            : cn("bg-[var(--pub-surface)] border-[var(--pub-border)] text-muted-foreground hover:border-[var(--pub-accent)] hover:bg-[var(--pub-accent)]/5")
+            ? "bg-[var(--pub-accent)]/10 border-[var(--pub-accent)] text-[var(--pub-accent)]"
+            : "bg-[var(--pub-surface)] border-muted/30 text-muted-foreground hover:border-[var(--pub-accent)]/40 hover:bg-[var(--pub-accent)]/5 hover:shadow-lg hover:scale-110"
         )}>
           <LayoutGrid className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
@@ -142,10 +142,10 @@ export function PremiumCategoryNav({
           className="flex flex-col items-center gap-2 shrink-0 group"
         >
           <div className={cn(
-            "h-12 w-12 sm:h-14 sm:w-14 rounded-xl flex items-center justify-center transition-all duration-300 border",
+            "h-12 w-12 sm:h-14 sm:w-14 rounded-xl flex items-center justify-center transition-all duration-300 border-2",
             activeCategoryId === cat.id
-              ? cn(tokens.buttonBg, tokens.buttonText, "border-transparent shadow-lg scale-105")
-              : cn("bg-[var(--pub-surface)] border-[var(--pub-border)] text-muted-foreground hover:border-[var(--pub-accent)] hover:bg-[var(--pub-accent)]/5")
+              ? "bg-[var(--pub-accent)]/10 border-[var(--pub-accent)] text-[var(--pub-accent)]"
+              : "bg-[var(--pub-surface)] border-muted/30 text-muted-foreground hover:border-[var(--pub-accent)]/40 hover:bg-[var(--pub-accent)]/5 hover:shadow-lg hover:scale-110"
           )}>
             {renderIcon(cat.icon_name, activeCategoryId === cat.id)}
           </div>
