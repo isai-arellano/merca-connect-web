@@ -39,13 +39,13 @@ export function PremiumMenuLayout({
   return (
     <div 
       className={cn(
-        "min-h-screen font-sans transition-colors duration-300 py-4 sm:py-8 lg:py-12 px-4",
+        "min-h-screen font-sans transition-colors duration-300 py-4 sm:py-8 lg:py-12 px-4 pb-32 sm:pb-40",
         tokens.pageBackground
       )}
       data-pub-catalog
       style={tokens.cssVars as React.CSSProperties}
     >
-      <div className="container mx-auto max-w-4xl">
+      <div className="container mx-auto max-w-4xl relative">
         <div 
           className={cn(
             "bg-white rounded-[2.5rem] overflow-hidden border border-muted/20 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)]",
@@ -63,41 +63,16 @@ export function PremiumMenuLayout({
             </div>
 
             {/* Main Content: Products Grid */}
-            <main className="min-w-0">
+            <main className="min-w-0 pb-10">
               <div className="mt-0">
                 {children}
               </div>
             </main>
           </div>
         </div>
-      </div>
 
-      {/* Floating Cart (All Viewports) */}
-      {floatingCart}
-
-      {/* Watermark */}
-      <div className="mt-12 pb-16 flex flex-col items-center justify-center space-y-3 opacity-60 hover:opacity-100 transition-opacity">
-        <span className={cn("text-[10px] uppercase tracking-widest font-black", tokens.subtitle)}>
-          Creado con
-        </span>
-        <a 
-          href="https://merca-connect.com" 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="flex flex-col items-center gap-1 group"
-        >
-          <div className="relative h-8 w-8 mb-1 transition-transform group-hover:scale-110">
-            <Image
-              src="/images/isologo-principal.webp"
-              alt="Merca-Connect Logo"
-              fill
-              className="object-contain"
-            />
-          </div>
-          <span className={cn("font-black text-sm tracking-tighter uppercase", tokens.title)}>
-            Merca-Connect
-          </span>
-        </a>
+        {/* The Cart handles its own fixed positioning */}
+        {floatingCart}
       </div>
     </div>
   );

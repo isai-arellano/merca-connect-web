@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { ResolvedThemeTokens } from "@/config/catalog-themes";
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,37 +25,61 @@ export function PremiumFloatingCart({
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 100, opacity: 0 }}
-        className="fixed bottom-6 inset-x-0 z-50 flex justify-center px-4"
+        initial={{ y: 100 }}
+        animate={{ y: 0 }}
+        exit={{ y: 100 }}
+        className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pointer-events-none"
       >
-        <button
-          onClick={onClick}
-          className={cn(
-            "group flex items-center gap-4 h-14 pl-2 pr-2 rounded-2xl shadow-[0_15px_40px_rgba(0,0,0,0.25)] bg-black text-white transition-all hover:scale-[1.02] active:scale-95 border border-white/10 w-full max-w-md",
-          )}
-        >
-          <div className="flex items-center gap-3 bg-white/10 h-10 px-3 rounded-xl border border-white/5">
-            <div className="relative">
-              <ShoppingCart className="h-5 w-5 text-primary" />
-              <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[9px] font-black h-4 w-4 rounded-full flex items-center justify-center shadow-md ring-2 ring-black">
-                {totalItems}
-              </span>
+        <div className="w-full max-w-4xl pointer-events-auto">
+          <button
+            onClick={onClick}
+            className={cn(
+              "group flex items-center h-16 sm:h-20 rounded-t-[2.5rem] shadow-[0_-15px_40px_rgba(0,0,0,0.3)] bg-black text-white transition-all hover:bg-[#0a0a0a] active:scale-[0.99] w-full overflow-hidden border-t border-white/10",
+            )}
+          >
+            {/* BRANDING AREA (Left 1/4) */}
+            <div className="w-[30%] sm:w-[25%] h-full flex items-center gap-2 pl-6 sm:pl-8 border-r border-white/5 bg-white/5">
+              <div className="relative h-5 w-5 sm:h-6 sm:w-6 shrink-0 transition-transform group-hover:scale-110">
+                <Image
+                  src="/images/isologo-mc-white.webp"
+                  alt="Merca-Connect"
+                  fill
+                  className="object-contain"
+                />
+              </div>
+              <div className="flex flex-col items-start -space-y-0.5">
+                <span className="text-[6px] sm:text-[7px] font-black uppercase tracking-tighter opacity-30">Powered by</span>
+                <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-tighter opacity-60">Merca-Connect</span>
+              </div>
             </div>
-            <span className="text-sm font-black tabular-nums">
-              ${totalPrice.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
-            </span>
-          </div>
 
-          <div className="flex-1 text-center font-black uppercase text-[10px] tracking-[0.2em] opacity-80">
-            Confirmar Pedido
-          </div>
+            {/* CART AREA (Right 3/4) */}
+            <div className="flex-1 flex items-center justify-between px-4 sm:px-8">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" />
+                  <span className="absolute -top-2 -right-2 bg-white text-black text-[9px] font-black h-4 w-4 sm:h-5 sm:w-5 rounded-full flex items-center justify-center shadow-md">
+                    {totalItems}
+                  </span>
+                </div>
+                <span className="text-sm sm:text-xl font-black tabular-nums tracking-tighter">
+                  ${totalPrice.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
+                </span>
+              </div>
 
-          <div className="h-10 w-10 flex items-center justify-center bg-primary rounded-xl text-primary-foreground shadow-lg shadow-primary/20">
-            <ArrowRight className="h-5 w-5" />
-          </div>
-        </button>
+              <div className="hidden sm:block text-center font-black uppercase text-sm tracking-[0.3em]">
+                Ver Carrito
+              </div>
+              <div className="sm:hidden text-center font-black uppercase text-[11px] tracking-[0.2em]">
+                Ver Carrito
+              </div>
+
+              <div className="h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center bg-white rounded-2xl text-black shadow-lg">
+                <ArrowRight className="h-5 w-5 sm:h-6 sm:w-6" />
+              </div>
+            </div>
+          </button>
+        </div>
       </motion.div>
     </AnimatePresence>
   );
