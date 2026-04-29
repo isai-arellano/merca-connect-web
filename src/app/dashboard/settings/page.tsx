@@ -1081,8 +1081,11 @@ function SettingsPageInner() {
                               <Input
                                 id="social-instagram"
                                 value={socialForm.instagram}
-                                onChange={(e) => setSocialForm((prev) => ({ ...prev, instagram: e.target.value }))}
-                                placeholder="@tunegocio"
+                                onChange={(e) => {
+                                  const val = e.target.value.split("/").pop()?.replace("@", "") || "";
+                                  setSocialForm((prev) => ({ ...prev, instagram: val }));
+                                }}
+                                placeholder="usuario"
                               />
                             </div>
                             <div className="space-y-1.5">
@@ -1093,8 +1096,11 @@ function SettingsPageInner() {
                               <Input
                                 id="social-facebook"
                                 value={socialForm.facebook}
-                                onChange={(e) => setSocialForm((prev) => ({ ...prev, facebook: e.target.value }))}
-                                placeholder="@tunegocio o URL"
+                                onChange={(e) => {
+                                  const val = e.target.value.split("/").pop() || "";
+                                  setSocialForm((prev) => ({ ...prev, facebook: val }));
+                                }}
+                                placeholder="usuario"
                               />
                             </div>
                             <div className="space-y-1.5">
@@ -1105,8 +1111,11 @@ function SettingsPageInner() {
                               <Input
                                 id="social-tiktok"
                                 value={socialForm.tiktok}
-                                onChange={(e) => setSocialForm((prev) => ({ ...prev, tiktok: e.target.value }))}
-                                placeholder="@tunegocio"
+                                onChange={(e) => {
+                                  const val = e.target.value.split("/").pop()?.replace("@", "") || "";
+                                  setSocialForm((prev) => ({ ...prev, tiktok: val }));
+                                }}
+                                placeholder="usuario"
                               />
                             </div>
                             <div className="space-y-1.5 sm:col-span-2">

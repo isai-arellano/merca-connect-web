@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { ResolvedThemeTokens } from "@/config/catalog-themes";
 import { PublicCatalogData } from "@/components/public/public-catalog-view";
@@ -11,7 +12,6 @@ interface PremiumMenuLayoutProps {
   tokens: ResolvedThemeTokens;
   children: React.ReactNode;
   categoriesNav: React.ReactNode;
-  mobileCategoriesNav: React.ReactNode;
   cartSidebar: React.ReactNode;
   floatingCart: React.ReactNode;
   header: React.ReactNode;
@@ -22,7 +22,6 @@ export function PremiumMenuLayout({
   tokens,
   children,
   categoriesNav,
-  mobileCategoriesNav,
   cartSidebar,
   floatingCart,
   header,
@@ -40,66 +39,64 @@ export function PremiumMenuLayout({
   return (
     <div 
       className={cn(
-        "min-h-screen font-sans transition-colors duration-300",
+        "min-h-screen font-sans transition-colors duration-300 py-4 sm:py-8 lg:py-12 px-4",
         tokens.pageBackground
       )}
       data-pub-catalog
     >
-      {/* Dynamic Theme Injector is assumed to be handled by the parent or a global provider */}
-      
-      {/* Mobile & Desktop Header */}
-      {header}
-
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col lg:flex-row lg:gap-8 pt-6 pb-24 lg:pb-12">
+      <div className="container mx-auto max-w-4xl">
+        <div 
+          className={cn(
+            "bg-white rounded-[2.5rem] overflow-hidden border border-muted/20 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)]",
+            tokens.cardBackground
+          )}
+          style={{ backgroundColor: '#FFFFFF' }}
+        >
+          {/* Mobile & Desktop Header */}
+          {header}
           
-          {/* Left Sidebar: Categories (Desktop only) */}
-          <aside className="hidden lg:block lg:w-64 lg:shrink-0">
-            <div className="sticky top-24 space-y-4">
-              <h2 className={cn("text-lg font-bold px-2", tokens.title)}>
-                Categorías
-              </h2>
+          <div className="px-4 sm:px-8 lg:px-12 py-4">
+            {/* Horizontal Draggable Categories Nav */}
+            <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md -mx-4 px-4 py-4 border-b border-muted/10 mb-6">
               {categoriesNav}
             </div>
-          </aside>
 
-          {/* Main Content: Products Grid */}
-          <main className="flex-1 min-w-0">
-            {/* Mobile Sticky Categories */}
-            <div className={cn(
-              "lg:hidden sticky top-0 z-30 -mx-4 px-4 py-3 bg-background/80 backdrop-blur-md transition-shadow duration-300",
-              isScrolled ? "shadow-md" : ""
-            )}>
-              {mobileCategoriesNav}
-            </div>
-
-            <div className="mt-4 lg:mt-0">
-              {children}
-            </div>
-          </main>
-
-          {/* Right Sidebar: Cart (Desktop only) */}
-          <aside className="hidden xl:block xl:w-80 xl:shrink-0">
-            <div className="sticky top-24">
-              <div className={cn(
-                "rounded-3xl border border-muted/60 overflow-hidden shadow-sm",
-                tokens.cardBackground
-              )}>
-                <div className="p-5">
-                  <h2 className={cn("text-lg font-bold mb-4", tokens.title)}>
-                    Tu Pedido
-                  </h2>
-                  {cartSidebar}
-                </div>
+            {/* Main Content: Products Grid */}
+            <main className="min-w-0">
+              <div className="mt-0">
+                {children}
               </div>
-            </div>
-          </aside>
+            </main>
+          </div>
         </div>
       </div>
 
-      {/* Floating Cart (Mobile & Small Desktop) */}
-      <div className="xl:hidden">
-        {floatingCart}
+      {/* Floating Cart (All Viewports) */}
+      {floatingCart}
+
+      {/* Watermark */}
+      <div className="mt-12 pb-16 flex flex-col items-center justify-center space-y-3 opacity-60 hover:opacity-100 transition-opacity">
+        <span className={cn("text-[10px] uppercase tracking-widest font-black", tokens.subtitle)}>
+          Creado con
+        </span>
+        <a 
+          href="https://merca-connect.com" 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="flex flex-col items-center gap-1 group"
+        >
+          <div className="relative h-8 w-8 mb-1 transition-transform group-hover:scale-110">
+            <Image
+              src="/images/isologo-principal.webp"
+              alt="Merca-Connect Logo"
+              fill
+              className="object-contain"
+            />
+          </div>
+          <span className={cn("font-black text-sm tracking-tighter uppercase", tokens.title)}>
+            Merca-Connect
+          </span>
+        </a>
       </div>
     </div>
   );
