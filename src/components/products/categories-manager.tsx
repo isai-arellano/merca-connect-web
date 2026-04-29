@@ -5,28 +5,12 @@ import {
   Plus, 
   Trash2, 
   Loader2, 
-  Utensils, 
-  Pizza, 
-  Coffee, 
-  IceCream, 
-  Soup, 
-  Cookie, 
-  Croissant, 
-  Beef, 
-  Cake, 
-  Fish, 
-  Apple, 
-  Cherry, 
-  Grape, 
-  Sandwich,
-  Beer,
-  Drumstick,
-  Flame,
-  Candy,
-  Wine,
-  GlassWater,
-  Microwave,
-  ChefHat
+  Edit2,
+  X,
+  Check,
+  Utensils, Pizza, Coffee, IceCream, Soup, Cookie, Croissant, 
+  Beef, Cake, Fish, Apple, Cherry, Grape, Sandwich, Beer, 
+  Drumstick, Flame, Candy, Wine, GlassWater, Microwave, ChefHat 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,12 +59,11 @@ interface Category {
     description?: string | null;
     icon_name?: string | null;
     sort_order: number;
+    is_active: boolean;
 }
 
 interface CategoriesManagerProps {
-    /** Plural en minúsculas (p. ej. productos, servicios, platillos). */
     itemsPluralLower: string;
-    /** menú | catálogo */
     moduleLower: string;
 }
 
@@ -89,40 +72,67 @@ export function CategoriesManager({ itemsPluralLower, moduleLower }: CategoriesM
     const [newName, setNewName] = useState("");
     const [newDesc, setNewDesc] = useState("");
     const [selectedIcon, setSelectedIcon] = useState("utensils");
-    const [isCreating, setIsCreating] = useState(false);
+    const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const { data, isLoading, mutate } = useSWR<ApiList<Category>>(endpoints.categories.list, fetcher);
     const categories: Category[] = data?.data ?? [];
 
-    async function handleCreate() {
+    function startEdit(cat: Category) {
+      setEditingCategory(cat);
+      setNewName(cat.name);
+      setNewDesc(cat.description || "");
+      setSelectedIcon(cat.icon_name || "utensils");
+    }
+
+    function cancelEdit() {
+      setEditingCategory(null);
+      setNewName("");
+      setNewDesc("");
+      setSelectedIcon("utensils");
+    }
+
+    async function handleSave() {
         const name = newName.trim();
         if (!name) return;
-        setIsCreating(true);
+        setIsSaving(true);
         try {
-            await apiClient.post(endpoints.categories.create, {
-                name,
-                description: newDesc.trim() || null,
-                icon_name: selectedIcon,
-            });
+            if (editingCategory) {
+              // Update
+              await apiClient.patch(endpoints.categories.delete(editingCategory.id), {
+                  name,
+                  description: newDesc.trim() || null,
+                  icon_name: selectedIcon,
+                  sort_order: editingCategory.sort_order
+              });
+              toast({ title: "Categoría actualizada" });
+            } else {
+              // Create
+              await apiClient.post(endpoints.categories.create, {
+                  name,
+                  description: newDesc.trim() || null,
+                  icon_name: selectedIcon,
+              });
+              toast({ title: "Categoría creada" });
+            }
             await mutate();
-            setNewName("");
-            setNewDesc("");
-            setSelectedIcon("utensils");
-            toast({ title: "Categoría creada" });
+            cancelEdit();
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : "";
             toast({
                 title: "Error",
-                description: msg.includes("409") ? "Ya existe una categoría con ese nombre" : "No se pudo crear la categoría",
+                description: msg.includes("409") ? "Ya existe una categoría con ese nombre" : "No se pudo guardar la categoría",
                 variant: "destructive",
             });
         } finally {
-            setIsCreating(false);
+            setIsSaving(false);
         }
     }
 
     async function handleDelete(category: Category) {
+        const confirmed = window.confirm(`¿Seguro que deseas eliminar "${category.name}"?`);
+        if (!confirmed) return;
         setDeletingId(category.id);
         try {
             await apiClient.delete(endpoints.categories.delete(category.id));
@@ -133,8 +143,8 @@ export function CategoriesManager({ itemsPluralLower, moduleLower }: CategoriesM
             toast({
                 title: "No se puede eliminar",
                 description: msg.includes("409")
-                    ? `"${category.name}" tiene ${itemsPluralLower} activos. Muévelos o elimínalos primero.`
-                    : "Error al eliminar la categoría",
+                    ? `"${category.name}" tiene ${itemsPluralLower} activos.`
+                    : "Error al eliminar",
                 variant: "destructive",
             });
         } finally {
@@ -145,18 +155,23 @@ export function CategoriesManager({ itemsPluralLower, moduleLower }: CategoriesM
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Gestión de Categorías</CardTitle>
+                <CardTitle>{editingCategory ? "Editar Categoría" : "Gestión de Categorías"}</CardTitle>
                 <CardDescription>
-                    Organiza tus {itemsPluralLower} en categorías para facilitar la navegación en el {moduleLower}.
+                    {editingCategory 
+                      ? `Modificando los detalles de "${editingCategory.name}"`
+                      : `Organiza tus ${itemsPluralLower} en categorías.`}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                <div className="space-y-4 p-4 border rounded-xl bg-muted/20">
+                <div className={cn(
+                  "space-y-4 p-4 border rounded-xl transition-all duration-300",
+                  editingCategory ? "bg-primary/5 border-primary/20 shadow-inner" : "bg-muted/20"
+                )}>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nombre de Categoría</label>
+                            <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Nombre</label>
                             <Input
-                                placeholder="P. ej. Pizzas, Bebidas..."
+                                placeholder="Nombre..."
                                 value={newName}
                                 onChange={(e) => setNewName(e.target.value)}
                                 className="bg-white"
@@ -165,7 +180,7 @@ export function CategoriesManager({ itemsPluralLower, moduleLower }: CategoriesM
                         <div className="space-y-2">
                             <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Descripción</label>
                             <Input
-                                placeholder="Breve detalle (opcional)"
+                                placeholder="Descripción..."
                                 value={newDesc}
                                 onChange={(e) => setNewDesc(e.target.value)}
                                 className="bg-white"
@@ -174,7 +189,10 @@ export function CategoriesManager({ itemsPluralLower, moduleLower }: CategoriesM
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Elegir Icono</label>
+                        <div className="flex justify-between items-center">
+                          <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Icono</label>
+                          <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{selectedIcon}</span>
+                        </div>
                         <div className="grid grid-cols-6 sm:grid-cols-11 gap-2 border p-3 rounded-lg bg-white">
                             {FOOD_ICONS.map((item) => {
                                 const Icon = item.icon;
@@ -197,12 +215,19 @@ export function CategoriesManager({ itemsPluralLower, moduleLower }: CategoriesM
                         </div>
                     </div>
 
-                    <Button onClick={handleCreate} disabled={isCreating || !newName.trim()} className="w-full h-11">
-                        {isCreating
-                            ? <Loader2 className="h-4 w-4 animate-spin" />
-                            : <><Plus className="h-4 w-4 mr-2" /> Crear Categoría</>
-                        }
-                    </Button>
+                    <div className="flex gap-2">
+                      {editingCategory && (
+                        <Button variant="ghost" onClick={cancelEdit} className="flex-1 h-11 font-bold">
+                          Cancelar
+                        </Button>
+                      )}
+                      <Button onClick={handleSave} disabled={isSaving || !newName.trim()} className="flex-[2] h-11 font-bold">
+                          {isSaving
+                              ? <Loader2 className="h-4 w-4 animate-spin" />
+                              : editingCategory ? "Guardar Cambios" : "Crear Categoría"
+                          }
+                      </Button>
+                    </div>
                 </div>
 
                 <div className="rounded-lg border border-border overflow-hidden">
@@ -211,40 +236,60 @@ export function CategoriesManager({ itemsPluralLower, moduleLower }: CategoriesM
                             <TableRow>
                                 <TableHead className="w-12">Icono</TableHead>
                                 <TableHead>Nombre</TableHead>
-                                <TableHead>Descripción</TableHead>
-                                <TableHead className="w-[80px] text-right">Acciones</TableHead>
+                                <TableHead>Estado</TableHead>
+                                <TableHead className="w-[120px] text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
-                                    <TableCell colSpan={4} className="h-20 text-center text-muted-foreground">
-                                        <Loader2 className="h-4 w-4 animate-spin inline mr-2" />Cargando...
+                                    <TableCell colSpan={4} className="h-20 text-center">
+                                        <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
                                     </TableCell>
                                 </TableRow>
                             ) : categories.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={4} className="h-20 text-center text-muted-foreground">
-                                        No hay categorías aún.
+                                        No hay categorías.
                                     </TableCell>
                                 </TableRow>
                             ) : (
                                 categories.map((cat) => {
                                     const Icon = getFoodIcon(cat.icon_name);
                                     return (
-                                        <TableRow key={cat.id} className="hover:bg-muted/30">
+                                        <TableRow key={cat.id} className="hover:bg-muted/30 group">
                                             <TableCell>
                                                 <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center text-muted-foreground">
                                                     <Icon className="h-4 w-4" />
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="font-bold">{cat.name}</TableCell>
-                                            <TableCell className="text-muted-foreground text-sm">{cat.description || "—"}</TableCell>
+                                            <TableCell>
+                                              <div className="font-bold">{cat.name}</div>
+                                              <div className="text-[10px] text-muted-foreground truncate max-w-[150px]">{cat.description || "Sin descripción"}</div>
+                                            </TableCell>
+                                            <TableCell>
+                                              <div className={cn(
+                                                "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest",
+                                                cat.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                                              )}>
+                                                <div className={cn("h-1.5 w-1.5 rounded-full", cat.is_active ? "bg-green-500" : "bg-red-500")} />
+                                                {cat.is_active ? "Activa" : "Inactiva"}
+                                              </div>
+                                            </TableCell>
                                             <TableCell className="text-right">
+                                              <div className="flex justify-end gap-1">
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
-                                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                    className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
+                                                    onClick={() => startEdit(cat)}
+                                                >
+                                                    <Edit2 className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-destructive hover:bg-destructive/10"
                                                     disabled={deletingId === cat.id}
                                                     onClick={() => handleDelete(cat)}
                                                 >
@@ -253,6 +298,7 @@ export function CategoriesManager({ itemsPluralLower, moduleLower }: CategoriesM
                                                         : <Trash2 className="h-4 w-4" />
                                                     }
                                                 </Button>
+                                              </div>
                                             </TableCell>
                                         </TableRow>
                                     );

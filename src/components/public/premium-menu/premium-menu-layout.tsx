@@ -43,6 +43,7 @@ export function PremiumMenuLayout({
         tokens.pageBackground
       )}
       data-pub-catalog
+      style={tokens.cssVars as React.CSSProperties}
     >
       <div className="container mx-auto max-w-4xl">
         <div 
