@@ -48,17 +48,16 @@ export function PremiumMenuLayout({
       <div className="container mx-auto max-w-4xl relative">
         <div 
           className={cn(
-            "bg-white rounded-[2.5rem] overflow-hidden border border-muted/20 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)]",
+            "bg-[var(--pub-surface)] overflow-hidden shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)]",
             tokens.cardBackground
           )}
-          style={{ backgroundColor: '#FFFFFF' }}
         >
           {/* Mobile & Desktop Header */}
           {header}
           
           <div className="px-4 sm:px-8 lg:px-12 py-4">
             {/* Horizontal Draggable Categories Nav */}
-            <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md -mx-4 px-4 py-4 border-b border-muted/10 mb-6">
+            <div className="sticky top-0 z-30 bg-[var(--pub-surface)]/80 backdrop-blur-md -mx-4 px-4 py-4 border-b border-[var(--pub-border)] mb-6">
               {categoriesNav}
             </div>
 

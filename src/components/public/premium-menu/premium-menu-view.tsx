@@ -28,6 +28,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
   
   const cart = useCart();
   const { toast } = useToast();
@@ -94,13 +95,13 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
               variant="horizontal"
             />
 
-            <div className="flex items-center bg-muted/30 p-1 rounded-xl border border-muted/50 self-end">
+            <div className="flex items-center bg-[var(--pub-surface-muted)]/30 p-1 rounded-xl border border-[var(--pub-border)] self-end">
               <Button
                 variant={viewMode === "grid" ? "secondary" : "ghost"}
                 size="sm"
                 className={cn(
                   "h-10 px-4 rounded-lg font-black gap-2 uppercase text-[10px] tracking-widest", 
-                  viewMode === "grid" ? cn("bg-white shadow-sm", tokens.accent) : "text-muted-foreground"
+                  viewMode === "grid" ? cn("bg-[var(--pub-surface)] shadow-sm", tokens.accent) : "text-muted-foreground"
                 )}
                 onClick={() => setViewMode("grid")}
               >
@@ -111,7 +112,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                 size="sm"
                 className={cn(
                   "h-10 px-4 rounded-lg font-black gap-2 uppercase text-[10px] tracking-widest", 
-                  viewMode === "list" ? cn("bg-white shadow-sm", tokens.accent) : "text-muted-foreground"
+                  viewMode === "list" ? cn("bg-[var(--pub-surface)] shadow-sm", tokens.accent) : "text-muted-foreground"
                 )}
                 onClick={() => setViewMode("list")}
               >
@@ -135,6 +136,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
           totalItems={cart.totalItems}
           totalPrice={cart.totalPrice}
           onClick={handleCheckout}
+          onOpenCart={() => setCartOpen(true)}
           tokens={tokens}
         />
       }
@@ -157,8 +159,8 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
               </div>
               
               <div className={cn(
-                "grid gap-4 sm:gap-6 px-6 sm:px-0",
-                viewMode === "grid" ? "grid-cols-2 lg:grid-cols-2" : "grid-cols-1"
+                "grid gap-3 sm:gap-4 px-6 sm:px-0",
+                viewMode === "grid" ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1"
               )}>
                 {section.products.map((product) => {
                   const inCart = cart.items.find(i => i.id === product.id)?.quantity || 0;
@@ -195,7 +197,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
       </div>
 
       <Dialog open={!!selectedProduct} onOpenChange={(open) => !open && setSelectedProduct(null)}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-white">
+        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-[2.5rem] border-none shadow-2xl bg-[var(--pub-surface)]" style={tokens.cssVars as React.CSSProperties}>
           <DialogHeader className="sr-only">
             <DialogTitle>{selectedProduct?.name}</DialogTitle>
             <DialogDescription>Detalles</DialogDescription>
@@ -215,8 +217,8 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                 </motion.div>
                 <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5">
                   <div className={cn("h-1.5 w-6 rounded-full", tokens.buttonBg)} />
-                  <div className="h-1.5 w-1.5 rounded-full bg-white/50" />
-                  <div className="h-1.5 w-1.5 rounded-full bg-white/50" />
+                  <div className="h-1.5 w-1.5 rounded-full bg-[var(--pub-on-button)]/50" />
+                  <div className="h-1.5 w-1.5 rounded-full bg-[var(--pub-on-button)]/50" />
                 </div>
               </div>
 
@@ -242,11 +244,11 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                 )}
 
                 <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-6">
-                  <div className="flex items-center gap-4 bg-muted/40 p-1.5 rounded-2xl border border-muted/50 w-full sm:w-auto justify-between sm:justify-start">
+                  <div className="flex items-center gap-4 bg-[var(--pub-surface-muted)]/40 p-1.5 rounded-2xl border border-[var(--pub-border)] w-full sm:w-auto justify-between sm:justify-start">
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-12 w-12 rounded-xl hover:bg-white"
+                      className="h-12 w-12 rounded-xl hover:bg-[var(--pub-surface)]"
                       onClick={() => {
                         const inCart = cart.items.find(i => i.id === selectedProduct.id)?.quantity || 0;
                         cart.updateQty(selectedProduct.id, inCart - 1);

@@ -42,7 +42,7 @@ export function PremiumProductCard({
         animate={{ opacity: 1, x: 0 }}
         onClick={onClick}
         className={cn(
-          "group relative flex items-center gap-4 p-3 rounded-2xl border-2 border-muted/40 bg-white transition-all duration-300 cursor-pointer overflow-hidden hover:border-[var(--pub-accent)]/30 hover:bg-muted/5",
+          "group relative flex items-center gap-4 p-3 rounded-2xl border-2 border-[var(--pub-border)] bg-[var(--pub-surface)] transition-all duration-300 cursor-pointer overflow-hidden hover:border-[var(--pub-accent)]/30 hover:bg-[var(--pub-surface-muted)]/5",
           tokens.cardBackground
         )}
       >
@@ -78,9 +78,9 @@ export function PremiumProductCard({
 
         <div className="shrink-0">
           {qtyInCart > 0 ? (
-            <div className="flex items-center gap-2 bg-muted/30 rounded-full p-1 border border-muted/50">
+            <div className="flex items-center gap-2 bg-[var(--pub-surface-muted)]/30 rounded-full p-1 border border-[var(--pub-border)]">
               <button
-                className="h-10 w-10 rounded-full flex items-center justify-center hover:bg-white transition-colors"
+                className="h-10 w-10 rounded-full flex items-center justify-center hover:bg-[var(--pub-surface)] transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   onRemove();
@@ -124,14 +124,14 @@ export function PremiumProductCard({
       animate={{ opacity: 1, y: 0 }}
       onClick={onClick}
       className={cn(
-        "group relative flex flex-col gap-0 rounded-[2rem] border-2 border-muted/50 bg-white transition-all duration-300 cursor-pointer overflow-hidden max-w-sm mx-auto w-full",
+        "group relative flex flex-col gap-0 rounded-[2rem] border-2 border-[var(--pub-border)] bg-[var(--pub-surface)] transition-all duration-300 cursor-pointer overflow-hidden max-w-sm mx-auto w-full",
         "hover:border-[var(--pub-accent)]/30 hover:shadow-xl hover:shadow-black/5",
         tokens.cardBackground
       )}
     >
       {/* Tighter Image Container */}
-      <div className="p-2 pb-0">
-        <div className="relative aspect-square w-full overflow-hidden rounded-[1.5rem] bg-muted/5">
+      <div className="p-1.5 pb-0">
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[1.2rem] bg-muted/5">
           {product.image_url ? (
             <Image
               src={product.image_url}
@@ -155,9 +155,9 @@ export function PremiumProductCard({
       </div>
 
       {/* Clear Content Area */}
-      <div className="flex flex-1 flex-col p-4 gap-3">
+      <div className="flex flex-1 flex-col p-2.5 gap-2">
         <div className="space-y-1">
-          <h3 className={cn("text-base font-black leading-tight transition-colors line-clamp-1", tokens.title)}>
+          <h3 className={cn("text-sm font-black leading-tight transition-colors line-clamp-1", tokens.title)}>
             {product.name}
           </h3>
           {product.description && (
@@ -168,15 +168,15 @@ export function PremiumProductCard({
         </div>
 
         <div className="mt-auto flex items-center justify-between gap-2">
-          <span className={cn("text-lg font-black tabular-nums tracking-tighter", tokens.accent)}>
+          <span className={cn("text-sm font-black tabular-nums tracking-tighter", tokens.accent)}>
             ${product.price.toLocaleString("es-MX", { minimumFractionDigits: 2 })}
           </span>
 
           <div className="flex items-center">
             {qtyInCart > 0 ? (
-              <div className="flex items-center gap-1.5 bg-muted/30 rounded-full p-1 border border-muted/50">
+              <div className="flex items-center gap-1.5 bg-[var(--pub-surface-muted)]/30 rounded-full p-1 border border-[var(--pub-border)]">
                 <button
-                  className="h-9 w-9 rounded-full flex items-center justify-center hover:bg-white transition-colors"
+                  className="h-9 w-9 rounded-full flex items-center justify-center hover:bg-[var(--pub-surface)] transition-colors"
                   onClick={(e) => {
                     e.stopPropagation();
                     onRemove();

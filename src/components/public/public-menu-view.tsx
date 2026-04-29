@@ -7,6 +7,6 @@ interface PublicMenuViewProps {
 }
 
 export function PublicMenuView({ catalog }: PublicMenuViewProps) {
-    const tokens = resolveThemeTokens(catalog.business_info?.catalog_theme, "menu");
+    const tokens = resolveThemeTokens(catalog.catalog_theme as any, "menu");
     return <PremiumMenuView catalog={catalog} tokens={tokens} />;
 }

@@ -152,16 +152,18 @@ export function PremiumHeader({
             <Share2 className="h-4 w-4" />
           </button>
         </div>
+        {/* Gradient fade at the bottom of banner */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[var(--pub-surface)] to-transparent pointer-events-none z-10" />
       </div>
 
-      {/* Overlapping Business Card */}
-      <div className="relative -mt-20 w-full">
-        <div className="bg-white rounded-t-[3rem] p-8 pb-6 border-t border-muted/10">
+      {/* Business card — sits right below banner, no top rounding */}
+      <div className="relative w-full -mt-16 z-20">
+        <div className="bg-[var(--pub-surface)] px-8 pb-6 pt-0">
           <div className="flex flex-col items-center text-center space-y-6">
             {/* Centered Logo */}
             <div className="relative -mt-20 group">
-              <div className="h-32 w-32 rounded-[2.5rem] bg-white p-2 shadow-2xl transition-transform duration-500 group-hover:scale-105 border border-muted/10">
-                <div className="relative h-full w-full overflow-hidden rounded-[1.8rem] border-4 border-white bg-white">
+              <div className="h-32 w-32 rounded-[2.5rem] bg-[var(--pub-surface)] p-2 shadow-2xl transition-transform duration-500 group-hover:scale-105 border border-[var(--pub-border)]">
+                <div className="relative h-full w-full overflow-hidden rounded-[1.8rem] border-4 border-[var(--pub-surface)] bg-[var(--pub-surface)]">
                   {logoUrl ? (
                     <Image
                       src={logoUrl}
@@ -177,7 +179,7 @@ export function PremiumHeader({
                 </div>
               </div>
               <div className={cn(
-                "absolute -bottom-2 -right-2 h-10 w-10 rounded-full flex items-center justify-center border-4 border-white shadow-lg",
+                "absolute -bottom-2 -right-2 h-10 w-10 rounded-full flex items-center justify-center border-4 border-[var(--pub-surface)] shadow-lg",
                 sched?.open ? "bg-green-500" : "bg-red-500"
               )}>
                 <div className="h-3 w-3 rounded-full bg-white animate-pulse" />
@@ -199,7 +201,7 @@ export function PremiumHeader({
                 
                 <button 
                   onClick={() => setShowSchedule(true)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-muted/40 hover:bg-muted transition-colors group"
+                  className="flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--pub-surface-muted)]/40 hover:bg-[var(--pub-surface-muted)] transition-colors group"
                 >
                   <Clock className="h-3 w-3 opacity-60" />
                   <span className="text-[10px] font-black uppercase tracking-widest">
@@ -214,7 +216,7 @@ export function PremiumHeader({
       </div>
 
       <Dialog open={showSchedule} onOpenChange={setShowSchedule}>
-        <DialogContent className="max-w-xs rounded-[2rem] p-6 border-none shadow-2xl bg-white">
+        <DialogContent className="max-w-xs rounded-[2rem] p-6 border-none shadow-2xl bg-[var(--pub-surface)]" style={tokens.cssVars as React.CSSProperties}>
           <DialogHeader>
             <DialogTitle className="text-xl font-black uppercase tracking-tighter text-center">Horarios de Atención</DialogTitle>
           </DialogHeader>
@@ -240,7 +242,7 @@ export function PremiumHeader({
           </div>
           <button 
             onClick={() => setShowSchedule(false)}
-            className="mt-6 w-full h-12 rounded-xl bg-muted font-black uppercase text-[10px] tracking-widest hover:bg-muted/80 transition-all"
+            className="mt-6 w-full h-12 rounded-xl bg-[var(--pub-surface-muted)] font-black uppercase text-[10px] tracking-widest hover:bg-[var(--pub-surface-muted)]/80 transition-all"
           >
             Cerrar
           </button>

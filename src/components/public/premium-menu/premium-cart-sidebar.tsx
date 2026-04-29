@@ -93,7 +93,7 @@ export function PremiumCartSidebar({
 
         <Button 
           onClick={onCheckout}
-          className="w-full h-12 rounded-2xl font-bold text-lg shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95"
+          className={cn("w-full h-12 rounded-2xl font-bold text-lg shadow-lg shadow-[var(--pub-button)]/20 transition-all hover:scale-[1.02] active:scale-95", tokens.buttonBg, tokens.buttonText)}
         >
           Confirmar Pedido
         </Button>

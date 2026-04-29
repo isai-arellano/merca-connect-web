@@ -122,7 +122,7 @@ export function PremiumCategoryNav({
           "h-12 w-12 sm:h-14 sm:w-14 rounded-xl flex items-center justify-center transition-all duration-300 border",
           activeCategoryId === null
             ? cn(tokens.buttonBg, tokens.buttonText, "border-transparent shadow-lg scale-105")
-            : cn("bg-white border-muted text-muted-foreground hover:border-[var(--pub-accent)] hover:bg-[var(--pub-accent)]/5")
+            : cn("bg-[var(--pub-surface)] border-[var(--pub-border)] text-muted-foreground hover:border-[var(--pub-accent)] hover:bg-[var(--pub-accent)]/5")
         )}>
           <LayoutGrid className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
@@ -145,7 +145,7 @@ export function PremiumCategoryNav({
             "h-12 w-12 sm:h-14 sm:w-14 rounded-xl flex items-center justify-center transition-all duration-300 border",
             activeCategoryId === cat.id
               ? cn(tokens.buttonBg, tokens.buttonText, "border-transparent shadow-lg scale-105")
-              : cn("bg-white border-muted text-muted-foreground hover:border-[var(--pub-accent)] hover:bg-[var(--pub-accent)]/5")
+              : cn("bg-[var(--pub-surface)] border-[var(--pub-border)] text-muted-foreground hover:border-[var(--pub-accent)] hover:bg-[var(--pub-accent)]/5")
           )}>
             {renderIcon(cat.icon_name, activeCategoryId === cat.id)}
           </div>
