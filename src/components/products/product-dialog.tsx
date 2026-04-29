@@ -20,7 +20,7 @@ import {
 } from "@/lib/image-upload-form";
 import { Loader2, Plus, Trash2, X, Upload, ImageIcon } from "lucide-react";
 import useSWR from "swr";
-import { type ApiList, type CategoryOption as ApiCategoryOption } from "@/types/api";
+import { type ApiList, type CategoryOption as ApiCategoryOption, type PlanUsage } from "@/types/api";
 import { useToast } from "@/hooks/use-toast";
 
 export interface ProductDialogProduct {
@@ -196,8 +196,10 @@ export function ProductDialog({ open, onOpenChange, config, product }: ProductDi
     );
     const { data: unitsResponse } = useSWR<ApiList<UnitOption>>(open ? endpoints.units.list : null, fetcher);
     const { data: productResponse, isLoading: isLoadingProduct } = useSWR<ProductDialogProduct>(productDetailEndpoint, fetcher);
+    const { data: planUsageResponse } = useSWR<{ data: PlanUsage } | PlanUsage>(open ? endpoints.business.planUsage : null, fetcher);
 
-    const maxImagesAllowed = 3;
+    const planUsage = (planUsageResponse as { data: PlanUsage })?.data ?? (planUsageResponse as PlanUsage);
+    const maxImagesAllowed = planUsage?.effective_product_image_limit ?? 1;
 
     const currentProduct: ProductDialogProduct | undefined = productResponse ?? product;
     const categoryOptions: CategoryOption[] = categoriesResponse?.data ?? [];
