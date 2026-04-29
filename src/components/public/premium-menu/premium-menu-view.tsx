@@ -29,7 +29,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
-  
+
   const cart = useCart();
   const { toast } = useToast();
 
@@ -38,8 +38,8 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
       ...section,
       products: section.products.filter((product) => {
         const matchesCategory = !activeCategoryId || section.id === activeCategoryId || section.name === activeCategoryId;
-        const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                             product.description?.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.description?.toLowerCase().includes(searchQuery.toLowerCase());
         return matchesCategory && matchesSearch;
       }),
     }))
@@ -77,7 +77,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
         <div className="space-y-6">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/40" />
-            <input 
+            <input
               type="text"
               placeholder="¿Qué se te antoja hoy?"
               value={searchQuery}
@@ -85,7 +85,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
               className="w-full h-14 pl-12 pr-4 bg-muted/30 rounded-2xl border-none focus:ring-2 focus:ring-[var(--pub-accent)]/20 transition-all font-medium text-sm"
             />
           </div>
-          
+
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
             <PremiumCategoryNav
               categories={catalog.sections.map(s => ({ id: s.id || s.name, name: s.name, icon_name: s.icon_name }))}
@@ -100,9 +100,9 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-10 px-4 rounded-[1rem] font-black gap-2 uppercase text-[10px] tracking-widest transition-all duration-300", 
-                  viewMode === "grid" 
-                    ? "bg-[var(--pub-accent)] text-white shadow-lg shadow-[var(--pub-accent)]/20" 
+                  "h-10 px-4 rounded-[1rem] font-black gap-2 uppercase text-[10px] tracking-widest transition-all duration-300",
+                  viewMode === "grid"
+                    ? "bg-[var(--pub-accent)] text-white shadow-lg shadow-[var(--pub-accent)]/20"
                     : "text-muted-foreground hover:bg-transparent hover:text-[var(--pub-accent)]"
                 )}
                 onClick={() => setViewMode("grid")}
@@ -113,9 +113,9 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-10 px-4 rounded-[1rem] font-black gap-2 uppercase text-[10px] tracking-widest transition-all duration-300", 
-                  viewMode === "list" 
-                    ? "bg-[var(--pub-accent)] text-white shadow-lg shadow-[var(--pub-accent)]/20" 
+                  "h-10 px-4 rounded-[1rem] font-black gap-2 uppercase text-[10px] tracking-widest transition-all duration-300",
+                  viewMode === "list"
+                    ? "bg-[var(--pub-accent)] text-white shadow-lg shadow-[var(--pub-accent)]/20"
                     : "text-muted-foreground hover:bg-transparent hover:text-[var(--pub-accent)]"
                 )}
                 onClick={() => setViewMode("list")}
@@ -148,12 +148,12 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
       <div className="py-8">
         <AnimatePresence mode="popLayout">
           {filteredSections.map((section) => (
-            <motion.section 
+            <motion.section
               key={section.id || section.name}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ 
+              transition={{
                 type: "spring",
                 stiffness: 260,
                 damping: 25
@@ -166,7 +166,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                   {section.name}
                 </h2>
               </div>
-              
+
               <div className={cn(
                 "grid gap-3 sm:gap-4 px-6 sm:px-0",
                 viewMode === "grid" ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-1"
@@ -206,11 +206,11 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
       </div>
 
       <Dialog open={!!selectedProduct} onOpenChange={(open) => !open && setSelectedProduct(null)}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-[7rem] border-none shadow-2xl bg-[var(--pub-surface)] group/modal [&>button]:hidden" style={tokens.cssVars as React.CSSProperties}>
-          <button 
+        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-[6rem] border-none shadow-2xl bg-[var(--pub-surface)] group/modal [&>button]:hidden" style={tokens.cssVars as React.CSSProperties}>
+          <button
             onClick={() => setSelectedProduct(null)}
             className={cn(
-              "absolute top-8 right-8 z-[100] h-12 w-12 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xl", 
+              "absolute top-8 right-8 z-[100] h-12 w-12 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xl",
               "bg-[var(--pub-accent)] text-white"
             )}
           >
@@ -224,9 +224,9 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
           {selectedProduct && (
             <div className="flex flex-col">
               <div className="relative aspect-video w-full bg-muted overflow-hidden">
-                <ProductImageCarousel 
-                  mainImage={selectedProduct.image_url} 
-                  images={selectedProduct.images || []} 
+                <ProductImageCarousel
+                  mainImage={selectedProduct.image_url}
+                  images={selectedProduct.images || []}
                   name={selectedProduct.name}
                   tokens={tokens}
                 />
@@ -254,11 +254,11 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                 )}
 
                 <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-6">
-                  <div className="flex items-center gap-4 bg-[var(--pub-surface-muted)]/40 p-2 rounded-[1.5rem] border-2 border-muted/20 w-full sm:w-auto justify-between sm:justify-start">
+                  <div className="flex items-center gap-4 bg-[var(--pub-surface-muted)]/40 p-2 rounded-[2rem] border-2 border-muted/20 w-full sm:w-auto justify-between sm:justify-start">
                     <Button
                       size="icon"
                       variant="outline"
-                      className="h-12 w-12 rounded-2xl border-2 border-[var(--pub-accent)] text-[var(--pub-accent)] hover:bg-[var(--pub-accent)] hover:text-white transition-all bg-white"
+                      className="h-12 w-12 rounded-[1.2rem] border-2 border-[var(--pub-accent)] text-[var(--pub-accent)] hover:bg-[var(--pub-accent)] hover:text-white transition-all bg-white"
                       onClick={() => {
                         const inCart = cart.items.find(i => i.id === selectedProduct.id)?.quantity || 0;
                         cart.updateQty(selectedProduct.id, inCart - 1);
@@ -272,7 +272,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                     <Button
                       size="icon"
                       variant="outline"
-                      className="h-12 w-12 rounded-2xl border-2 border-[var(--pub-accent)] text-[var(--pub-accent)] hover:bg-[var(--pub-accent)] hover:text-white transition-all bg-white shadow-lg active:scale-95"
+                      className="h-12 w-12 rounded-[1.2rem] border-2 border-[var(--pub-accent)] text-[var(--pub-accent)] hover:bg-[var(--pub-accent)] hover:text-white transition-all bg-white shadow-lg active:scale-95"
                       onClick={() => {
                         const inCart = cart.items.find(i => i.id === selectedProduct.id)?.quantity || 0;
                         if (inCart === 0) {
@@ -286,12 +286,12 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                     </Button>
                   </div>
 
-                  <Button 
+                  <Button
                     variant="outline"
                     className={cn("w-full sm:flex-1 h-16 rounded-2xl font-black uppercase tracking-widest gap-3 text-sm shadow-xl transition-all active:scale-[0.98] border-2 border-[var(--pub-accent)] text-[var(--pub-accent)] bg-white hover:bg-[var(--pub-accent)] hover:text-white")}
                     onClick={() => setSelectedProduct(null)}
                   >
-                    Confirmar pedido
+                    Aceptar
                     <ArrowRight className="h-5 w-5" />
                   </Button>
                 </div>
@@ -304,15 +304,15 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
   );
 }
 
-function ProductImageCarousel({ 
-  mainImage, 
-  images, 
-  name, 
-  tokens 
-}: { 
-  mainImage: string | null; 
-  images: string[]; 
-  name: string; 
+function ProductImageCarousel({
+  mainImage,
+  images,
+  name,
+  tokens
+}: {
+  mainImage: string | null;
+  images: string[];
+  name: string;
   tokens: ResolvedThemeTokens;
 }) {
   const allImages = useMemo(() => {
@@ -364,13 +364,13 @@ function ProductImageCarousel({
 
       {allImages.length > 1 && (
         <>
-          <button 
+          <button
             onClick={prev}
             className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover/carousel:opacity-100 transition-all hover:bg-black/40"
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
-          <button 
+          <button
             onClick={next}
             className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover/carousel:opacity-100 transition-all hover:bg-black/40"
           >
@@ -379,18 +379,18 @@ function ProductImageCarousel({
 
           <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-1.5 z-10">
             {allImages.map((_, i) => (
-              <div 
+              <div
                 key={i}
                 className={cn(
                   "transition-all duration-300 rounded-full shadow-lg",
                   i === currentIndex ? "w-8 h-1.5 bg-[var(--pub-accent)]" : "w-1.5 h-1.5 bg-white/50"
-                )} 
+                )}
               />
             ))}
           </div>
         </>
       )}
-      
+
       {/* Subtle overlay to soften the bottom edge of image */}
       <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[var(--pub-surface)] to-transparent pointer-events-none" />
     </div>
