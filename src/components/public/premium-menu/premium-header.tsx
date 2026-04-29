@@ -98,7 +98,7 @@ export function PremiumHeader({
   const sched = getTodaySchedule();
 
   return (
-    <div className="relative">
+    <div className="relative rounded-t-[2.5rem] overflow-hidden">
       {/* Top Banner Area */}
       <div className="relative h-64 sm:h-72 w-full overflow-hidden bg-muted">
         {bannerUrl ? (
@@ -152,8 +152,8 @@ export function PremiumHeader({
             <Share2 className="h-4 w-4" />
           </button>
         </div>
-        {/* Gradient fade at the bottom of banner */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[var(--pub-surface)] to-transparent pointer-events-none z-10" />
+        {/* Gradient fade at the bottom of banner - more pronounced */}
+        <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-[var(--pub-surface)] via-[var(--pub-surface)]/90 via-[var(--pub-surface)]/50 to-transparent pointer-events-none z-10" />
       </div>
 
       {/* Business card — sits right below banner, no top rounding */}

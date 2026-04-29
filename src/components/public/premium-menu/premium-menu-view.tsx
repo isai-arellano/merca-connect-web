@@ -146,9 +146,14 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
           {filteredSections.map((section) => (
             <motion.section 
               key={section.id || section.name}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 260,
+                damping: 25
+              }}
               className="space-y-8 mb-16 last:mb-0"
             >
               <div className="flex items-center gap-4 px-6 sm:px-0">

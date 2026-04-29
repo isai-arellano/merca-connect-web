@@ -42,7 +42,7 @@ export function PremiumProductCard({
         animate={{ opacity: 1, x: 0 }}
         onClick={onClick}
         className={cn(
-          "group relative flex items-center gap-4 p-3 rounded-2xl border-2 border-[var(--pub-border)] bg-[var(--pub-surface)] transition-all duration-300 cursor-pointer overflow-hidden hover:border-[var(--pub-accent)]/30 hover:bg-[var(--pub-surface-muted)]/5",
+          "group relative flex items-center gap-4 p-3 rounded-2xl border border-[var(--pub-border)]/50 bg-[var(--pub-surface)] transition-all duration-300 cursor-pointer overflow-hidden hover:border-[var(--pub-accent)]/30 hover:bg-[var(--pub-surface-muted)]/5",
           tokens.cardBackground
         )}
       >
@@ -78,7 +78,7 @@ export function PremiumProductCard({
 
         <div className="shrink-0">
           {qtyInCart > 0 ? (
-            <div className="flex items-center gap-2 bg-[var(--pub-surface-muted)]/30 rounded-full p-1 border border-[var(--pub-border)]">
+            <div className="flex items-center gap-2 bg-[var(--pub-surface-muted)]/30 rounded-full p-1 border border-[var(--pub-border)]/50">
               <button
                 className="h-10 w-10 rounded-full flex items-center justify-center hover:bg-[var(--pub-surface)] transition-colors"
                 onClick={(e) => {
@@ -124,7 +124,7 @@ export function PremiumProductCard({
       animate={{ opacity: 1, y: 0 }}
       onClick={onClick}
       className={cn(
-        "group relative flex flex-col gap-0 rounded-[2rem] border-2 border-[var(--pub-border)] bg-[var(--pub-surface)] transition-all duration-300 cursor-pointer overflow-hidden max-w-sm mx-auto w-full",
+        "group relative flex flex-col gap-0 rounded-[2rem] border border-[var(--pub-border)]/50 bg-[var(--pub-surface)] transition-all duration-300 cursor-pointer overflow-hidden max-w-sm mx-auto w-full",
         "hover:border-[var(--pub-accent)]/30 hover:shadow-xl hover:shadow-black/5",
         tokens.cardBackground
       )}
@@ -174,7 +174,7 @@ export function PremiumProductCard({
 
           <div className="flex items-center">
             {qtyInCart > 0 ? (
-              <div className="flex items-center gap-1.5 bg-[var(--pub-surface-muted)]/30 rounded-full p-1 border border-[var(--pub-border)]">
+              <div className="flex items-center gap-1.5 bg-[var(--pub-surface-muted)]/30 rounded-full p-1 border border-[var(--pub-border)]/50">
                 <button
                   className="h-9 w-9 rounded-full flex items-center justify-center hover:bg-[var(--pub-surface)] transition-colors"
                   onClick={(e) => {

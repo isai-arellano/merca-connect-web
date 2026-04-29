@@ -48,7 +48,7 @@ export function PremiumMenuLayout({
       <div className="container mx-auto max-w-4xl relative">
         <div 
           className={cn(
-            "bg-[var(--pub-surface)] overflow-hidden shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)]",
+            "bg-[var(--pub-surface)] rounded-t-[2.5rem] overflow-hidden shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)]",
             tokens.cardBackground
           )}
         >
