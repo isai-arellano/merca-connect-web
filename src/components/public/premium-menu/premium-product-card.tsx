@@ -146,11 +146,7 @@ export function PremiumProductCard({
             </div>
           )}
         
-          {qtyInCart > 0 && (
-            <div className={cn("absolute top-3 right-3 px-3 py-1 rounded-full text-[10px] font-black shadow-xl ring-2 ring-white", tokens.buttonBg, tokens.buttonText)}>
-              {qtyInCart}
-            </div>
-          )}
+          {/* Floating quantity indicator removed as it is redundant */}
         </div>
       </div>
 
@@ -184,7 +180,7 @@ export function PremiumProductCard({
                 >
                   <Minus className="h-4 w-4" />
                 </button>
-                <span className={cn("text-sm font-bold tabular-nums min-w-[1.2rem] text-center", tokens.title)}>
+                <span className={cn("text-base font-black min-w-[1.5rem] text-center", "text-[var(--pub-accent)]")}>
                   {qtyInCart}
                 </span>
                 <button

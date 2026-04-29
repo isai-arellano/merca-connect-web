@@ -100,10 +100,10 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-10 px-4 rounded-xl font-black gap-2 uppercase text-[10px] tracking-widest transition-all", 
+                  "h-10 px-4 rounded-[1rem] font-black gap-2 uppercase text-[10px] tracking-widest transition-all duration-300", 
                   viewMode === "grid" 
-                    ? "bg-[var(--pub-surface)] border border-muted/20 shadow-sm " + tokens.accent
-                    : "text-muted-foreground hover:bg-[var(--pub-accent)]/10 hover:text-[var(--pub-accent)]"
+                    ? "bg-[var(--pub-accent)] text-white shadow-lg shadow-[var(--pub-accent)]/20" 
+                    : "text-muted-foreground hover:bg-transparent hover:text-[var(--pub-accent)]"
                 )}
                 onClick={() => setViewMode("grid")}
               >
@@ -113,10 +113,10 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "h-10 px-4 rounded-xl font-black gap-2 uppercase text-[10px] tracking-widest transition-all", 
+                  "h-10 px-4 rounded-[1rem] font-black gap-2 uppercase text-[10px] tracking-widest transition-all duration-300", 
                   viewMode === "list" 
-                    ? "bg-[var(--pub-surface)] border border-muted/20 shadow-sm " + tokens.accent
-                    : "text-muted-foreground hover:bg-[var(--pub-accent)]/10 hover:text-[var(--pub-accent)]"
+                    ? "bg-[var(--pub-accent)] text-white shadow-lg shadow-[var(--pub-accent)]/20" 
+                    : "text-muted-foreground hover:bg-transparent hover:text-[var(--pub-accent)]"
                 )}
                 onClick={() => setViewMode("list")}
               >
@@ -206,10 +206,13 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
       </div>
 
       <Dialog open={!!selectedProduct} onOpenChange={(open) => !open && setSelectedProduct(null)}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-[4.5rem] border-none shadow-2xl bg-[var(--pub-surface)] group/modal" style={tokens.cssVars as React.CSSProperties}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-[7rem] border-none shadow-2xl bg-[var(--pub-surface)] group/modal [&>button]:hidden" style={tokens.cssVars as React.CSSProperties}>
           <button 
             onClick={() => setSelectedProduct(null)}
-            className={cn("absolute top-8 right-8 z-[60] h-12 w-12 rounded-full backdrop-blur-md flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xl border border-white/20", "bg-[var(--pub-accent)] text-white")}
+            className={cn(
+              "absolute top-8 right-8 z-[100] h-12 w-12 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xl", 
+              "bg-[var(--pub-accent)] text-white"
+            )}
           >
             <X className="h-6 w-6" />
           </button>
@@ -254,8 +257,8 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                   <div className="flex items-center gap-4 bg-[var(--pub-surface-muted)]/40 p-2 rounded-[1.5rem] border-2 border-muted/20 w-full sm:w-auto justify-between sm:justify-start">
                     <Button
                       size="icon"
-                      variant="ghost"
-                      className="h-12 w-12 rounded-xl hover:bg-[var(--pub-accent)]/10 hover:text-[var(--pub-accent)] transition-colors"
+                      variant="outline"
+                      className="h-12 w-12 rounded-2xl border-2 border-[var(--pub-accent)] text-[var(--pub-accent)] hover:bg-[var(--pub-accent)] hover:text-white transition-all bg-white"
                       onClick={() => {
                         const inCart = cart.items.find(i => i.id === selectedProduct.id)?.quantity || 0;
                         cart.updateQty(selectedProduct.id, inCart - 1);
@@ -268,7 +271,8 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                     </span>
                     <Button
                       size="icon"
-                      className={cn("h-12 w-12 rounded-xl shadow-lg transition-all active:scale-95 hover:brightness-110", tokens.buttonBg, tokens.buttonText)}
+                      variant="outline"
+                      className="h-12 w-12 rounded-2xl border-2 border-[var(--pub-accent)] text-[var(--pub-accent)] hover:bg-[var(--pub-accent)] hover:text-white transition-all bg-white shadow-lg active:scale-95"
                       onClick={() => {
                         const inCart = cart.items.find(i => i.id === selectedProduct.id)?.quantity || 0;
                         if (inCart === 0) {
@@ -283,7 +287,8 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                   </div>
 
                   <Button 
-                    className={cn("w-full sm:flex-1 h-16 rounded-[1.8rem] font-black uppercase tracking-widest gap-3 text-sm shadow-xl transition-all active:scale-[0.98] bg-[var(--pub-accent)] text-white hover:brightness-110 hover:shadow-[var(--pub-accent)]/20")}
+                    variant="outline"
+                    className={cn("w-full sm:flex-1 h-16 rounded-2xl font-black uppercase tracking-widest gap-3 text-sm shadow-xl transition-all active:scale-[0.98] border-2 border-[var(--pub-accent)] text-[var(--pub-accent)] bg-white hover:bg-[var(--pub-accent)] hover:text-white")}
                     onClick={() => setSelectedProduct(null)}
                   >
                     Confirmar pedido
