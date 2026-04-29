@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { PublicCatalog } from "@/types/catalog";
 import { ResolvedThemeTokens } from "@/config/catalog-themes";
 import { PremiumMenuLayout } from "./premium-menu-layout";
@@ -13,7 +13,7 @@ import { useCatalogCart as useCart } from "@/hooks/useCatalogCart";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { LayoutGrid, List as ListIcon, ShoppingBag, Search, ArrowRight, Minus, Plus } from "lucide-react";
+import { LayoutGrid, List as ListIcon, ShoppingBag, Search, ArrowRight, Minus, Plus, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import Image from "next/image";
@@ -103,7 +103,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                   "h-10 px-4 rounded-xl font-black gap-2 uppercase text-[10px] tracking-widest transition-all", 
                   viewMode === "grid" 
                     ? "bg-[var(--pub-surface)] border border-muted/20 shadow-sm " + tokens.accent
-                    : "text-muted-foreground hover:bg-[var(--pub-accent)]/5 hover:text-[var(--pub-accent)]"
+                    : "text-muted-foreground hover:bg-[var(--pub-accent)]/10 hover:text-[var(--pub-accent)]"
                 )}
                 onClick={() => setViewMode("grid")}
               >
@@ -116,7 +116,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                   "h-10 px-4 rounded-xl font-black gap-2 uppercase text-[10px] tracking-widest transition-all", 
                   viewMode === "list" 
                     ? "bg-[var(--pub-surface)] border border-muted/20 shadow-sm " + tokens.accent
-                    : "text-muted-foreground hover:bg-[var(--pub-accent)]/5 hover:text-[var(--pub-accent)]"
+                    : "text-muted-foreground hover:bg-[var(--pub-accent)]/10 hover:text-[var(--pub-accent)]"
                 )}
                 onClick={() => setViewMode("list")}
               >
@@ -206,7 +206,13 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
       </div>
 
       <Dialog open={!!selectedProduct} onOpenChange={(open) => !open && setSelectedProduct(null)}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-[4.5rem] border-none shadow-2xl bg-[var(--pub-surface)]" style={tokens.cssVars as React.CSSProperties}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-[4.5rem] border-none shadow-2xl bg-[var(--pub-surface)] group/modal" style={tokens.cssVars as React.CSSProperties}>
+          <button 
+            onClick={() => setSelectedProduct(null)}
+            className={cn("absolute top-8 right-8 z-[60] h-12 w-12 rounded-full backdrop-blur-md flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xl border border-white/20", "bg-[var(--pub-accent)] text-white")}
+          >
+            <X className="h-6 w-6" />
+          </button>
           <DialogHeader className="sr-only">
             <DialogTitle>{selectedProduct?.name}</DialogTitle>
             <DialogDescription>Detalles</DialogDescription>
@@ -215,22 +221,12 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
           {selectedProduct && (
             <div className="flex flex-col">
               <div className="relative aspect-video w-full bg-muted overflow-hidden">
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full w-full">
-                  {selectedProduct.image_url ? (
-                    <Image src={selectedProduct.image_url} alt={selectedProduct.name} fill className="object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-muted">
-                      <ShoppingBag className="h-16 w-16 text-muted-foreground/20" />
-                    </div>
-                  )}
-                </motion.div>
-                <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-1.5 z-10">
-                  <div className={cn("h-1.5 w-8 rounded-full shadow-lg", tokens.buttonBg)} />
-                  <div className="h-1.5 w-1.5 rounded-full bg-white/50 shadow-md" />
-                  <div className="h-1.5 w-1.5 rounded-full bg-white/50 shadow-md" />
-                </div>
-                {/* Subtle overlay to soften the bottom edge of image */}
-                <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[var(--pub-surface)] to-transparent pointer-events-none" />
+                <ProductImageCarousel 
+                  mainImage={selectedProduct.image_url} 
+                  images={selectedProduct.images || []} 
+                  name={selectedProduct.name}
+                  tokens={tokens}
+                />
               </div>
 
               <div className="p-8 pb-10 space-y-6">
@@ -259,7 +255,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-12 w-12 rounded-xl hover:bg-[var(--pub-accent)]/5 hover:text-[var(--pub-accent)]"
+                      className="h-12 w-12 rounded-xl hover:bg-[var(--pub-accent)]/10 hover:text-[var(--pub-accent)] transition-colors"
                       onClick={() => {
                         const inCart = cart.items.find(i => i.id === selectedProduct.id)?.quantity || 0;
                         cart.updateQty(selectedProduct.id, inCart - 1);
@@ -272,7 +268,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                     </span>
                     <Button
                       size="icon"
-                      className={cn("h-12 w-12 rounded-xl shadow-lg transition-transform active:scale-95", tokens.buttonBg, tokens.buttonText)}
+                      className={cn("h-12 w-12 rounded-xl shadow-lg transition-all active:scale-95 hover:brightness-110", tokens.buttonBg, tokens.buttonText)}
                       onClick={() => {
                         const inCart = cart.items.find(i => i.id === selectedProduct.id)?.quantity || 0;
                         if (inCart === 0) {
@@ -287,7 +283,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                   </div>
 
                   <Button 
-                    className={cn("w-full sm:flex-1 h-16 rounded-[1.8rem] font-black uppercase tracking-widest gap-3 text-sm shadow-xl transition-all active:scale-[0.98] bg-[var(--pub-accent)] text-white hover:brightness-95")}
+                    className={cn("w-full sm:flex-1 h-16 rounded-[1.8rem] font-black uppercase tracking-widest gap-3 text-sm shadow-xl transition-all active:scale-[0.98] bg-[var(--pub-accent)] text-white hover:brightness-110 hover:shadow-[var(--pub-accent)]/20")}
                     onClick={() => setSelectedProduct(null)}
                   >
                     Confirmar pedido
@@ -300,5 +296,98 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
         </DialogContent>
       </Dialog>
     </PremiumMenuLayout>
+  );
+}
+
+function ProductImageCarousel({ 
+  mainImage, 
+  images, 
+  name, 
+  tokens 
+}: { 
+  mainImage: string | null; 
+  images: string[]; 
+  name: string; 
+  tokens: ResolvedThemeTokens;
+}) {
+  const allImages = useMemo(() => {
+    const list = images.length > 0 ? images : (mainImage ? [mainImage] : []);
+    return list;
+  }, [mainImage, images]);
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (allImages.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentIndex(prev => (prev + 1) % allImages.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [allImages]);
+
+  const next = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentIndex(prev => (prev + 1) % allImages.length);
+  };
+
+  const prev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentIndex(prev => (prev - 1 + allImages.length) % allImages.length);
+  };
+
+  if (allImages.length === 0) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-muted">
+        <ShoppingBag className="h-16 w-16 text-muted-foreground/20" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-full w-full group/carousel">
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentIndex}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          className="h-full w-full"
+        >
+          <Image src={allImages[currentIndex]} alt={name} fill className="object-cover" />
+        </motion.div>
+      </AnimatePresence>
+
+      {allImages.length > 1 && (
+        <>
+          <button 
+            onClick={prev}
+            className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover/carousel:opacity-100 transition-all hover:bg-black/40"
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </button>
+          <button 
+            onClick={next}
+            className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-full bg-black/20 backdrop-blur-md flex items-center justify-center text-white opacity-0 group-hover/carousel:opacity-100 transition-all hover:bg-black/40"
+          >
+            <ChevronRight className="h-6 w-6" />
+          </button>
+
+          <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-1.5 z-10">
+            {allImages.map((_, i) => (
+              <div 
+                key={i}
+                className={cn(
+                  "transition-all duration-300 rounded-full shadow-lg",
+                  i === currentIndex ? "w-8 h-1.5 bg-[var(--pub-accent)]" : "w-1.5 h-1.5 bg-white/50"
+                )} 
+              />
+            ))}
+          </div>
+        </>
+      )}
+      
+      {/* Subtle overlay to soften the bottom edge of image */}
+      <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[var(--pub-surface)] to-transparent pointer-events-none" />
+    </div>
   );
 }
