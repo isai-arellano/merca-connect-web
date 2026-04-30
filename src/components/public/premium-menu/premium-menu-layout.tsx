@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { ResolvedThemeTokens } from "@/config/catalog-themes";
-import { PublicCatalogData } from "@/components/public/public-catalog-view";
+import { PublicCatalogData } from "@/types/catalog";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 

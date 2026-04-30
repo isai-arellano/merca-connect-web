@@ -30,7 +30,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
 
-  const cart = useCart();
+  const cart = useCart(catalog.slug || "default");
   const { toast } = useToast();
 
   const filteredSections = catalog.sections
@@ -202,6 +202,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                         name: product.name,
                         price: product.price,
                         image_url: product.image_url,
+                        unit: product.unit,
                       })}
                       onRemove={() => cart.updateQty(product.id, inCart - 1)}
                       onClick={() => setSelectedProduct(product)}
@@ -293,7 +294,13 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
                       onClick={() => {
                         const inCart = cart.items.find(i => i.id === selectedProduct.id)?.quantity || 0;
                         if (inCart === 0) {
-                          cart.addItem({ id: selectedProduct.id, name: selectedProduct.name, price: selectedProduct.price, image_url: selectedProduct.image_url });
+                          cart.addItem({ 
+                            id: selectedProduct.id, 
+                            name: selectedProduct.name, 
+                            price: selectedProduct.price, 
+                            image_url: selectedProduct.image_url,
+                            unit: selectedProduct.unit 
+                          });
                         } else {
                           cart.updateQty(selectedProduct.id, inCart + 1);
                         }
