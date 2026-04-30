@@ -4,7 +4,7 @@ import React from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { ResolvedThemeTokens } from "@/config/catalog-themes";
-import { Trash2, ShoppingBag } from "lucide-react";
+import { Trash2, ShoppingBag, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface CartItem {
@@ -20,6 +20,7 @@ interface PremiumCartSidebarProps {
   totalPrice: number;
   onRemove: (id: string) => void;
   onCheckout: () => void;
+  onCopy: () => void;
   tokens: ResolvedThemeTokens;
 }
 
@@ -28,6 +29,7 @@ export function PremiumCartSidebar({
   totalPrice,
   onRemove,
   onCheckout,
+  onCopy,
   tokens,
 }: PremiumCartSidebarProps) {
   if (items.length === 0) {
@@ -91,12 +93,23 @@ export function PremiumCartSidebar({
           </span>
         </div>
 
-        <Button 
-          onClick={onCheckout}
-          className={cn("w-full h-12 rounded-2xl font-bold text-lg shadow-lg shadow-[var(--pub-button)]/20 transition-all hover:scale-[1.02] active:scale-95", tokens.buttonBg, tokens.buttonText)}
-        >
-          Confirmar Pedido
-        </Button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Button 
+            variant="ghost"
+            onClick={onCopy}
+            className="h-12 rounded-2xl font-bold gap-2 text-muted-foreground hover:bg-[var(--pub-accent)]/10 hover:text-[var(--pub-accent)] transition-all"
+          >
+            <Copy className="h-4 w-4" />
+            Copiar pedido
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={onCheckout}
+            className={cn("h-12 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl transition-all active:scale-[0.98] border-2 border-[var(--pub-accent)] text-[var(--pub-accent)] bg-white hover:bg-[var(--pub-accent)] hover:text-white")}
+          >
+            Confirmar Pedido
+          </Button>
+        </div>
       </div>
     </div>
   );

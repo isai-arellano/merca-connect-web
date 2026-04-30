@@ -45,19 +45,32 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
     }))
     .filter((section) => section.products.length > 0);
 
+  const getOrderText = () => {
+    const businessName = catalog.business_name;
+    const itemsText = cart.items.map((item) => `- ${item.quantity}x ${item.name} ($${(item.price * item.quantity).toLocaleString()})`).join("\n");
+    return `🛒 *Pedido en ${businessName}*\n\nQuiero pedir estos artículos:\n\n${itemsText}\n\n*Total: $${cart.totalPrice.toLocaleString()}*`;
+  };
+
   const handleCheckout = () => {
     if (cart.isEmpty) return;
-    const businessName = catalog.business_name;
-    // Use the WhatsApp Business number (connected), fall back to business_info phone
     const phone = catalog.whatsapp_display_number || catalog.business_info?.phone;
     if (!phone) {
       toast({ title: "Error", description: "El negocio no tiene un número de WhatsApp configurado.", variant: "destructive" });
       return;
     }
-    const itemsText = cart.items.map((item) => `- ${item.quantity}x ${item.name} ($${(item.price * item.quantity).toLocaleString()})`).join("\n");
-    const text = `🛒 *Pedido en ${businessName}*\n\nQuiero pedir estos artículos:\n\n${itemsText}\n\n*Total: $${cart.totalPrice.toLocaleString()}*`;
+    const text = getOrderText();
     const cleanPhone = phone.replace(/\D/g, "");
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`, "_blank");
+  };
+
+  const handleCopy = () => {
+    if (cart.isEmpty) return;
+    const text = getOrderText();
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copiado",
+      description: "El pedido se ha copiado al portapapeles.",
+    });
   };
 
   return (
@@ -135,6 +148,7 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
           totalPrice={cart.totalPrice}
           onRemove={cart.removeItem}
           onCheckout={handleCheckout}
+          onCopy={handleCopy}
           tokens={tokens}
         />
       }
