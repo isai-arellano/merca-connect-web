@@ -7,7 +7,7 @@ import { apiClient, fetcher } from "@/lib/api-client";
 import { type ConversationDetail, type ConversationMessage, type PaymentTemplate } from "@/types/api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2, Send, Check, Download, Image as ImageIcon, Bot, User, Phone, CreditCard, FileText } from "lucide-react";
+import { Loader2, Send, Check, Download, Image as ImageIcon, Bot, User, Phone, CreditCard, FileText, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Popover,
@@ -15,6 +15,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { formatPhoneDisplay } from "@/lib/phoneUtils";
+import { CreateOrderPanel } from "@/components/inbox/CreateOrderPanel";
 
 interface ChatWindowProps {
     conversationId: string;
@@ -137,6 +138,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     const [paymentPopoverOpen, setPaymentPopoverOpen] = useState(false);
     const [sendingPaymentId, setSendingPaymentId] = useState<string | null>(null);
     const [sentPaymentId, setSentPaymentId] = useState<string | null>(null);
+    const [orderPanelOpen, setOrderPanelOpen] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -251,6 +253,7 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
     }
 
     return (
+        <>
         <div className="flex flex-col h-full w-full overflow-hidden bg-[#F0F2F5]">
 
             {/* ── Header ── */}
@@ -272,6 +275,18 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                     </div>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
+                    {/* Create Order button — visible when in handoff */}
+                    {isHandoff && (
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Crear pedido manual"
+                            onClick={() => setOrderPanelOpen(true)}
+                            className="h-8 w-8 rounded-full text-muted-foreground hover:text-[#1A3E35] hover:bg-[#1A3E35]/10 transition-colors"
+                        >
+                            <ShoppingBag className="h-4 w-4" />
+                        </Button>
+                    )}
                     <div className="flex items-center gap-2">
                             <span
                                 className={`flex items-center gap-1 max-w-[7.5rem] sm:max-w-none ${isHandoff ? "text-muted-foreground" : "text-emerald-700"}`}
@@ -493,5 +508,14 @@ export function ChatWindow({ conversationId }: ChatWindowProps) {
                 </div>
             </div>
         </div>
+
+        {/* Create Order Panel */}
+        <CreateOrderPanel
+            open={orderPanelOpen}
+            onClose={() => setOrderPanelOpen(false)}
+            customer={detailData?.customer}
+            conversationId={conversationId}
+        />
+        </>
     );
 }
