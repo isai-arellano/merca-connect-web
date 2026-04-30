@@ -1,69 +1,68 @@
 export default function MenuLoading() {
   return (
-    <div className="min-h-screen bg-[#FFF3EA]" aria-hidden>
-      <div className="mx-auto w-full max-w-[470px] px-3 py-4 sm:px-4 sm:py-6 space-y-4">
-        {/* Header skeleton */}
-        <div className="relative overflow-hidden rounded-3xl h-44 sm:h-52 bg-[#FFD4B8] animate-pulse">
-          <div className="absolute right-3 top-3 flex gap-2">
-            <div className="h-8 w-8 rounded-full bg-[#F2D8CA]" />
-            <div className="h-8 w-8 rounded-full bg-[#F2D8CA]" />
-            <div className="h-8 w-8 rounded-full bg-[#F2D8CA]" />
-          </div>
-          <div className="absolute bottom-4 left-4 flex items-end gap-3">
-            <div className="h-16 w-16 rounded-2xl bg-[#F2D8CA]" />
-            <div className="space-y-3 pb-1">
-              <div className="h-7 w-48 rounded-lg bg-[#F2D8CA]" />
-              <div className="h-4 w-28 rounded-md bg-[#E7CBC0]" />
-              <div className="flex gap-2">
-                <div className="h-6 w-24 rounded-full bg-[#EFD4C8]" />
-                <div className="h-6 w-20 rounded-full bg-[#EFD4C8]" />
-              </div>
+    <div className="min-h-screen bg-slate-50 py-4 sm:py-8 lg:py-12 px-4" aria-hidden>
+      <div className="container mx-auto max-w-4xl relative">
+        <div className="bg-white rounded-t-[2.5rem] overflow-hidden shadow-[0_32px_64px_-12px_rgba(0,0,0,0.05)]">
+          
+          {/* Banner Skeleton */}
+          <div className="relative h-48 sm:h-64 lg:h-80 bg-slate-200 animate-pulse rounded-b-[4.5rem]">
+            <div className="absolute top-6 right-6 flex gap-3">
+              <div className="h-10 w-10 rounded-full bg-white/40" />
+              <div className="h-10 w-10 rounded-full bg-white/40" />
             </div>
           </div>
-        </div>
 
-        {/* Description skeleton */}
-        <div className="h-12 rounded-xl bg-[#FFE8DA] animate-pulse" />
-
-        <div className="grid grid-cols-2 gap-2">
-          <div className="h-14 rounded-xl bg-[#FFE8DA] animate-pulse" />
-          <div className="h-14 rounded-xl bg-[#FFE8DA] animate-pulse" />
-        </div>
-
-        {/* Filter bar skeleton */}
-        <div className="space-y-3 mt-6">
-          <div className="h-10 rounded-xl bg-[#FFE8DA] animate-pulse" />
-          <div className="flex gap-2">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-8 w-20 rounded-full bg-[#FFE8DA] animate-pulse" />
-            ))}
-          </div>
-        </div>
-
-        {/* Menu list skeleton */}
-        <div className="mt-5 mx-auto max-w-2xl space-y-3">
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className="flex gap-4 rounded-2xl bg-[#FFFDFB] p-4 animate-pulse border border-[#F2DECF]"
-              style={{ animationDelay: `${i * 80}ms` }}
-            >
-              <div className="flex-1 space-y-2">
-                <div className="h-5 w-2/3 rounded-md bg-[#F0DCCF]" />
-                <div className="h-3 w-full rounded-md bg-[#F7E9E0]" />
-                <div className="h-3 w-4/5 rounded-md bg-[#F7E9E0]" />
-                <div className="flex items-center justify-between pt-2">
-                  <div className="h-6 w-16 rounded-md bg-[#FFDCC8]" />
-                  <div className="h-8 w-24 rounded-full bg-[#FFDCC8]" />
+          {/* Logo & Info Skeleton */}
+          <div className="px-4 sm:px-8 lg:px-12 -mt-12 sm:-mt-16 relative z-10">
+            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-4 sm:gap-6">
+              <div className="h-24 w-24 sm:h-32 sm:w-32 rounded-full bg-white p-2 shadow-xl animate-pulse">
+                <div className="w-full h-full rounded-full bg-slate-100" />
+              </div>
+              <div className="flex-1 space-y-3 pb-2 w-full sm:w-auto">
+                <div className="h-10 w-3/4 sm:w-1/2 rounded-xl bg-slate-200 animate-pulse" />
+                <div className="flex gap-2">
+                  <div className="h-6 w-24 rounded-full bg-slate-100 animate-pulse" />
+                  <div className="h-6 w-32 rounded-full bg-slate-100 animate-pulse" />
                 </div>
               </div>
-              <div className="h-24 w-24 shrink-0 rounded-xl bg-[#F7E9E0]" />
             </div>
-          ))}
+          </div>
+
+          <div className="px-4 sm:px-8 lg:px-12 py-10 space-y-10">
+            {/* Search & Categories Skeleton */}
+            <div className="space-y-6">
+              <div className="h-14 w-full rounded-2xl bg-slate-100 animate-pulse" />
+              <div className="flex gap-3 overflow-hidden">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-10 w-28 shrink-0 rounded-xl bg-slate-100 animate-pulse" />
+                ))}
+              </div>
+            </div>
+
+            {/* Grid Skeleton */}
+            <div className="space-y-8">
+              <div className="h-8 w-40 rounded-lg bg-slate-200 animate-pulse" />
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="rounded-2xl border border-slate-100 overflow-hidden space-y-3 pb-4 animate-pulse">
+                    <div className="aspect-square bg-slate-100" />
+                    <div className="px-3 space-y-2">
+                      <div className="h-4 w-3/4 rounded bg-slate-100" />
+                      <div className="h-6 w-1/2 rounded bg-slate-200" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="fixed bottom-4 left-1/2 h-14 w-[min(92vw,420px)] -translate-x-1/2 rounded-full bg-white/90 shadow-2xl animate-pulse" />
+        {/* Floating Cart Skeleton */}
+        <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-4 pb-4">
+          <div className="h-20 w-full max-w-4xl rounded-[2.5rem] bg-slate-200 animate-pulse shadow-2xl" />
+        </div>
       </div>
     </div>
   );
 }
+

@@ -228,6 +228,14 @@ function hexWithAlpha(hex: string, alpha: number): string {
   return `rgba(${red255},${green255},${blue255},${alpha})`;
 }
 
+function mixWithWhite(hex: string, amount: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  const mix = (c: number) => Math.round(c * amount + 255 * (1 - amount))
+    .toString(16)
+    .padStart(2, "0");
+  return `#${mix(r)}${mix(g)}${mix(b)}`;
+}
+
 function paletteToCssVars(palette: SemanticPalette): Record<string, string> {
   return {
     "--pub-page": palette.page,
@@ -252,34 +260,35 @@ function paletteToCssVars(palette: SemanticPalette): Record<string, string> {
 const THEME_CLASSES: CatalogThemeTokens = {
   pageBackground: "bg-[var(--pub-page)]",
   headerBg: "bg-gradient-to-br from-[var(--pub-header-from)] to-[var(--pub-header-to)]",
-  cardBackground: "bg-[var(--pub-surface)]",
+  cardBackground: "bg-white bg-[var(--pub-surface)]",
   filterBg:
-    "bg-[var(--pub-surface-muted)] border border-[color:var(--pub-border)]",
-  cartBg: "bg-[var(--pub-cart)]",
+    "bg-white bg-[var(--pub-surface-muted)] border border-[color:var(--pub-border)]",
+  cartBg: "bg-white bg-[var(--pub-cart)]",
   border: "border border-[color:var(--pub-border)]",
-  title: "text-[var(--pub-text)]",
-  subtitle: "text-[var(--pub-text-muted)]",
-  accent: "text-[var(--pub-accent)]",
+  title: "text-[color:var(--pub-text)]",
+  subtitle: "text-[color:var(--pub-text-muted)]",
+  accent: "text-[color:var(--pub-accent)]",
   badge:
-    "bg-[var(--pub-badge-bg)] text-[var(--pub-badge-fg)] border border-[color:var(--pub-border)]",
-  buttonBg: "bg-[var(--pub-button)]",
-  buttonText: "text-[var(--pub-on-button)]",
+    "bg-[var(--pub-badge-bg)] text-[color:var(--pub-badge-fg)] border border-[color:var(--pub-border)]",
+  buttonBg: "bg-[color:var(--pub-button)]",
+  buttonText: "text-[color:var(--pub-on-button)]",
   sectionBorder: "border-[color:var(--pub-section-border)]",
 };
 
-/** Fondos: blanco; el color va en tipografía, acentos e iconos (no al page). */
-const BG_PAGE = "#FFFFFF";
-const BG_RAIL = "#F5F5F5";
+/** Fondos estructurales tipo skeleton (página gris claro, tarjetas blancas) */
+const BG_PAGE = "#F4F4F5"; // zinc-100
+const BG_SURFACE = "#FFFFFF"; // tarjetas blancas para que resalten
+const BG_RAIL = "#E4E4E7"; // zinc-200 para filtros/carriles
 
 // ── Preset: neutro — página blanca, carril gris mínimo para filtros ─
 const defaultNeutralCatalogo: SemanticPalette = {
   page: BG_PAGE,
-  headerFrom: "#FFFFFF",
-  headerTo: "#E4E4E7",
-  surface: BG_PAGE,
+  headerFrom: BG_SURFACE,
+  headerTo: BG_PAGE,
+  surface: BG_SURFACE,
   surfaceMuted: BG_RAIL,
-  cart: BG_PAGE,
-  border: "rgba(24, 24, 27, 0.1)",
+  cart: BG_SURFACE,
+  border: "rgba(24, 24, 27, 0.08)",
   text: "#18181B",
   textMuted: "#3F3F46",
   accent: "#2563EB",
@@ -311,13 +320,13 @@ const defaultTheme: CatalogThemeDefinition = {
 
 // ── Peach — fondo blanco, acento naranja/terracota intenso ───────────
 const peachCatalogo: SemanticPalette = {
-  page: BG_PAGE,
+  page: "#FFF7ED", // orange-50
   headerFrom: "#FFFFFF",
-  headerTo: "#E7E5E4",
-  surface: BG_PAGE,
-  surfaceMuted: BG_RAIL,
-  cart: BG_PAGE,
-  border: "rgba(194, 65, 12, 0.15)",
+  headerTo: "#FFF7ED",
+  surface: "#FFFFFF",
+  surfaceMuted: "#FFEDD5", // orange-100
+  cart: "#FFFFFF",
+  border: "rgba(194, 65, 12, 0.1)",
   text: "#431407",
   textMuted: "#78716C",
   accent: "#EA580C",
@@ -336,13 +345,13 @@ const peachMenu: SemanticPalette = {
 
 // ── Ocean — fondo blanco, acento azul vivo ─────────────────────────
 const oceanCatalogo: SemanticPalette = {
-  page: BG_PAGE,
+  page: "#F0F9FF", // sky-50
   headerFrom: "#FFFFFF",
-  headerTo: "#E4E4E7",
-  surface: BG_PAGE,
-  surfaceMuted: BG_RAIL,
-  cart: BG_PAGE,
-  border: "rgba(3, 105, 161, 0.12)",
+  headerTo: "#F0F9FF",
+  surface: "#FFFFFF",
+  surfaceMuted: "#E0F2FE", // sky-100
+  cart: "#FFFFFF",
+  border: "rgba(3, 105, 161, 0.1)",
   text: "#0C4A6E",
   textMuted: "#475569",
   accent: "#0284C7",
@@ -399,13 +408,16 @@ export function generateCustomThemeTokens(
   const accentHex = primaryLuminance > 0.5 ? darken(primary, 0.1) : secondary;
   const neutralBorderRgba = "rgba(24, 24, 27, 0.1)";
 
+  // Fondo tintado sutilmente: mezcla 4% del color principal con blanco para un efecto de marca muy elegante y limpio.
+  const pageTint = mixWithWhite(primary, 0.04);
+
   const customPalette: SemanticPalette = {
-    page: BG_PAGE,
-    headerFrom: "#FFFFFF",
-    headerTo: primaryLuminance > 0.6 ? "#F4F4F5" : lighten(primary, 0.92),
-    surface: BG_PAGE,
-    surfaceMuted: BG_RAIL,
-    cart: BG_PAGE,
+    page: pageTint,
+    headerFrom: BG_SURFACE,
+    headerTo: mixWithWhite(primary, 0.08),
+    surface: BG_SURFACE,
+    surfaceMuted: mixWithWhite(primary, 0.12),
+    cart: BG_SURFACE,
     border: neutralBorderRgba,
     text: mainTextHex,
     textMuted: mutedTextHex,
