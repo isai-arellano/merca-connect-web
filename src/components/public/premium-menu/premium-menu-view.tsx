@@ -48,9 +48,10 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
   const handleCheckout = () => {
     if (cart.isEmpty) return;
     const businessName = catalog.business_name;
-    const phone = catalog.business_info?.phone;
+    // Use the WhatsApp Business number (connected), fall back to business_info phone
+    const phone = catalog.whatsapp_display_number || catalog.business_info?.phone;
     if (!phone) {
-      toast({ title: "Error", description: "El negocio no tiene un teléfono configurado.", variant: "destructive" });
+      toast({ title: "Error", description: "El negocio no tiene un número de WhatsApp configurado.", variant: "destructive" });
       return;
     }
     const itemsText = cart.items.map((item) => `- ${item.quantity}x ${item.name} ($${(item.price * item.quantity).toLocaleString()})`).join("\n");
@@ -63,6 +64,8 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
     <PremiumMenuLayout
       catalog={catalog}
       tokens={tokens}
+      cartOpen={cartOpen}
+      onCartClose={() => setCartOpen(false)}
       header={
         <PremiumHeader
           businessName={catalog.business_name}

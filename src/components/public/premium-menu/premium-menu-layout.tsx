@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { ResolvedThemeTokens } from "@/config/catalog-themes";
 import { PublicCatalogData } from "@/components/public/public-catalog-view";
 import { motion, AnimatePresence } from "framer-motion";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 interface PremiumMenuLayoutProps {
   catalog: PublicCatalogData;
@@ -15,6 +16,8 @@ interface PremiumMenuLayoutProps {
   cartSidebar: React.ReactNode;
   floatingCart: React.ReactNode;
   header: React.ReactNode;
+  cartOpen: boolean;
+  onCartClose: () => void;
 }
 
 export function PremiumMenuLayout({
@@ -25,6 +28,8 @@ export function PremiumMenuLayout({
   cartSidebar,
   floatingCart,
   header,
+  cartOpen,
+  onCartClose,
 }: PremiumMenuLayoutProps) {
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -73,6 +78,22 @@ export function PremiumMenuLayout({
         {/* The Cart handles its own fixed positioning */}
         {floatingCart}
       </div>
+
+      {/* Cart Sidebar Sheet */}
+      <Sheet open={cartOpen} onOpenChange={(open) => !open && onCartClose()}>
+        <SheetContent 
+          side="right" 
+          className="w-full sm:max-w-md p-0 rounded-l-[2rem] border-none"
+          style={tokens.cssVars as React.CSSProperties}
+        >
+          <SheetHeader className="px-6 pt-6 pb-4 border-b border-muted/20">
+            <SheetTitle className={cn("text-2xl font-black tracking-tight", tokens.title)}>Tu Carrito</SheetTitle>
+          </SheetHeader>
+          <div className="px-6 py-4">
+            {cartSidebar}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
