@@ -66,6 +66,7 @@ export const endpoints = {
     },
     orders: {
         list: `${API_URL}/api/v1/orders`,
+        create: `${API_URL}/api/v1/orders`,
         detail: (id: string) => `${API_URL}/api/v1/orders/${id}`,
         updateStatus: (id: string) => `${API_URL}/api/v1/orders/${id}/status`,
     },
