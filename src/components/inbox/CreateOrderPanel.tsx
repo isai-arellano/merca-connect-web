@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import useSWR from "swr";
+import useSWR, { mutate as globalMutate } from "swr";
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher } from "@/lib/api-client";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +14,14 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -54,6 +62,7 @@ interface CreateOrderPanelProps {
   onClose: () => void;
   customer: ConversationCustomer | null | undefined;
   conversationId: string;
+  onCreated?: () => void;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -69,11 +78,15 @@ export function CreateOrderPanel({
   onClose,
   customer,
   conversationId,
+  onCreated,
 }: CreateOrderPanelProps) {
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [notes, setNotes] = useState("");
+  const [fulfillmentType, setFulfillmentType] = useState("delivery");
+  const [paymentMethod, setPaymentMethod] = useState("pendiente");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Load product catalog
@@ -82,8 +95,7 @@ export function CreateOrderPanel({
   }>(open ? endpoints.products.list() : null, fetcher);
 
   // Load customer detail to get UUID id
-  const phoneKey =
-    customer?.phone_number || customer?.phone || null;
+  const phoneKey = customer?.phone_number || customer?.phone || null;
   const { data: customerDetail } = useSWR<{ id: string; name?: string; phone_number?: string }>(
     open && phoneKey ? endpoints.customers.detail(phoneKey) : null,
     fetcher
@@ -134,6 +146,16 @@ export function CreateOrderPanel({
     setCart((prev) => prev.filter((l) => l.product.id !== productId));
   }
 
+  function handleClose() {
+    setCart([]);
+    setNotes("");
+    setSearch("");
+    setFulfillmentType("delivery");
+    setPaymentMethod("pendiente");
+    setDeliveryAddress("");
+    onClose();
+  }
+
   // ── Submit ──────────────────────────────────────────────────────────────────
 
   async function handleSubmit() {
@@ -149,16 +171,27 @@ export function CreateOrderPanel({
       return;
     }
 
+    if (fulfillmentType === "delivery" && !deliveryAddress.trim()) {
+      toast({
+        title: "Dirección requerida",
+        description: "El tipo de entrega es domicilio — indica la dirección del cliente.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const payload = {
       customer_id: customerId,
       status: "pendiente",
       total: cartTotal,
-      notes: [
-        "checkout_source=inbox",
-        notes.trim() ? notes.trim() : null,
-      ]
-        .filter(Boolean)
-        .join("\n"),
+      notes: notes.trim() || null,
+      meta: {
+        fulfillment_type: fulfillmentType,
+        payment_method: paymentMethod,
+        checkout_source: "whatsapp_human",
+        delivery_address: fulfillmentType === "delivery" ? deliveryAddress || null : null,
+        conversation_id: conversationId,
+      },
       items: cart.map((l) => ({
         product_id: l.product.id,
         product_name: l.product.name,
@@ -170,15 +203,15 @@ export function CreateOrderPanel({
 
     setIsSubmitting(true);
     try {
-      await apiClient.post(endpoints.orders.list, payload);
+      await apiClient.post(endpoints.orders.create, payload);
+      // Invalidar el cache de la lista de pedidos para que el Kanban se actualice
+      await globalMutate(endpoints.orders.list);
       toast({
         title: "Pedido creado ✓",
         description: `${cart.length} producto${cart.length > 1 ? "s" : ""} — ${formatMXN(cartTotal)}`,
       });
-      setCart([]);
-      setNotes("");
-      setSearch("");
-      onClose();
+      onCreated?.();
+      handleClose();
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Error al crear el pedido";
@@ -192,7 +225,7 @@ export function CreateOrderPanel({
     customerDetail?.name || customer?.name || customer?.phone_number || "Cliente";
 
   return (
-    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
+    <Sheet open={open} onOpenChange={(v) => !v && handleClose()}>
       <SheetContent
         side="right"
         className="w-full sm:max-w-lg flex flex-col p-0 border-l border-border/60"
@@ -251,12 +284,8 @@ export function CreateOrderPanel({
                       className="flex items-center gap-3 rounded-xl border border-border/50 bg-background p-2.5 hover:border-[#1A3E35]/30 transition-colors"
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {product.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatMXN(product.price)}
-                        </p>
+                        <p className="text-sm font-medium truncate">{product.name}</p>
+                        <p className="text-xs text-muted-foreground">{formatMXN(product.price)}</p>
                       </div>
                       {inCart ? (
                         <div className="flex items-center gap-1.5 shrink-0">
@@ -291,55 +320,100 @@ export function CreateOrderPanel({
             )}
           </ScrollArea>
 
-          {/* Cart summary */}
+          {/* Cart summary + delivery details */}
           {cart.length > 0 && (
             <>
               <Separator />
-              <div className="px-4 pt-3 pb-2 shrink-0">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  Resumen del pedido
-                </p>
-                <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                  {cart.map((line) => (
-                    <div
-                      key={line.product.id}
-                      className="flex items-center gap-2 text-sm"
-                    >
-                      <span className="flex-1 truncate">{line.product.name}</span>
-                      <span className="text-muted-foreground shrink-0">
-                        ×{line.quantity}
-                      </span>
-                      <span className="font-medium shrink-0 min-w-[4rem] text-right">
-                        {formatMXN(line.product.price * line.quantity)}
-                      </span>
-                      <button
-                        onClick={() => removeLine(line.product.id)}
-                        className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+              <ScrollArea className="max-h-72 shrink-0">
+                <div className="px-4 pt-3 pb-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                    Resumen
+                  </p>
+                  <div className="space-y-1.5">
+                    {cart.map((line) => (
+                      <div key={line.product.id} className="flex items-center gap-2 text-sm">
+                        <span className="flex-1 truncate">{line.product.name}</span>
+                        <span className="text-muted-foreground shrink-0">×{line.quantity}</span>
+                        <span className="font-medium shrink-0 min-w-[4rem] text-right">
+                          {formatMXN(line.product.price * line.quantity)}
+                        </span>
+                        <button
+                          onClick={() => removeLine(line.product.id)}
+                          className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
 
-                {/* Notes */}
-                <div className="mt-3">
-                  <Input
-                    placeholder="Notas del pedido (opcional)"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="h-8 text-xs"
-                  />
+                  {/* Delivery details */}
+                  <div className="mt-4 space-y-3">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Detalles de entrega
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Tipo de entrega</Label>
+                        <Select value={fulfillmentType} onValueChange={setFulfillmentType}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="delivery">Domicilio</SelectItem>
+                            <SelectItem value="pickup">Recoger en tienda</SelectItem>
+                            <SelectItem value="in_store">En local</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Método de pago</Label>
+                        <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pendiente">Por definir</SelectItem>
+                            <SelectItem value="efectivo">Efectivo</SelectItem>
+                            <SelectItem value="transferencia">Transferencia</SelectItem>
+                            <SelectItem value="tarjeta">Tarjeta</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {fulfillmentType === "delivery" && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Dirección de entrega</Label>
+                        <Input
+                          placeholder="Calle, número, colonia, ciudad..."
+                          value={deliveryAddress}
+                          onChange={(e) => setDeliveryAddress(e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                      </div>
+                    )}
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">Notas (opcional)</Label>
+                      <Input
+                        placeholder="Instrucciones especiales..."
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </ScrollArea>
 
               {/* Footer */}
-              <div className="px-4 pb-5 pt-2 shrink-0 space-y-3">
+              <div className="px-4 pb-5 pt-3 shrink-0 border-t border-border/40 space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-semibold">Total</span>
-                  <span className="text-lg font-black text-[#1A3E35]">
-                    {formatMXN(cartTotal)}
-                  </span>
+                  <span className="text-lg font-black text-[#1A3E35]">{formatMXN(cartTotal)}</span>
                 </div>
                 <Button
                   className="w-full h-11 bg-[#1A3E35] hover:bg-[#1A3E35]/90 text-white font-bold rounded-xl gap-2 shadow-lg"
