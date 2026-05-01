@@ -29,6 +29,10 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
+  const [fulfillmentType, setFulfillmentType] = useState<"delivery" | "pickup">("delivery");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("efectivo");
+  const [notes, setNotes] = useState("");
 
   const cart = useCart(catalog.slug || "default");
   const { toast } = useToast();
@@ -47,8 +51,26 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
 
   const getOrderText = () => {
     const businessName = catalog.business_name;
-    const itemsText = cart.items.map((item) => `- ${item.quantity}x ${item.name} ($${(item.price * item.quantity).toLocaleString()})`).join("\n");
-    return `🛒 *Pedido en ${businessName}*\n\nQuiero pedir estos artículos:\n\n${itemsText}\n\n*Total: $${cart.totalPrice.toLocaleString()}*`;
+    const lines = cart.items
+      .map((item) => `• ${item.name} x${item.quantity} — $${(item.price * item.quantity).toLocaleString("es-MX", { minimumFractionDigits: 2 })}`)
+      .join("\n");
+    const fulfillmentLabel = fulfillmentType === "delivery" ? "Domicilio" : "Recoger en tienda";
+    const addressLine = fulfillmentType === "delivery" && deliveryAddress.trim()
+      ? `\n🏠 *Dirección:* ${deliveryAddress.trim()}`
+      : "";
+    const paymentLabel =
+      paymentMethod === "efectivo" ? "Efectivo" :
+      paymentMethod === "transferencia" ? "Transferencia SPEI" :
+      paymentMethod === "tarjeta" ? "Tarjeta" : paymentMethod;
+    const notesLine = notes.trim() ? `\n📝 *Notas:* ${notes.trim()}` : "";
+    return (
+      `🛒 *Pedido en ${businessName}*\n\n` +
+      `Quiero pedir estos artículos:\n\n${lines}\n\n` +
+      `📦 *Entrega:* ${fulfillmentLabel}${addressLine}\n` +
+      `💳 *Pago:* ${paymentLabel}` +
+      `${notesLine}\n\n` +
+      `*Total: $${cart.totalPrice.toLocaleString("es-MX", { minimumFractionDigits: 2 })}*`
+    );
   };
 
   const handleCheckout = () => {
@@ -150,6 +172,14 @@ export function PremiumMenuView({ catalog, tokens }: PremiumMenuViewProps) {
           onCheckout={handleCheckout}
           onCopy={handleCopy}
           tokens={tokens}
+          fulfillmentType={fulfillmentType}
+          onFulfillmentChange={setFulfillmentType}
+          deliveryAddress={deliveryAddress}
+          onDeliveryAddressChange={setDeliveryAddress}
+          paymentMethod={paymentMethod}
+          onPaymentMethodChange={setPaymentMethod}
+          notes={notes}
+          onNotesChange={setNotes}
         />
       }
       floatingCart={
