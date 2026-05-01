@@ -67,7 +67,7 @@ export function PremiumCartSidebar({
   return (
     <div className="flex flex-col h-full">
       {/* Lista de ítems */}
-      <div className="flex-1 space-y-4 max-h-[35vh] overflow-y-auto pr-2 no-scrollbar">
+      <div className="space-y-4 pr-2">
         {items.map((item) => (
           <div key={item.id} className="flex gap-3 items-center group">
             <div className="relative h-12 w-12 shrink-0 rounded-xl overflow-hidden bg-muted/50 border border-muted/20">

@@ -737,9 +737,8 @@ function CartDrawer({
 
         <Separator className="shrink-0" />
 
-        <div className="relative min-h-0 flex-1">
-          <ScrollArea className="h-full max-h-[min(70dvh,calc(100dvh-220px))]">
-            <div className="space-y-3 px-5 py-4 pr-3">
+        <div className="relative min-h-0 flex-1 overflow-y-auto">
+          <div className="space-y-3 px-5 py-4">
               {items.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 py-16 text-center">
                   <div className="rounded-full bg-muted/80 p-5">
@@ -891,8 +890,7 @@ function CartDrawer({
                 </>
               )}
             </div>
-          </ScrollArea>
-        </div>
+          </div>
 
         {items.length > 0 ? (
           <>
