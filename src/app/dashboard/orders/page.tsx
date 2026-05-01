@@ -26,6 +26,7 @@ import {
   ShoppingCart,
   ArrowUpDown,
   Eye,
+  Plus,
 } from "lucide-react";
 
 import {
@@ -62,6 +63,7 @@ import {
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { formatPhoneDisplay } from "@/lib/phoneUtils";
+import { CreateOrderDialog } from "@/components/orders/CreateOrderDialog";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -81,6 +83,15 @@ interface Customer {
   phone_number?: string;
 }
 
+interface OrderMeta {
+  fulfillment_type?: string;
+  payment_method?: string;
+  checkout_source?: string;
+  delivery_address?: string;
+  channel_id?: string;
+  conversation_id?: string;
+}
+
 interface Order {
   id: string;
   order_number?: string;
@@ -88,6 +99,7 @@ interface Order {
   total: number;
   delivery_address?: string;
   notes?: string;
+  order_meta?: OrderMeta;
   created_at: string;
   updated_at: string;
   items: OrderItem[];
@@ -190,52 +202,56 @@ function orderLabel(order: Order) {
 const FULFILLMENT_LABELS: Record<string, string> = {
   delivery: "Entrega a domicilio",
   pickup: "Recoger en tienda",
+  in_store: "En local / mostrador",
 };
+
 const PAYMENT_LABELS: Record<string, string> = {
   pendiente: "Por definir",
   efectivo: "Efectivo",
   transferencia: "Transferencia",
-  spei: "Transferencia SPEI",
   tarjeta: "Tarjeta",
 };
 
-function parseOrderNotes(raw: string): { label: string; value: string }[] {
-  const knownKeys: Record<string, string> = {
-    fulfillment_type: "Tipo de entrega",
-    payment_method: "Método de pago",
-    checkout_source: "Origen",
-    delivery_address: "Dirección",
-  };
-  const sourceLabels: Record<string, string> = {
-    chat: "Chat con agente",
-    whatsapp_flow: "WhatsApp Flow",
-  };
+const SOURCE_LABELS: Record<string, string> = {
+  whatsapp_agent: "Agente de WhatsApp",
+  whatsapp_human: "WhatsApp (vendedor)",
+  in_store: "En local / mostrador",
+  phone: "Por teléfono",
+  web_menu: "Menú web",
+  whatsapp_flow: "WhatsApp Flow",
+};
 
-  const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
-  const parsed: { label: string; value: string }[] = [];
-  const usedKeys = new Set<string>();
+interface ParsedOrderDetail {
+  label: string;
+  value: string;
+}
 
-  for (const line of lines) {
-    const eqIdx = line.indexOf("=");
-    if (eqIdx === -1) {
-      // línea libre sin clave=valor — mostrarla como nota
-      parsed.push({ label: "Nota", value: line });
-      continue;
-    }
-    const key = line.slice(0, eqIdx).trim();
-    const val = line.slice(eqIdx + 1).trim();
-    if (!knownKeys[key]) {
-      parsed.push({ label: key, value: val });
-      continue;
-    }
-    usedKeys.add(key);
-    let display = val;
-    if (key === "fulfillment_type") display = FULFILLMENT_LABELS[val] ?? val;
-    if (key === "payment_method") display = PAYMENT_LABELS[val.toLowerCase()] ?? val;
-    if (key === "checkout_source") display = sourceLabels[val] ?? val;
-    parsed.push({ label: knownKeys[key], value: display });
+/**
+ * Extrae los detalles del pedido desde order_meta (fuente canónica v2).
+ * Requiere order_meta completo — pedidos sin order_meta no muestran detalles.
+ */
+function parseOrderMeta(meta: OrderMeta | undefined | null): ParsedOrderDetail[] {
+  if (!meta) return [];
+
+  const rows: ParsedOrderDetail[] = [];
+
+  if (meta.checkout_source) {
+    rows.push({ label: "Origen", value: SOURCE_LABELS[meta.checkout_source] ?? meta.checkout_source });
   }
-  return parsed;
+
+  if (meta.fulfillment_type) {
+    rows.push({ label: "Tipo de entrega", value: FULFILLMENT_LABELS[meta.fulfillment_type] ?? meta.fulfillment_type });
+  }
+
+  if (meta.payment_method) {
+    rows.push({ label: "Método de pago", value: PAYMENT_LABELS[meta.payment_method] ?? meta.payment_method });
+  }
+
+  if (meta.fulfillment_type === "delivery" && meta.delivery_address) {
+    rows.push({ label: "Dirección", value: meta.delivery_address });
+  }
+
+  return rows;
 }
 
 function customerDisplay(order: Order) {
@@ -355,9 +371,9 @@ function OrderCard({
             </div>
           )}
 
-          {/* Notes */}
-          {order.notes && (() => {
-            const rows = parseOrderNotes(order.notes!);
+          {/* Order meta details */}
+          {(() => {
+            const rows = parseOrderMeta(order.order_meta);
             if (rows.length === 0) return null;
             return (
               <div className="text-[11px] text-amber-800 dark:text-amber-200 bg-amber-500/10 p-1.5 rounded border border-amber-500/20 space-y-0.5">
@@ -443,19 +459,6 @@ function OrderDetailDialog({
           )}
         </div>
 
-        {/* Delivery address */}
-        {order.delivery_address && (
-          <div className="space-y-1">
-            <h4 className="text-sm font-semibold text-foreground">
-              Dirección de entrega
-            </h4>
-            <p className="text-sm text-muted-foreground flex items-start gap-1">
-              <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-              {order.delivery_address}
-            </p>
-          </div>
-        )}
-
         <Separator />
 
         {/* Items */}
@@ -503,15 +506,16 @@ function OrderDetailDialog({
           </div>
         </div>
 
-        {/* Notes */}
-        {order.notes && (() => {
-          const rows = parseOrderNotes(order.notes!);
+        {/* Order meta details */}
+        {(() => {
+          const rows = parseOrderMeta(order.order_meta);
+          if (rows.length === 0) return null;
           return (
             <div className="space-y-1">
               <h4 className="text-sm font-semibold text-foreground">Detalles del pedido</h4>
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded p-2 space-y-1">
-                {rows.map((r, i) => (
-                  <div key={i} className="flex gap-2 text-sm">
+              <div className="bg-muted/40 border border-border/60 rounded p-2 space-y-1">
+                {rows.map((r) => (
+                  <div key={r.label} className="flex gap-2 text-sm">
                     <span className="text-muted-foreground shrink-0">{r.label}:</span>
                     <span className="text-foreground">{r.value}</span>
                   </div>
@@ -729,6 +733,7 @@ export default function OrdersPage() {
   const [view, setView] = useState<"kanban" | "table">("kanban");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [createOrderOpen, setCreateOrderOpen] = useState(false);
   const [sortKey, setSortKey] = useState("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -893,6 +898,16 @@ export default function OrdersPage() {
               className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
             />
           </Button>
+
+          {/* Nuevo Pedido */}
+          <Button
+            size="sm"
+            className="h-7 gap-1.5 bg-[#1A3E35] hover:bg-[#1A3E35]/90 text-white font-semibold"
+            onClick={() => setCreateOrderOpen(true)}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Nuevo Pedido
+          </Button>
         </div>
       </div>
 
@@ -976,6 +991,13 @@ export default function OrdersPage() {
         onStatusChange={handleStatusChange}
         itemsPlural={itemsPlural}
         productLabel={productLabel}
+      />
+
+      {/* Create order dialog */}
+      <CreateOrderDialog
+        open={createOrderOpen}
+        onOpenChange={setCreateOrderOpen}
+        onCreated={() => mutate()}
       />
     </div>
   );
