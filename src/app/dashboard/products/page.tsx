@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
     catalogModuleLower,
     catalogModuleTitle,
@@ -40,7 +41,7 @@ import { useSession } from "next-auth/react";
 import { ProductDialog, ProductDialogProduct } from "@/components/products/product-dialog";
 import { CategoriesManager } from "@/components/products/categories-manager";
 import { UnitsManager } from "@/components/products/units-manager";
-import { motion, Variants } from "framer-motion";
+import { motion, Variants, AnimatePresence } from "framer-motion";
 import useSWR from "swr";
 import { endpoints } from "@/lib/api";
 import { apiClient, fetcher, ApiError, NetworkError } from "@/lib/api-client";
@@ -125,6 +126,101 @@ function getRequestErrorMessage(error: unknown): string {
         return formatValidationDetail(error) || error.message || "No se pudo completar la solicitud.";
     }
     return "Ocurrió un error inesperado. Intenta nuevamente.";
+}
+
+function ProductListImageCarousel({ images, name }: { images: string[], name: string }) {
+    const [idx, setIdx] = useState(0);
+    const [largeIdx, setLargeIdx] = useState(0);
+
+    if (!images || images.length === 0) {
+        return (
+            <div className="w-20 h-20 rounded-lg bg-muted flex items-center justify-center text-muted-foreground text-xs shadow-sm">
+                —
+            </div>
+        );
+    }
+    const current = images[idx];
+    
+    return (
+        <Dialog onOpenChange={(open) => { if(open) setLargeIdx(0); }}>
+            <DialogTrigger asChild>
+                <button type="button" className="relative w-20 h-20 group rounded-lg border border-border overflow-hidden shadow-sm hover:ring-2 hover:ring-primary focus:outline-none transition-all">
+                    <Image src={current} alt={name} fill className="object-cover" sizes="80px" />
+                    {images.length > 1 && (
+                        <div className="absolute bottom-0 left-0 right-0 h-1.5 flex justify-center gap-[2px] bg-gradient-to-t from-black/50 to-transparent">
+                            {images.map((_, i) => (
+                                <div key={i} className={`h-1 w-1 rounded-full ${i === idx ? "bg-white" : "bg-white/40"}`} />
+                            ))}
+                        </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                        <Search className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
+                    </div>
+                </button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl bg-black border-none p-0 overflow-hidden text-white" aria-describedby={undefined}>
+                <DialogTitle className="sr-only">Imágenes de {name}</DialogTitle>
+                <DialogDescription className="sr-only">Galería de imágenes a tamaño completo</DialogDescription>
+                <div className="relative w-full aspect-square md:aspect-video bg-black flex items-center justify-center">
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={largeIdx}
+                            initial={{ opacity: 0, scale: 0.96 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 1.04 }}
+                            transition={{ duration: 0.25, ease: "easeOut" }}
+                            className="absolute inset-0"
+                        >
+                            <Image 
+                                src={images[largeIdx]} 
+                                alt={`${name} - imagen ${largeIdx + 1}`} 
+                                fill 
+                                className="object-contain" 
+                                sizes="(max-width: 768px) 100vw, 800px" 
+                                priority
+                            />
+                        </motion.div>
+                    </AnimatePresence>
+                    
+                    {images.length > 1 && (
+                        <>
+                            <button
+                                type="button"
+                                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center bg-black/40 hover:bg-black/70 text-white transition-colors backdrop-blur-sm"
+                                onClick={(e) => { e.stopPropagation(); setLargeIdx(i => (i === 0 ? images.length - 1 : i - 1)); }}
+                            >
+                                {"<"}
+                            </button>
+                            <button
+                                type="button"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center bg-black/40 hover:bg-black/70 text-white transition-colors backdrop-blur-sm"
+                                onClick={(e) => { e.stopPropagation(); setLargeIdx(i => (i === images.length - 1 ? 0 : i + 1)); }}
+                            >
+                                {">"}
+                            </button>
+                            
+                            <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 px-4">
+                                {images.map((_, i) => (
+                                    <button
+                                        key={i} 
+                                        type="button"
+                                        onClick={() => setLargeIdx(i)}
+                                        className={`h-1.5 rounded-full transition-all ${i === largeIdx ? "w-6 bg-white" : "w-1.5 bg-white/40 hover:bg-white/60"}`} 
+                                        aria-label={`Ver imagen ${i + 1}`}
+                                    />
+                                ))}
+                            </div>
+                        </>
+                    )}
+                    <div className="absolute top-4 left-4 right-12 flex items-start drop-shadow-md">
+                        <span className="bg-black/40 backdrop-blur-md px-3 py-1 rounded-full text-sm font-medium">
+                            {name} {images.length > 1 && <span className="opacity-70 ml-1 text-xs">({largeIdx + 1}/{images.length})</span>}
+                        </span>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
 }
 
 export default function ProductsPage() {
@@ -471,7 +567,17 @@ export default function ProductsPage() {
             </motion.div>
 
             <motion.div variants={itemVariants}>
-                <Card className="rounded-2xl border-border/60 shadow-sm">
+                <Tabs defaultValue="products">
+                    <TabsList className="mb-4 flex flex-wrap gap-2 h-auto py-1">
+                        <TabsTrigger value="products">{itemsPlural}</TabsTrigger>
+                        <TabsTrigger value="catalog">Personalización de Menú</TabsTrigger>
+                        <TabsTrigger value="disabled">Deshabilitados</TabsTrigger>
+                        <TabsTrigger value="categories">Categorías</TabsTrigger>
+                        <TabsTrigger value="units">Unidades</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="catalog" className="space-y-4">
+                        <Card className="rounded-2xl border-border/60 shadow-sm">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-base">{moduleTitle} público</CardTitle>
                         <CardDescription className="text-xs">
@@ -697,18 +803,9 @@ export default function ProductsPage() {
                         </Button>
                     </CardContent>
                 </Card>
-            </motion.div>
+            </TabsContent>
 
-            <motion.div variants={itemVariants}>
-                <Tabs defaultValue="products">
-                    <TabsList className="mb-4">
-                        <TabsTrigger value="products">{itemsPlural}</TabsTrigger>
-                        <TabsTrigger value="disabled">Deshabilitados</TabsTrigger>
-                        <TabsTrigger value="categories">Categorías</TabsTrigger>
-                        <TabsTrigger value="units">Unidades</TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="products" className="space-y-4">
+            <TabsContent value="products" className="space-y-4">
                         {productsError && (
                             <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                                 No se pudo cargar la lista de productos. {getRequestErrorMessage(productsError)}
@@ -742,7 +839,7 @@ export default function ProductsPage() {
                             <Table>
                                 <TableHeader className="bg-muted/50">
                                     <TableRow className="border-border">
-                                        <TableHead className="w-[50px]"></TableHead>
+                                        <TableHead className="w-[100px]"></TableHead>
                                         <TableHead>Nombre</TableHead>
                                         <TableHead>Categoría</TableHead>
                                         <TableHead>Tipo</TableHead>
@@ -769,19 +866,10 @@ export default function ProductsPage() {
                                         filteredProducts.map((product) => (
                                             <TableRow key={product.id} className="border-border hover:bg-muted/50 transition-colors">
                                                 <TableCell>
-                                                    {product.image_url ? (
-                                                        <Image
-                                                            src={product.image_url}
-                                                            alt={product.name}
-                                                            width={36}
-                                                            height={36}
-                                                            className="w-9 h-9 rounded-md object-cover border border-border"
-                                                        />
-                                                    ) : (
-                                                        <div className="w-9 h-9 rounded-md bg-muted flex items-center justify-center text-muted-foreground text-xs">
-                                                            —
-                                                        </div>
-                                                    )}
+                                                    <ProductListImageCarousel
+                                                        images={product.images && product.images.length > 0 ? product.images : (product.image_url ? [product.image_url] : [])}
+                                                        name={product.name}
+                                                    />
                                                 </TableCell>
                                                 <TableCell className="font-medium">{product.name}</TableCell>
                                                 <TableCell className="text-muted-foreground text-sm">

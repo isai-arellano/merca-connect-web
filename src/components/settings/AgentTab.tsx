@@ -28,6 +28,8 @@ interface BusinessSettings {
   config?: {
     agent_enabled?: boolean;
     welcome_message?: string;
+    min_order_amount?: number | null;
+    delivery_fee?: number | null;
   };
 }
 

@@ -214,13 +214,35 @@ function buildWhatsAppText(
   businessName: string,
   items: Array<{ name: string; quantity: number; price: number }>,
   total: number,
-  notes: string
+  opts: {
+    fulfillmentType: "delivery" | "pickup";
+    deliveryAddress: string;
+    paymentMethod: string;
+    notes: string;
+  }
 ): string {
   const lines = items
     .map((i) => `• ${i.name} x${i.quantity} — ${formatPrice(i.price * i.quantity)}`)
     .join("\n");
-  const notesLine = notes.trim() ? `\n\n📝 *Notas:* ${notes.trim()}` : "";
-  return `🛒 *Pedido en ${businessName}*\n\nQuiero pedir estos artículos, por favor:\n\n${lines}${notesLine}\n\n*Total: ${formatPrice(total)}*\n¿Me apoyas validando disponibilidad y siguiente paso para envío o recolección?`;
+
+  const fulfillmentLabel = opts.fulfillmentType === "delivery" ? "Domicilio" : "Recoger en tienda";
+  const addressLine = opts.fulfillmentType === "delivery" && opts.deliveryAddress.trim()
+    ? `\n🏠 *Dirección:* ${opts.deliveryAddress.trim()}`
+    : "";
+  const paymentLabel =
+    opts.paymentMethod === "efectivo" ? "Efectivo" :
+    opts.paymentMethod === "transferencia" ? "Transferencia SPEI" :
+    opts.paymentMethod === "tarjeta" ? "Tarjeta" : opts.paymentMethod;
+  const notesLine = opts.notes.trim() ? `\n📝 *Notas:* ${opts.notes.trim()}` : "";
+
+  return (
+    `🛒 *Pedido en ${businessName}*\n\n` +
+    `Quiero pedir estos artículos:\n\n${lines}\n\n` +
+    `📦 *Entrega:* ${fulfillmentLabel}${addressLine}\n` +
+    `💳 *Pago:* ${paymentLabel}` +
+    `${notesLine}\n\n` +
+    `*Total: ${formatPrice(total)}*`
+  );
 }
 
 // ─── CSS Variables (presets + custom) + tokens de UI globales en :root (Sheet portal) ─
@@ -656,10 +678,13 @@ function CartDrawer({
 }) {
   const [copied, setCopied] = useState(false);
   const [notes, setNotes] = useState("");
+  const [fulfillmentType, setFulfillmentType] = useState<"delivery" | "pickup">("delivery");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("efectivo");
 
   const orderText = useMemo(
-    () => buildWhatsAppText(businessName, items, totalPrice, notes),
-    [businessName, items, totalPrice, notes]
+    () => buildWhatsAppText(businessName, items, totalPrice, { fulfillmentType, deliveryAddress, paymentMethod, notes }),
+    [businessName, items, totalPrice, fulfillmentType, deliveryAddress, paymentMethod, notes]
   );
 
   const handleCopy = async () => {
@@ -712,9 +737,8 @@ function CartDrawer({
 
         <Separator className="shrink-0" />
 
-        <div className="relative min-h-0 flex-1">
-          <ScrollArea className="h-full max-h-[min(70dvh,calc(100dvh-220px))]">
-            <div className="space-y-3 px-5 py-4 pr-3">
+        <div className="relative min-h-0 flex-1 overflow-y-auto">
+          <div className="space-y-3 px-5 py-4">
               {items.length === 0 ? (
                 <div className="flex flex-col items-center gap-3 py-16 text-center">
                   <div className="rounded-full bg-muted/80 p-5">
@@ -790,23 +814,83 @@ function CartDrawer({
                     </Card>
                   ))}
 
-                  <div className="pt-1">
-                    <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">
-                      Notas / instrucciones especiales
-                    </label>
-                    <Textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Ej: sin cebolla, extra salsa…"
-                      rows={3}
-                      className="resize-none rounded-xl border-muted/80 bg-muted/30 text-sm"
-                    />
+                  {/* Detalles de entrega */}
+                  <div className="pt-2 space-y-3">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      Detalles de entrega
+                    </p>
+
+                    {/* Tipo de entrega */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["delivery", "pickup"] as const).map((type) => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => setFulfillmentType(type)}
+                          className={cn(
+                            "rounded-xl border-2 py-2.5 text-xs font-bold transition-all",
+                            fulfillmentType === type
+                              ? "border-[var(--pub-accent)] bg-[var(--pub-accent)]/10 text-[var(--pub-accent)]"
+                              : "border-muted/60 text-muted-foreground hover:border-[var(--pub-accent)]/40"
+                          )}
+                        >
+                          {type === "delivery" ? "🛵 Domicilio" : "🏪 Recoger"}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Dirección (solo domicilio) */}
+                    {fulfillmentType === "delivery" && (
+                      <input
+                        type="text"
+                        value={deliveryAddress}
+                        onChange={(e) => setDeliveryAddress(e.target.value)}
+                        placeholder="Calle, número, colonia, ciudad…"
+                        className="w-full rounded-xl border border-muted/80 bg-muted/30 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--pub-accent)]/30"
+                      />
+                    )}
+
+                    {/* Método de pago */}
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { value: "efectivo", label: "💵 Efectivo" },
+                        { value: "transferencia", label: "🏦 SPEI" },
+                        { value: "tarjeta", label: "💳 Tarjeta" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setPaymentMethod(opt.value)}
+                          className={cn(
+                            "rounded-xl border-2 py-2.5 text-xs font-bold transition-all",
+                            paymentMethod === opt.value
+                              ? "border-[var(--pub-accent)] bg-[var(--pub-accent)]/10 text-[var(--pub-accent)]"
+                              : "border-muted/60 text-muted-foreground hover:border-[var(--pub-accent)]/40"
+                          )}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Notas */}
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">
+                        Notas (opcional)
+                      </label>
+                      <Textarea
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="Ej: sin cebolla, extra salsa…"
+                        rows={2}
+                        className="resize-none rounded-xl border-muted/80 bg-muted/30 text-sm"
+                      />
+                    </div>
                   </div>
                 </>
               )}
             </div>
-          </ScrollArea>
-        </div>
+          </div>
 
         {items.length > 0 ? (
           <>

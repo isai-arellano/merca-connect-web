@@ -66,8 +66,10 @@ export const endpoints = {
     },
     orders: {
         list: `${API_URL}/api/v1/orders`,
+        create: `${API_URL}/api/v1/orders`,
         detail: (id: string) => `${API_URL}/api/v1/orders/${id}`,
         updateStatus: (id: string) => `${API_URL}/api/v1/orders/${id}/status`,
+        agentCart: (phone: string) => `${API_URL}/api/v1/orders/cart/${encodeURIComponent(phone)}`,
     },
     customers: {
         list: `${API_URL}/api/v1/customers`,

@@ -29,6 +29,7 @@ import {
   Lock,
   AlertTriangle,
   Link2,
+  Package,
 } from "lucide-react";
 
 import { endpoints } from "@/lib/api";
@@ -326,6 +327,9 @@ function SettingsPageInner() {
     slug: "",
   });
   const [slugError, setSlugError] = useState<string | null>(null);
+  const catalogPrefix = ["restaurante", "restaurant", "cafeteria", "cafetería", "dark_kitchen", "pasteleria", "panaderia"].includes(
+    (businessForm.type || "").toLowerCase()
+  ) ? "/m/" : "/c/";
 
   // Social links state
   const [socialForm, setSocialForm] = useState({
@@ -343,6 +347,9 @@ function SettingsPageInner() {
   const [deliveryZone, setDeliveryZone] = useState("");
   const [contactPhoneNumber, setContactPhoneNumber] = useState("");
   const [allowOrdersOutsideHours, setAllowOrdersOutsideHours] = useState(false);
+  const [minOrderAmount, setMinOrderAmount] = useState<string>("");
+  const [deliveryFee, setDeliveryFee] = useState<string>("");
+  const [savingDelivery, setSavingDelivery] = useState(false);
 
   // Modal de advertencia por cambio de vista (catalogo ↔ menu)
   const [industryWarning, setIndustryWarning] = useState<{ pendingType: string; pendingLabel: string } | null>(null);
@@ -379,6 +386,8 @@ function SettingsPageInner() {
         setDeliveryZone(cfg.delivery_zone);
       }
       setAllowOrdersOutsideHours(!!cfg.allow_orders_outside_hours);
+      setMinOrderAmount(cfg.min_order_amount != null ? String(cfg.min_order_amount) : "");
+      setDeliveryFee(cfg.delivery_fee != null ? String(cfg.delivery_fee) : "");
       setContactPhoneNumber(getPhoneDigits(settings.phone || "").slice(-10));
       setSocialForm({
         website: settings.social?.website || "",
@@ -516,6 +525,29 @@ function SettingsPageInner() {
       }
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveDelivery = async () => {
+    if (savingDelivery) return;
+    setSavingDelivery(true);
+    try {
+      const minVal = minOrderAmount.trim() ? parseFloat(minOrderAmount) : null;
+      const feeVal = deliveryFee.trim() ? parseFloat(deliveryFee) : null;
+      if ((minOrderAmount.trim() && isNaN(minVal!)) || (deliveryFee.trim() && isNaN(feeVal!))) {
+        toast({ title: "Valores inválidos", description: "Ingresa números válidos.", variant: "destructive" });
+        return;
+      }
+      await apiClient.patch(endpoints.business.agentConfig, {
+        min_order_amount: minVal,
+        delivery_fee: feeVal,
+      });
+      mutateSettings();
+      toast({ title: "Configuración de entrega guardada" });
+    } catch {
+      toast({ title: "Error al guardar", description: "No se pudo actualizar. Inténtalo de nuevo.", variant: "destructive" });
+    } finally {
+      setSavingDelivery(false);
     }
   };
 
@@ -895,7 +927,7 @@ function SettingsPageInner() {
                           </Label>
                           <div className="flex items-center gap-0 rounded-lg border border-border/80 overflow-hidden focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1">
                             <span className="bg-muted/50 px-3 py-2 text-xs text-muted-foreground select-none border-r border-border/60">
-                              /c/
+                              {catalogPrefix}
                             </span>
                             <input
                               id="biz-slug"
@@ -918,7 +950,7 @@ function SettingsPageInner() {
                           ) : (
                             <p className="text-xs text-muted-foreground">
                               {businessForm.slug
-                                ? <>URL pública: <span className="font-mono text-foreground">/c/{businessForm.slug}</span></>
+                                ? <>URL pública: <span className="font-mono text-foreground">{catalogPrefix}{businessForm.slug}</span></>
                                 : "Si lo dejas vacío, se genera automáticamente desde el nombre del negocio."}
                             </p>
                           )}
@@ -1049,8 +1081,11 @@ function SettingsPageInner() {
                               <Input
                                 id="social-instagram"
                                 value={socialForm.instagram}
-                                onChange={(e) => setSocialForm((prev) => ({ ...prev, instagram: e.target.value }))}
-                                placeholder="@tunegocio"
+                                onChange={(e) => {
+                                  const val = e.target.value.split("/").pop()?.replace("@", "") || "";
+                                  setSocialForm((prev) => ({ ...prev, instagram: val }));
+                                }}
+                                placeholder="usuario"
                               />
                             </div>
                             <div className="space-y-1.5">
@@ -1061,8 +1096,11 @@ function SettingsPageInner() {
                               <Input
                                 id="social-facebook"
                                 value={socialForm.facebook}
-                                onChange={(e) => setSocialForm((prev) => ({ ...prev, facebook: e.target.value }))}
-                                placeholder="@tunegocio o URL"
+                                onChange={(e) => {
+                                  const val = e.target.value.split("/").pop() || "";
+                                  setSocialForm((prev) => ({ ...prev, facebook: val }));
+                                }}
+                                placeholder="usuario"
                               />
                             </div>
                             <div className="space-y-1.5">
@@ -1073,8 +1111,11 @@ function SettingsPageInner() {
                               <Input
                                 id="social-tiktok"
                                 value={socialForm.tiktok}
-                                onChange={(e) => setSocialForm((prev) => ({ ...prev, tiktok: e.target.value }))}
-                                placeholder="@tunegocio"
+                                onChange={(e) => {
+                                  const val = e.target.value.split("/").pop()?.replace("@", "") || "";
+                                  setSocialForm((prev) => ({ ...prev, tiktok: val }));
+                                }}
+                                placeholder="usuario"
                               />
                             </div>
                             <div className="space-y-1.5 sm:col-span-2">
@@ -1094,6 +1135,62 @@ function SettingsPageInner() {
                         </div>
 
                         <Separator />
+
+                        {/* Entrega y pedidos */}
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <Package className="h-5 w-5 text-emerald-500" />
+                              Entrega y pedidos
+                            </CardTitle>
+                            <CardDescription>
+                              El agente usará estos valores para informar al cliente y validar pedidos antes de confirmarlos.
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-1.5">
+                                <Label htmlFor="min-order">Monto mínimo de pedido ($)</Label>
+                                <Input
+                                  id="min-order"
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  placeholder="Ej: 150"
+                                  value={minOrderAmount}
+                                  onChange={(e) => setMinOrderAmount(e.target.value)}
+                                />
+                                <p className="text-xs text-muted-foreground">Dejar vacío si no hay mínimo</p>
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label htmlFor="delivery-fee">Costo de envío ($)</Label>
+                                <Input
+                                  id="delivery-fee"
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  placeholder="Ej: 30"
+                                  value={deliveryFee}
+                                  onChange={(e) => setDeliveryFee(e.target.value)}
+                                />
+                                <p className="text-xs text-muted-foreground">Dejar vacío si el envío es gratis</p>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={handleSaveDelivery}
+                              disabled={savingDelivery}
+                              className="gap-1.5"
+                            >
+                              {savingDelivery ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Save className="h-3.5 w-3.5" />
+                              )}
+                              Guardar configuración de entrega
+                            </Button>
+                          </CardContent>
+                        </Card>
 
                         <div className="flex items-center justify-between">
                           {saveError && activeTab === "negocio" ? (
