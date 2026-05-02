@@ -42,6 +42,24 @@ export const SELL_TYPE_LABELS: Record<SellType, string> = {
     digital: "Productos digitales",
 };
 
+// Código de país devuelto por GET /api/v1/country-codes
+export interface CountryCode {
+    iso2: string;
+    name: string;
+    dial_code: string;
+    flag_emoji: string;
+    sort_order: number;
+}
+
+// País por defecto — México. Se usa como fallback mientras carga la lista del API.
+export const DEFAULT_COUNTRY: CountryCode = {
+    iso2: "MX",
+    name: "México",
+    dial_code: "52",
+    flag_emoji: "🇲🇽",
+    sort_order: 1,
+};
+
 // Estado completo del formulario de registro (todos los pasos)
 export interface RegisterFormState {
     // Paso 1
@@ -62,8 +80,9 @@ export interface RegisterFormState {
     sellModes: SellMode[];
     sellType: SellType | null;
 
-    // Paso 5
-    phone: string;
+    // Paso 5 — teléfono separado en código de país + número local
+    phoneCountry: CountryCode;
+    phoneNumber: string; // solo los dígitos locales, sin código de país
 }
 
 export const INITIAL_FORM_STATE: RegisterFormState = {
@@ -77,5 +96,6 @@ export const INITIAL_FORM_STATE: RegisterFormState = {
     customIndustry: "",
     sellModes: [],
     sellType: null,
-    phone: "",
+    phoneCountry: DEFAULT_COUNTRY,
+    phoneNumber: "",
 };
