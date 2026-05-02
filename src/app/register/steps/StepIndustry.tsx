@@ -4,8 +4,35 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, ArrowLeft } from "lucide-react";
-import { INDUSTRIES, RegisterFormState } from "@/types/registration";
+import {
+    AlertCircle,
+    ArrowLeft,
+    UtensilsCrossed,
+    Coffee,
+    ShoppingBag,
+    Shirt,
+    Laptop,
+    Sofa,
+    Sparkles,
+    Wrench,
+    Car,
+    PenLine,
+    type LucideIcon,
+} from "lucide-react";
+import { INDUSTRIES, RegisterFormState, type Industry } from "@/types/registration";
+
+const INDUSTRY_ICONS: Record<string, LucideIcon> = {
+    restaurant: UtensilsCrossed,
+    cafe: Coffee,
+    store: ShoppingBag,
+    fashion: Shirt,
+    tech: Laptop,
+    home: Sofa,
+    spa: Sparkles,
+    services: Wrench,
+    auto: Car,
+    other: PenLine,
+};
 
 interface Props {
     form: RegisterFormState;
@@ -54,6 +81,7 @@ export function StepIndustry({ form, updateForm, onNext, onBack }: Props) {
             <div className="grid grid-cols-2 gap-2">
                 {INDUSTRIES.map((industry) => {
                     const isSelected = form.selectedIndustry?.id === industry.id;
+                    const Icon = INDUSTRY_ICONS[industry.id] ?? PenLine;
                     return (
                         <button
                             key={industry.id}
@@ -68,7 +96,7 @@ export function StepIndustry({ form, updateForm, onNext, onBack }: Props) {
                                 }
                             `}
                         >
-                            <span className="text-2xl">{industry.icon}</span>
+                            <Icon className={`h-5 w-5 ${isSelected ? "text-[#1A3E35]" : "text-muted-foreground"}`} />
                             <span className="leading-tight">{industry.label}</span>
                         </button>
                     );
