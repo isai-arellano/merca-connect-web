@@ -19,6 +19,10 @@ export function getServerApiBaseUrl(): string {
 }
 
 export const endpoints = {
+    /** Endpoints públicos — sin autenticación, usados en onboarding y páginas públicas */
+    public: {
+        countryCodes: `${API_URL}/api/v1/country-codes`,
+    },
     auth: {
         login: `${API_URL}/api/v1/auth/login`,
         changePassword: `${API_URL}/api/v1/auth/change-password`,

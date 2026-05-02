@@ -66,7 +66,8 @@ export default function OnboardingFlow() {
                 industry,
                 sell_modes: form.sellModes,
                 sell_type: form.sellType,
-                phone: form.phone,
+                // Construye el número completo: +52 + 5512345678
+                phone: `+${form.phoneCountry.dial_code}${form.phoneNumber.trim().replace(/\s/g, "").replace(/-/g, "")}`,
             };
 
             const res = await fetch(endpoints.auth.completeProfile, {
