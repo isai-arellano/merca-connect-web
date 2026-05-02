@@ -208,6 +208,7 @@ export default function OnboardingFlow() {
                                 {step === 4 && (
                                     <StepPhone
                                         form={form}
+                                        updateForm={updateForm}
                                         onBack={goBack}
                                         onSubmit={handleFinalSubmit}
                                         isSubmitting={isSubmitting}
