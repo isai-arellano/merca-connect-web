@@ -69,7 +69,6 @@ export default function RegisterFlow() {
                 sell_modes: form.sellModes,
                 sell_type: form.sellType,
                 phone: form.phone,
-                catalog_public: form.catalogPublic,
             };
 
             const res = await fetch(endpoints.auth.register, {
@@ -220,7 +219,6 @@ export default function RegisterFlow() {
                                 {step === 5 && (
                                     <StepPhone
                                         form={form}
-                                        updateForm={updateForm}
                                         onBack={goBack}
                                         onSubmit={handleFinalSubmit}
                                         isSubmitting={isSubmitting}

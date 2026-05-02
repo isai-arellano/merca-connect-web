@@ -67,7 +67,6 @@ export default function OnboardingFlow() {
                 sell_modes: form.sellModes,
                 sell_type: form.sellType,
                 phone: form.phone,
-                catalog_public: form.catalogPublic,
             };
 
             const res = await fetch(endpoints.auth.completeProfile, {
@@ -209,7 +208,6 @@ export default function OnboardingFlow() {
                                 {step === 4 && (
                                     <StepPhone
                                         form={form}
-                                        updateForm={updateForm}
                                         onBack={goBack}
                                         onSubmit={handleFinalSubmit}
                                         isSubmitting={isSubmitting}

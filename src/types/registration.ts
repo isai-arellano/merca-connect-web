@@ -65,7 +65,6 @@ export interface RegisterFormState {
 
     // Paso 5
     phone: string;
-    catalogPublic: boolean;
 }
 
 export const INITIAL_FORM_STATE: RegisterFormState = {
@@ -80,5 +79,4 @@ export const INITIAL_FORM_STATE: RegisterFormState = {
     sellModes: [],
     sellType: null,
     phone: "",
-    catalogPublic: true,
 };
