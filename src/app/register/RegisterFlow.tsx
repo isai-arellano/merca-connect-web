@@ -219,6 +219,7 @@ export default function RegisterFlow() {
                                 {step === 5 && (
                                     <StepPhone
                                         form={form}
+                                        updateForm={updateForm}
                                         onBack={goBack}
                                         onSubmit={handleFinalSubmit}
                                         isSubmitting={isSubmitting}

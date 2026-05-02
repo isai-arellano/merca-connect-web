@@ -9,6 +9,7 @@ import { RegisterFormState } from "@/types/registration";
 
 interface Props {
     form: RegisterFormState;
+    updateForm: (partial: Partial<RegisterFormState>) => void;
     onBack: () => void;
     onSubmit: () => Promise<void>;
     isSubmitting: boolean;
@@ -17,6 +18,7 @@ interface Props {
 
 export function StepPhone({
     form,
+    updateForm,
     onBack,
     onSubmit,
     isSubmitting,
