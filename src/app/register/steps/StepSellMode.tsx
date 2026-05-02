@@ -18,7 +18,7 @@ interface Props {
     onBack: () => void;
 }
 
-const SELL_MODES: SellMode[] = ["delivery", "pickup", "digital", "info_only"];
+const SELL_MODES: SellMode[] = ["delivery", "pickup", "digital"];
 const SELL_TYPES: SellType[] = ["physical", "service", "both", "digital"];
 
 export function StepSellMode({ form, updateForm, onNext, onBack }: Props) {

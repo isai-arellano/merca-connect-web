@@ -4,7 +4,7 @@
  */
 
 export type BusinessType = "restaurant" | "store" | "service" | "store_service";
-export type SellMode = "delivery" | "pickup" | "digital" | "info_only";
+export type SellMode = "delivery" | "pickup" | "digital";
 export type SellType = "physical" | "service" | "both" | "digital";
 
 export interface Industry {
@@ -33,7 +33,6 @@ export const SELL_MODE_LABELS: Record<SellMode, string> = {
     delivery: "A domicilio / Delivery",
     pickup: "En mi local / Pickup",
     digital: "En línea / Digital",
-    info_only: "Solo información (no vendo directo aún)",
 };
 
 export const SELL_TYPE_LABELS: Record<SellType, string> = {
