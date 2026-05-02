@@ -1,6 +1,8 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { endpoints } from "./api";
+import GoogleProvider from "next-auth/providers/google";
+import { API_URL, endpoints } from "./api";
+import type { UserRole } from "@/types/next-auth";
 
 interface LoginResponse {
     access_token?: string;
@@ -14,8 +16,26 @@ interface LoginResponse {
     };
 }
 
+interface GoogleAuthResponse {
+    access_token: string;
+    token_type: string;
+    needs_onboarding: boolean;
+    user?: {
+        id: string;
+        name?: string | null;
+        email?: string | null;
+        business_id?: string | null;
+        business_name?: string | null;
+        role?: string | null;
+    } | null;
+}
+
 export const authOptions: NextAuthOptions = {
     providers: [
+        GoogleProvider({
+            clientId: process.env.GOOGLE_CLIENT_ID!,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+        }),
         CredentialsProvider({
             name: "Credentials",
             credentials: {
@@ -57,9 +77,10 @@ export const authOptions: NextAuthOptions = {
                         accessToken,
                         businessId: user.business_id ?? null,
                         businessName: user.business_name ?? null,
-                        role: user.role ?? "operator",
+                        role: (user.role ?? "operator") as UserRole,
+                        needsOnboarding: false,
                     };
-                } catch (e) {
+                } catch {
                     return null;
                 }
             },
@@ -67,9 +88,46 @@ export const authOptions: NextAuthOptions = {
     ],
     session: {
         strategy: "jwt",
-        maxAge: 24 * 60 * 60, // 24 hours
+        maxAge: 24 * 60 * 60, // 24 horas
     },
     callbacks: {
+        async signIn({ user, account }) {
+            // Solo interceptar el flujo de Google — intercambia el id_token con el backend
+            if (account?.provider === "google" && account.id_token) {
+                try {
+                    const res = await fetch(`${API_URL}/api/v1/auth/google`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ id_token: account.id_token }),
+                    });
+
+                    if (!res.ok) return false;
+
+                    const data: GoogleAuthResponse = await res.json();
+
+                    // Inyectar los datos del backend en el objeto user de NextAuth
+                    // Estos llegan al callback jwt() en el campo `user`
+                    user.accessToken = data.access_token;
+                    user.needsOnboarding = data.needs_onboarding;
+
+                    if (data.user) {
+                        user.id = data.user.id;
+                        user.businessId = data.user.business_id ?? null;
+                        user.businessName = data.user.business_name ?? null;
+                        user.role = (data.user.role ?? "owner") as UserRole;
+                    } else {
+                        user.businessId = null;
+                        user.businessName = null;
+                        user.role = "owner";
+                    }
+                } catch {
+                    return false;
+                }
+            }
+
+            return true;
+        },
+
         async jwt({ token, user }) {
             // Primera vez que el usuario hace login — guardar campos custom
             if (user) {
@@ -77,7 +135,8 @@ export const authOptions: NextAuthOptions = {
                 token.businessId = user.businessId ?? null;
                 token.businessName = user.businessName ?? null;
                 token.role = user.role ?? "operator";
-                // Guardar timestamp de expiración (maxAge desde ahora)
+                token.needsOnboarding = user.needsOnboarding ?? false;
+                // Timestamp de expiración (maxAge desde ahora)
                 token.expiresAt = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
             }
 
@@ -88,6 +147,7 @@ export const authOptions: NextAuthOptions = {
 
             return token;
         },
+
         async session({ session, token }) {
             // Propagar error de expiración al cliente
             if (token.error === "TokenExpired") {
@@ -99,11 +159,14 @@ export const authOptions: NextAuthOptions = {
                 id: token.sub,
                 businessId: token.businessId ?? null,
                 businessName: token.businessName ?? null,
+                role: token.role ?? "operator",
+                needsOnboarding: token.needsOnboarding ?? false,
             };
             session.accessToken = token.accessToken;
             session.businessId = token.businessId ?? null;
             session.businessName = token.businessName ?? null;
             session.role = token.role ?? "operator";
+            session.needsOnboarding = token.needsOnboarding ?? false;
 
             return session;
         },

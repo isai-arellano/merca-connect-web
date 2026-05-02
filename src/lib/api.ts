@@ -22,6 +22,13 @@ export const endpoints = {
     auth: {
         login: `${API_URL}/api/v1/auth/login`,
         changePassword: `${API_URL}/api/v1/auth/change-password`,
+        register: `${API_URL}/api/v1/auth/register`,
+        sendOtp: `${API_URL}/api/v1/auth/send-otp`,
+        verifyEmail: `${API_URL}/api/v1/auth/verify-email`,
+        resendOtp: `${API_URL}/api/v1/auth/resend-otp`,
+        google: `${API_URL}/api/v1/auth/google`,
+        completeProfile: `${API_URL}/api/v1/auth/complete-profile`,
+        checkSlug: (slug: string) => `${API_URL}/api/v1/auth/check-slug?slug=${encodeURIComponent(slug)}`,
     },
     categories: {
         list: `${API_URL}/api/v1/categories`,
